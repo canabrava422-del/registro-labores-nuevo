@@ -76,6 +76,14 @@
   .verify-table .td-label{color:var(--texto-suave);font-weight:600;width:55%;}
   .verify-table .td-val{font-weight:700;color:var(--azul-oscuro);}
   .verify-empty{text-align:center;color:var(--texto-suave);padding:14px;font-size:0.78rem;}
+  .pp-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .pp-table{width:100%;border-collapse:collapse;font-size:0.72rem;min-width:520px;}
+  .pp-table th{background:var(--fondo);padding:6px 6px;text-align:center;font-size:0.62rem;color:var(--texto-suave);border-bottom:1.5px solid var(--borde);}
+  .pp-table td{padding:5px;border-bottom:1px solid var(--borde);text-align:center;}
+  .pp-table tfoot td{font-weight:700;color:var(--azul-oscuro);background:var(--verde-menta);}
+  .pp-parcela{font-weight:700;color:var(--azul-oscuro);}
+  .pp-input{width:64px;padding:5px;font-size:0.72rem;border:1px solid var(--borde);border-radius:6px;text-align:center;}
+  .pp-total{font-weight:700;color:var(--verde);}
 </style>
 </head>
 <body>
@@ -305,6 +313,12 @@ function calcEdadDias(eq, tr){
   return Math.round((hoy - fc) / 86400000);
 }
 
+const HA_PARCELA_MAP = {"EQ09-TR01-001":3.44,"EQ09-TR01-002":3.44,"EQ09-TR01-003":3.44,"EQ09-TR01-004":3.44,"EQ09-TR01-005":3.5,"EQ09-TR01-006":3.48,"EQ09-TR01-007":3.44,"EQ09-TR01-008":3.44,"EQ09-TR01-009":3.44,"EQ09-TR01-010":3.44,"EQ09-TR02-011":3.44,"EQ09-TR02-012":3.44,"EQ09-TR02-013":3.44,"EQ09-TR02-014":3.44,"EQ09-TR02-015":3.5,"EQ09-TR02-016":3.5,"EQ09-TR02-017":3.44,"EQ09-TR02-018":3.44,"EQ09-TR02-019":3.44,"EQ09-TR02-020":3.44,"EQ09-TR03-021":3.44,"EQ09-TR03-022":3.44,"EQ09-TR03-023":3.44,"EQ09-TR03-024":3.44,"EQ09-TR03-025":3.5,"EQ09-TR03-026":3.5,"EQ09-TR03-027":3.44,"EQ09-TR03-028":3.44,"EQ09-TR03-029":3.44,"EQ09-TR03-030":3.44,"EQ09-TR04-031":4.27,"EQ09-TR04-032":4.32,"EQ09-TR04-033":4.27,"EQ09-TR04-034":4.27,"EQ09-TR04-035":4.32,"EQ09-TR04-036":4.27,"EQ09-TR04-037":4.27,"EQ09-TR04-038":4.32,"EQ09-TR04-039":4.28,"EQ09-TR04-040":4.12,"EQ09-TR04-041":0.27,"EQ09-TR05-042":3.01,"EQ09-TR05-043":3.48,"EQ09-TR05-044":0.69,"EQ09-TR05-045":3.5,"EQ09-TR05-046":2.05,"EQ09-TR05-047":3.5,"EQ09-TR05-048":3.21,"EQ09-TR05-049":3.5,"EQ09-TR05-050":3.46,"EQ09-TR05-051":0.85,"EQ09-TR05-052":3.5,"EQ09-TR05-053":3.46,"EQ09-TR05-054":2.09,"EQ10-TR01-001":2.23,"EQ10-TR01-002":3.44,"EQ10-TR01-003":3.44,"EQ10-TR01-004":3.5,"EQ10-TR01-005":3.44,"EQ10-TR01-006":3.44,"EQ10-TR01-007":3.5,"EQ10-TR01-008":3.5,"EQ10-TR01-009":3.48,"EQ10-TR01-010":3.48,"EQ10-TR01-011":3.5,"EQ10-TR01-012":3.5,"EQ10-TR02-013":3.5,"EQ10-TR02-014":3.5,"EQ10-TR02-015":3.5,"EQ10-TR02-016":3.5,"EQ10-TR02-017":3.5,"EQ10-TR02-018":3.5,"EQ10-TR02-019":2.87,"EQ10-TR02-020":4.32,"EQ10-TR02-021":4.32,"EQ10-TR02-022":4.32,"EQ10-TR02-023":4.27,"EQ10-TR03-024":3.5,"EQ10-TR03-025":3.48,"EQ10-TR03-026":3.5,"EQ10-TR03-027":3.48,"EQ10-TR03-028":3.44,"EQ10-TR03-029":3.44,"EQ10-TR03-030":3.44,"EQ10-TR03-031":3.44,"EQ10-TR03-032":3.5,"EQ10-TR03-033":3.48,"EQ10-TR04-034":3.5,"EQ10-TR04-035":3.5,"EQ10-TR04-036":3.5,"EQ10-TR04-037":3.5,"EQ10-TR04-038":3.44,"EQ10-TR04-039":3.44,"EQ10-TR04-040":3.44,"EQ10-TR04-041":3.44,"EQ10-TR04-042":3.5,"EQ10-TR04-043":3.5,"EQ10-TR05-044":3.5,"EQ10-TR05-045":3.5,"EQ10-TR05-046":3.5,"EQ10-TR05-047":3.5,"EQ10-TR05-048":3.44,"EQ10-TR05-049":3.44,"EQ10-TR05-050":3.44,"EQ10-TR05-051":3.44,"EQ10-TR05-052":3.5,"EQ10-TR05-053":3.5,"EQ11-TR01-001":3.44,"EQ11-TR01-002":3.44,"EQ11-TR01-003":3.5,"EQ11-TR01-004":3.5,"EQ11-TR01-005":3.44,"EQ11-TR01-006":3.44,"EQ11-TR01-007":3.44,"EQ11-TR01-008":3.44,"EQ11-TR01-009":1.75,"EQ11-TR01-010":3.5,"EQ11-TR01-011":2.11,"EQ11-TR02-012":3.44,"EQ11-TR02-013":3.44,"EQ11-TR02-014":3.5,"EQ11-TR02-015":3.5,"EQ11-TR02-016":3.44,"EQ11-TR02-017":3.44,"EQ11-TR02-018":3.44,"EQ11-TR02-019":3.44,"EQ11-TR02-020":3.5,"EQ11-TR02-021":3.5,"EQ11-TR03-022":3.42,"EQ11-TR03-023":3.47,"EQ11-TR03-024":3.47,"EQ11-TR03-025":3.51,"EQ11-TR03-026":3.42,"EQ11-TR03-027":3.47,"EQ11-TR03-028":3.42,"EQ11-TR03-029":3.47,"EQ11-TR03-030":3.47,"EQ11-TR03-031":3.51,"EQ11-TR04-032":3.44,"EQ11-TR04-033":3.44,"EQ11-TR04-034":3.5,"EQ11-TR04-035":3.5,"EQ11-TR04-036":3.44,"EQ11-TR04-037":3.44,"EQ11-TR04-038":3.44,"EQ11-TR04-039":3.44,"EQ11-TR04-040":3.5,"EQ11-TR04-041":3.5,"EQ11-TR05-042":2.6,"EQ11-TR05-043":3.42,"EQ11-TR05-044":3.42,"EQ11-TR05-045":3.47,"EQ11-TR05-046":3.44,"EQ11-TR05-047":3.44,"EQ11-TR05-048":0.22,"EQ11-TR05-049":1.4,"EQ11-TR05-050":2.68,"EQ11-TR05-051":3.44,"EQ11-TR05-052":3.44,"EQ11-TR05-053":0.5,"EQ11-TR05-054":1.73,"EQ12-TR01-001":3.5,"EQ12-TR01-002":3.5,"EQ12-TR01-003":3.5,"EQ12-TR01-004":3.5,"EQ12-TR01-005":3.5,"EQ12-TR01-006":3.5,"EQ12-TR01-007":3.5,"EQ12-TR01-008":3.5,"EQ12-TR01-009":1.87,"EQ12-TR01-010":3.45,"EQ12-TR02-011":3.5,"EQ12-TR02-012":3.5,"EQ12-TR02-013":3.5,"EQ12-TR02-014":3.5,"EQ12-TR02-015":3.5,"EQ12-TR02-016":3.5,"EQ12-TR02-017":3.5,"EQ12-TR02-018":3.5,"EQ12-TR02-019":3.44,"EQ12-TR02-020":3.44,"EQ12-TR03-021":3.5,"EQ12-TR03-023":3.5,"EQ12-TR03-024":0.98,"EQ12-TR03-025":3.46,"EQ12-TR03-026":3.46,"EQ12-TR03-027":3.5,"EQ12-TR03-028":3.5,"EQ12-TR03-029":3.44,"EQ12-TR03-030":3.44,"EQ12-TR04-032":3.51,"EQ12-TR04-034":3.51,"EQ12-TR04-035":3.47,"EQ12-TR04-036":3.51,"EQ12-TR04-037":3.47,"EQ12-TR04-038":3.51,"EQ12-TR04-039":3.42,"EQ12-TR04-040":3.47,"EQ12-TR05-041":3.5,"EQ12-TR05-042":3.5,"EQ12-TR05-043":3.5,"EQ12-TR05-044":3.5,"EQ12-TR05-045":3.5,"EQ12-TR05-046":3.5,"EQ12-TR05-047":3.5,"EQ12-TR05-048":3.5,"EQ12-TR05-049":3.44,"EQ12-TR05-050":3.44,"EQ13-TR01-001":4.46,"EQ13-TR01-002":3.44,"EQ13-TR01-003":3.44,"EQ13-TR01-004":3.44,"EQ13-TR01-005":3.44,"EQ13-TR01-006":3.5,"EQ13-TR01-007":3.5,"EQ13-TR01-008":3.44,"EQ13-TR01-009":3.44,"EQ13-TR01-010":3.44,"EQ13-TR01-011":3.44,"EQ13-TR02-012":4.46,"EQ13-TR02-013":3.44,"EQ13-TR02-014":3.44,"EQ13-TR02-015":3.44,"EQ13-TR02-016":3.44,"EQ13-TR02-017":3.45,"EQ13-TR02-018":3.44,"EQ13-TR02-019":3.44,"EQ13-TR02-020":3.44,"EQ13-TR02-021":3.44,"EQ13-TR02-022":3.44,"EQ13-TR03-023":4.46,"EQ13-TR03-024":3.44,"EQ13-TR03-025":3.44,"EQ13-TR03-026":3.44,"EQ13-TR03-027":3.44,"EQ13-TR03-028":3.5,"EQ13-TR03-029":3.5,"EQ13-TR03-030":3.44,"EQ13-TR03-031":3.44,"EQ13-TR03-032":3.44,"EQ13-TR03-033":3.44,"EQ13-TR04-034":4.46,"EQ13-TR04-035":3.43,"EQ13-TR04-036":3.47,"EQ13-TR04-037":3.43,"EQ13-TR04-038":3.47,"EQ13-TR04-039":3.47,"EQ13-TR04-040":3.51,"EQ13-TR04-041":3.43,"EQ13-TR04-042":3.47,"EQ13-TR04-043":3.43,"EQ13-TR04-044":3.47,"EQ13-TR05-045":4.47,"EQ13-TR05-046":3.44,"EQ13-TR05-047":3.44,"EQ13-TR05-048":3.44,"EQ13-TR05-049":3.44,"EQ13-TR05-050":3.5,"EQ13-TR05-051":3.5,"EQ13-TR05-052":3.44,"EQ13-TR05-053":3.44,"EQ13-TR05-054":3.44,"EQ13-TR05-055":3.44,"EQ14-TR01-001":3.5,"EQ14-TR01-002":3.5,"EQ14-TR01-003":3.5,"EQ14-TR01-004":3.5,"EQ14-TR01-005":3.5,"EQ14-TR01-006":3.5,"EQ14-TR01-007":3.5,"EQ14-TR01-008":3.5,"EQ14-TR01-009":3.44,"EQ14-TR01-010":3.44,"EQ14-TR02-011":1.76,"EQ14-TR02-012":3.5,"EQ14-TR02-013":3.5,"EQ14-TR02-014":3.5,"EQ14-TR02-015":3.5,"EQ14-TR02-016":1.72,"EQ14-TR02-017":3.5,"EQ14-TR02-018":2.59,"EQ14-TR02-019":3.44,"EQ14-TR02-020":3.44,"EQ14-TR03-021":3.44,"EQ14-TR03-022":3.44,"EQ14-TR03-023":3.13,"EQ14-TR03-024":3.5,"EQ14-TR03-025":2.98,"EQ14-TR03-026":3.44,"EQ14-TR03-027":2.89,"EQ14-TR03-028":3.44,"EQ14-TR03-029":2.84,"EQ14-TR03-030":3.5,"EQ14-TR03-031":1.52,"EQ14-TR04-032":3.44,"EQ14-TR04-033":3.44,"EQ14-TR04-034":3.5,"EQ14-TR04-035":3.5,"EQ14-TR04-036":3.44,"EQ14-TR04-037":3.44,"EQ14-TR04-038":3.44,"EQ14-TR04-039":3.44,"EQ14-TR04-040":3.5,"EQ14-TR04-041":3.5,"EQ14-TR04-042":1.69,"EQ14-TR05-043":3.44,"EQ14-TR05-044":3.44,"EQ14-TR05-045":3.5,"EQ14-TR05-046":3.5,"EQ14-TR05-047":3.44,"EQ14-TR05-048":3.44,"EQ14-TR05-049":3.44,"EQ14-TR05-050":3.44,"EQ14-TR05-051":3.5,"EQ14-TR05-052":3.5,"EQ14-TR05-053":1.69,"EQ15-TR01-001":1.57,"EQ15-TR01-002":4.47,"EQ15-TR01-003":1.2,"EQ15-TR01-004":3.44,"EQ15-TR01-005":3.44,"EQ15-TR01-006":0.05,"EQ15-TR01-007":3.24,"EQ15-TR01-008":2.6,"EQ15-TR01-009":1.94,"EQ15-TR01-010":2.88,"EQ15-TR01-011":3.88,"EQ15-TR01-012":2.33,"EQ15-TR02-013":4.47,"EQ15-TR02-014":3.44,"EQ15-TR02-015":3.46,"EQ15-TR02-016":3.44,"EQ15-TR02-017":3.46,"EQ15-TR02-018":3.5,"EQ15-TR02-019":3.5,"EQ15-TR02-020":3.44,"EQ15-TR02-021":3.46,"EQ15-TR02-022":3.44,"EQ15-TR02-023":3.46,"EQ15-TR03-024":4.47,"EQ15-TR03-025":3.44,"EQ15-TR03-026":3.44,"EQ15-TR03-027":3.44,"EQ15-TR03-028":3.44,"EQ15-TR03-029":3.5,"EQ15-TR03-030":3.5,"EQ15-TR03-031":3.44,"EQ15-TR03-032":3.44,"EQ15-TR03-033":3.44,"EQ15-TR03-034":3.44,"EQ15-TR04-035":4.47,"EQ15-TR04-036":3.44,"EQ15-TR04-037":3.44,"EQ15-TR04-038":3.44,"EQ15-TR04-039":3.44,"EQ15-TR04-040":3.5,"EQ15-TR04-041":3.5,"EQ15-TR04-042":3.44,"EQ15-TR04-043":3.44,"EQ15-TR04-044":3.44,"EQ15-TR04-045":3.44,"EQ15-TR05-046":0.85,"EQ15-TR05-047":3.5,"EQ15-TR05-048":3.5,"EQ15-TR05-049":2.93,"EQ15-TR05-050":3.5,"EQ15-TR05-051":1.39,"EQ15-TR05-052":3.5,"EQ15-TR05-053":3.38,"EQ15-TR05-054":1.86,"EQ15-TR05-055":0.36,"EQ16-TR01-001":3.5,"EQ16-TR01-002":3.5,"EQ16-TR01-003":3.54,"EQ16-TR01-004":3.45,"EQ16-TR01-005":3.45,"EQ16-TR01-006":3.45,"EQ16-TR01-007":3.5,"EQ16-TR01-008":3.5,"EQ16-TR01-009":3.45,"EQ16-TR01-010":3.45,"EQ16-TR02-011":3.5,"EQ16-TR02-012":3.5,"EQ16-TR02-013":3.45,"EQ16-TR02-014":3.45,"EQ16-TR02-015":3.45,"EQ16-TR02-016":3.45,"EQ16-TR02-017":3.5,"EQ16-TR02-018":3.5,"EQ16-TR02-019":3.45,"EQ16-TR02-020":3.45,"EQ16-TR03-021":3.45,"EQ16-TR03-022":3.45,"EQ16-TR03-023":3.5,"EQ16-TR03-024":3.5,"EQ16-TR03-025":3.45,"EQ16-TR03-026":3.45,"EQ16-TR03-027":3.45,"EQ16-TR03-028":3.45,"EQ16-TR03-029":3.5,"EQ16-TR03-030":3.5,"EQ16-TR04-031":3.45,"EQ16-TR04-032":3.45,"EQ16-TR04-033":3.5,"EQ16-TR04-034":3.5,"EQ16-TR04-035":3.45,"EQ16-TR04-036":3.45,"EQ16-TR04-037":3.45,"EQ16-TR04-038":3.45,"EQ16-TR04-039":3.5,"EQ16-TR04-040":3.5,"EQ16-TR05-041":3.45,"EQ16-TR05-042":3.45,"EQ16-TR05-043":3.45,"EQ16-TR05-044":3.45,"EQ16-TR05-045":3.5,"EQ16-TR05-046":3.5,"EQ16-TR05-047":0.72,"EQ16-TR05-048":1.96,"EQ17-TR01-001":2.71,"EQ17-TR01-002":2.67,"EQ17-TR01-003":2.67,"EQ17-TR01-004":2.71,"EQ17-TR01-005":2.67,"EQ17-TR01-006":2.67,"EQ17-TR01-007":2.71,"EQ17-TR01-008":2.67,"EQ17-TR01-009":2.67,"EQ17-TR01-010":2.71,"EQ17-TR01-011":2.67,"EQ17-TR01-012":2.67,"EQ17-TR01-013":2.71,"EQ17-TR01-014":2.67,"EQ17-TR01-015":2.67,"EQ17-TR01-016":0.76,"EQ17-TR02-017":3.5,"EQ17-TR02-018":3.5,"EQ17-TR02-019":3.45,"EQ17-TR02-020":3.45,"EQ17-TR02-021":3.45,"EQ17-TR02-022":3.45,"EQ17-TR02-023":3.5,"EQ17-TR02-024":3.5,"EQ17-TR02-025":3.45,"EQ17-TR02-026":3.45,"EQ17-TR03-027":3.45,"EQ17-TR03-028":3.45,"EQ17-TR03-029":3.5,"EQ17-TR03-030":3.5,"EQ17-TR03-031":3.45,"EQ17-TR03-032":3.45,"EQ17-TR03-033":3.45,"EQ17-TR03-034":3.45,"EQ17-TR03-035":3.5,"EQ17-TR03-036":3.5,"EQ17-TR04-037":3.45,"EQ17-TR04-038":3.45,"EQ17-TR04-039":3.45,"EQ17-TR04-040":3.45,"EQ17-TR04-041":3.5,"EQ17-TR04-042":3.5,"EQ17-TR04-043":3.45,"EQ17-TR04-044":3.45,"EQ17-TR04-045":2.1,"EQ17-TR04-046":3.24,"EQ17-TR04-047":0.08,"EQ17-TR05-048":3.45,"EQ17-TR05-049":3.45,"EQ17-TR05-050":3.45,"EQ17-TR05-051":3.45,"EQ17-TR05-052":3.5,"EQ17-TR05-053":3.5,"EQ17-TR05-054":3.17,"EQ17-TR05-055":3.45,"EQ17-TR05-056":0.75,"EQ18-TR01-001":1.21,"EQ18-TR01-002":2.42,"EQ18-TR01-003":1.73,"EQ18-TR01-004":3.45,"EQ18-TR01-005":1.73,"EQ18-TR01-006":3.45,"EQ18-TR01-007":1.75,"EQ18-TR01-008":3.5,"EQ18-TR01-009":1.73,"EQ18-TR01-010":3.45,"EQ18-TR02-011":2.42,"EQ18-TR02-012":2.42,"EQ18-TR02-013":3.45,"EQ18-TR02-014":3.45,"EQ18-TR02-015":3.45,"EQ18-TR02-016":3.45,"EQ18-TR02-017":3.5,"EQ18-TR02-018":3.5,"EQ18-TR02-019":3.45,"EQ18-TR02-020":3.45,"EQ18-TR03-021":3.45,"EQ18-TR03-022":3.45,"EQ18-TR03-023":3.5,"EQ18-TR03-024":3.5,"EQ18-TR03-025":3.45,"EQ18-TR03-026":3.45,"EQ18-TR03-027":3.45,"EQ18-TR03-028":3.45,"EQ18-TR03-029":3.5,"EQ18-TR03-030":3.5,"EQ18-TR04-031":3.5,"EQ18-TR04-032":3.5,"EQ18-TR04-033":3.5,"EQ18-TR04-034":3.5,"EQ18-TR04-035":3.5,"EQ18-TR04-036":3.5,"EQ18-TR04-037":3.45,"EQ18-TR04-038":3.45,"EQ18-TR04-039":3.45,"EQ18-TR04-040":3.45,"EQ18-TR05-041":2.67,"EQ18-TR05-042":2.67,"EQ18-TR05-043":2.71,"EQ18-TR05-044":2.71,"EQ18-TR05-045":2.71,"EQ18-TR05-046":2.71,"EQ18-TR05-047":2.67,"EQ18-TR05-048":2.67,"EQ18-TR05-049":2.67,"EQ18-TR05-050":2.67,"EQ18-TR05-051":2.67,"EQ18-TR05-052":2.67,"EQ18-TR05-053":2.67,"EQ18-TR05-054":2.67,"EQ18-TR05-055":1.88,"EQ19-TR01-001":2.53,"EQ19-TR01-002":2.42,"EQ19-TR01-003":3.45,"EQ19-TR01-004":3.45,"EQ19-TR01-005":3.45,"EQ19-TR01-006":3.45,"EQ19-TR01-007":3.45,"EQ19-TR01-008":3.45,"EQ19-TR01-009":3.45,"EQ19-TR01-010":3.45,"EQ19-TR02-011":3.45,"EQ19-TR02-012":3.45,"EQ19-TR02-013":3.45,"EQ19-TR02-014":3.45,"EQ19-TR02-015":3.45,"EQ19-TR02-016":3.45,"EQ19-TR02-017":3.45,"EQ19-TR02-018":3.45,"EQ19-TR02-019":3.5,"EQ19-TR02-020":3.5,"EQ19-TR03-021":2.59,"EQ19-TR03-022":1.73,"EQ19-TR03-023":1.75,"EQ19-TR03-024":1.75,"EQ19-TR03-025":3.45,"EQ19-TR03-026":1.73,"EQ19-TR03-027":3.45,"EQ19-TR03-028":1.73,"EQ19-TR03-029":3.5,"EQ19-TR03-030":3.5,"EQ19-TR04-031":3.5,"EQ19-TR04-032":3.5,"EQ19-TR04-034":1.75,"EQ19-TR04-035":3.5,"EQ19-TR04-036":3.5,"EQ19-TR04-037":3.5,"EQ19-TR04-038":3.5,"EQ19-TR04-039":3.45,"EQ19-TR04-040":3.45,"EQ19-TR05-041":3.5,"EQ19-TR05-042":3.5,"EQ19-TR05-043":3.5,"EQ19-TR05-044":3.5,"EQ19-TR05-045":3.5,"EQ19-TR05-046":3.5,"EQ19-TR05-047":3.45,"EQ19-TR05-048":3.45,"EQ19-TR05-049":3.45,"EQ19-TR05-050":3.45,"EQ20-TR01-001":3.58,"EQ20-TR01-002":3.58,"EQ20-TR01-003":3.58,"EQ20-TR01-004":3.57,"EQ20-TR02-005":3.5,"EQ20-TR02-006":3.5,"EQ20-TR02-007":3.5,"EQ20-TR02-008":3.5,"EQ20-TR03-009":3.45,"EQ20-TR03-010":3.45,"EQ20-TR03-011":3.57,"EQ20-TR03-012":3.57,"EQ20-TR04-013":3.28,"EQ20-TR04-014":3.43,"EQ20-TR04-015":0.42,"EQ20-TR04-016":1.7,"EQ20-TR04-018":1.73,"EQ20-TR04-019":1.7,"EQ20-TR05-020":2.72,"EQ20-TR05-021":1.67,"EQ20-TR05-022":1.66,"EQ20-TR05-023":1.66,"EQ20-TR05-024":2.2,"EQ20-TR05-025":2.18,"EQ20-TR05-026":1.68};
+function getHaParcela(eq, tr, parcela){
+  const key = `${eq}-${tr}-${parcela}`;
+  return HA_PARCELA_MAP[key] ?? null;
+}
+
 function optsEQ(){
   let html = '<option value="">— EQ —</option>';
   for (let i = 9; i <= 20; i++) html += `<option>EQ${i.toString().padStart(2,'0')}</option>`;
@@ -415,11 +429,187 @@ function onEqTrChange(){
     return;
   }
   box.innerHTML = parcelas.map(p => `
-    <label><input type="checkbox" class="chk-parcela" value="${p}"/>${p}</label>`).join('');
+    <label><input type="checkbox" class="chk-parcela" value="${p}" onchange="actualizarTablasParcela()"/>${p}</label>`).join('');
+  actualizarTablasParcela();
+}
+
+function actualizarTablasParcela(){
+  if (laborActual === 'purga') buildPurgaParcelasTable();
+  if (laborActual === 'tendido') buildTendidoParcelasTable();
 }
 
 function getParcelasSeleccionadas(){
   return [...document.querySelectorAll('.chk-parcela:checked')].map(c => c.value);
+}
+
+// ============================================================
+// TABLA DINÁMICA POR PARCELA — Purga con pig
+// ============================================================
+function buildPurgaParcelasTable(){
+  const wrap = document.getElementById('purga-parcelas-table-wrap');
+  if (!wrap) return;
+  const eq = val('f-eq'), tr = val('f-tr');
+  const parcelas = getParcelasSeleccionadas();
+  if (!eq || !tr || !parcelas.length){
+    wrap.innerHTML = '<div class="verify-empty">Selecciona EQ, TR y parcelas primero</div>';
+    return;
+  }
+  const prev = {};
+  wrap.querySelectorAll('.purga-row').forEach(row => {
+    const p = row.dataset.parcela;
+    prev[p] = {
+      ha: row.querySelector('.pp-ha')?.value || '',
+      rep: row.querySelector('.pp-rep')?.value || '',
+      pend: row.querySelector('.pp-pend')?.value || '',
+      noestr: row.querySelector('.pp-noestr')?.value || ''
+    };
+  });
+  const rows = parcelas.map(p => {
+    const v = prev[p] || { ha: getHaParcela(eq, tr, p) ?? '', rep:'', pend:'', noestr:'' };
+    return `
+      <tr class="purga-row" data-parcela="${p}">
+        <td class="pp-parcela">${p}</td>
+        <td><input type="number" class="pp-input pp-ha" value="${v.ha}" placeholder="0.00" step="0.01" min="0" oninput="onPurgaTableInput()"/></td>
+        <td><input type="number" class="pp-input pp-noestr" value="${v.noestr}" placeholder="0" step="1" min="0" oninput="onPurgaTableInput()"/></td>
+        <td><input type="number" class="pp-input pp-rep" value="${v.rep}" placeholder="0" step="1" min="0" oninput="onPurgaTableInput()"/></td>
+        <td><input type="number" class="pp-input pp-pend" value="${v.pend}" placeholder="0" step="1" min="0" oninput="onPurgaTableInput()"/></td>
+        <td class="pp-total" id="pp-total-${p}">0</td>
+      </tr>`;
+  }).join('');
+  wrap.innerHTML = `
+    <div class="pp-table-scroll">
+      <table class="pp-table">
+        <thead><tr><th>Parcela</th><th>Ha</th><th>No estr.</th><th>Estr. reparadas</th><th>Estr. pendientes</th><th>Total mangueras</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr><td>Total</td><td id="pp-total-ha">0.00</td><td id="pp-total-noestr">0</td><td id="pp-total-rep">0</td><td id="pp-total-pend">0</td><td id="pp-total-mangueras">0</td></tr></tfoot>
+      </table>
+    </div>`;
+  onPurgaTableInput();
+}
+
+function onPurgaTableInput(){
+  let totalHa=0, totalRep=0, totalPend=0, totalNoEstr=0;
+  document.querySelectorAll('.purga-row').forEach(row => {
+    const ha = parseFloat(row.querySelector('.pp-ha')?.value) || 0;
+    const rep = parseInt(row.querySelector('.pp-rep')?.value) || 0;
+    const pend = parseInt(row.querySelector('.pp-pend')?.value) || 0;
+    const noestr = parseInt(row.querySelector('.pp-noestr')?.value) || 0;
+    const total = rep + pend + noestr;
+    const cell = row.querySelector('.pp-total');
+    if (cell) cell.textContent = total;
+    totalHa += ha; totalRep += rep; totalPend += pend; totalNoEstr += noestr;
+  });
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('pp-total-ha', totalHa.toFixed(2));
+  set('pp-total-noestr', totalNoEstr);
+  set('pp-total-rep', totalRep);
+  set('pp-total-pend', totalPend);
+  set('pp-total-mangueras', totalRep+totalPend+totalNoEstr);
+  setAvanceHaOculto(totalHa);
+  refreshVerifyTable();
+}
+
+function getPurgaParcelasData(){
+  const rows = [];
+  document.querySelectorAll('.purga-row').forEach(row => {
+    const parcela = row.dataset.parcela;
+    const ha = parseFloat(row.querySelector('.pp-ha')?.value) || 0;
+    const rep = parseInt(row.querySelector('.pp-rep')?.value) || 0;
+    const pend = parseInt(row.querySelector('.pp-pend')?.value) || 0;
+    const noestr = parseInt(row.querySelector('.pp-noestr')?.value) || 0;
+    rows.push({ parcela, ha, mangueras_estranguladas_reparadas:rep, mangueras_estranguladas_pendientes:pend, mangueras_no_estranguladas:noestr, total_mangueras: rep+pend+noestr });
+  });
+  return rows;
+}
+
+// ============================================================
+// TABLA DINÁMICA POR PARCELA — Tendido de manguera
+// ============================================================
+function buildTendidoParcelasTable(){
+  const wrap = document.getElementById('tendido-parcelas-table-wrap');
+  if (!wrap) return;
+  const eq = val('f-eq'), tr = val('f-tr');
+  const parcelas = getParcelasSeleccionadas();
+  if (!eq || !tr || !parcelas.length){
+    wrap.innerHTML = '<div class="verify-empty">Selecciona EQ, TR y parcelas primero</div>';
+    return;
+  }
+  const prev = {};
+  wrap.querySelectorAll('.td-row').forEach(row => {
+    const p = row.dataset.parcela;
+    prev[p] = {
+      ha: row.querySelector('.td-ha')?.value || '',
+      lineas: row.querySelector('.td-lineas')?.value || '',
+      largo: row.querySelector('.td-largo')?.value || '',
+      dist: row.querySelector('.td-dist')?.value || ''
+    };
+  });
+  const rows = parcelas.map(p => {
+    const v = prev[p] || { ha: getHaParcela(eq, tr, p) ?? '', lineas:'', largo:'', dist:'' };
+    return `
+      <tr class="td-row" data-parcela="${p}">
+        <td class="pp-parcela">${p}</td>
+        <td><input type="number" class="pp-input td-ha" value="${v.ha}" placeholder="0.00" step="0.01" min="0" oninput="onTendidoTableInput()"/></td>
+        <td><input type="number" class="pp-input td-lineas" value="${v.lineas}" placeholder="0" step="1" min="0" oninput="onTendidoTableInput()"/></td>
+        <td><input type="number" class="pp-input td-largo" value="${v.largo}" placeholder="0.0" step="0.1" min="0" oninput="onTendidoTableInput()"/></td>
+        <td><input type="number" class="pp-input td-dist" value="${v.dist}" placeholder="0.0" step="0.1" min="0" oninput="onTendidoTableInput()"/></td>
+        <td class="pp-total" id="td-hatendida-${p}">0.00</td>
+      </tr>`;
+  }).join('');
+  wrap.innerHTML = `
+    <div class="pp-table-scroll">
+      <table class="pp-table">
+        <thead><tr><th>Parcela</th><th>Ha</th><th>Líneas tendidas</th><th>Largo líneas (m)</th><th>Distanc. surcos (m)</th><th>Ha tendida</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr><td>Total</td><td id="td-total-ha">0.00</td><td id="td-total-lineas">0</td><td>—</td><td>—</td><td id="td-total-hatendida">0.00</td></tr></tfoot>
+      </table>
+    </div>`;
+  onTendidoTableInput();
+}
+
+function onTendidoTableInput(){
+  let totalHa=0, totalLineas=0, totalHaTendida=0;
+  document.querySelectorAll('.td-row').forEach(row => {
+    const ha = parseFloat(row.querySelector('.td-ha')?.value) || 0;
+    const lineas = parseFloat(row.querySelector('.td-lineas')?.value) || 0;
+    const largo = parseFloat(row.querySelector('.td-largo')?.value) || 0;
+    const haTendida = (lineas * largo) / 5550;
+    const cell = row.querySelector('.pp-total');
+    if (cell) cell.textContent = haTendida.toFixed(2);
+    totalHa += ha; totalLineas += lineas; totalHaTendida += haTendida;
+  });
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('td-total-ha', totalHa.toFixed(2));
+  set('td-total-lineas', totalLineas);
+  set('td-total-hatendida', totalHaTendida.toFixed(2));
+  setAvanceHaOculto(totalHaTendida);
+  refreshVerifyTable();
+}
+
+function getTendidoParcelasData(){
+  const rows = [];
+  document.querySelectorAll('.td-row').forEach(row => {
+    const parcela = row.dataset.parcela;
+    const ha = parseFloat(row.querySelector('.td-ha')?.value) || 0;
+    const lineas = parseFloat(row.querySelector('.td-lineas')?.value) || 0;
+    const largo = parseFloat(row.querySelector('.td-largo')?.value) || 0;
+    const dist = parseFloat(row.querySelector('.td-dist')?.value) || 0;
+    const haTendida = parseFloat(((lineas*largo)/5550).toFixed(2));
+    rows.push({ parcela, ha, lineas_tendidas:lineas, largo_lineas:largo, distanciamiento_surcos:dist, ha_tendida:haTendida });
+  });
+  return rows;
+}
+
+// Mantiene un input oculto f-avance-ha sincronizado con el total de la tabla
+function setAvanceHaOculto(valor){
+  let hidden = document.getElementById('f-avance-ha');
+  if (!hidden){
+    hidden = document.createElement('input');
+    hidden.type = 'hidden';
+    hidden.id = 'f-avance-ha';
+    document.getElementById('form-container').appendChild(hidden);
+  }
+  hidden.value = valor.toFixed(2);
 }
 
 function jornalesField(){
@@ -434,6 +624,18 @@ function jornalesField(){
           <input type="number" id="f-avance-ha" step="0.01" min="0" placeholder="0.00"/>
         </div>
       </div>
+    </div>`;
+}
+function jornalesFieldSinAvance(){
+  return `
+    <div class="form-card">
+      <div class="section-title">👷 Mano de obra</div>
+      <div class="form-grid">
+        <div class="form-field full"><label>Jornales (N°)</label>
+          <input type="number" id="f-jornales" step="0.5" min="0" placeholder="0.0"/>
+        </div>
+      </div>
+      <p style="font-size:0.68rem;color:var(--texto-suave);margin-top:8px;">El avance (ha) se calcula automáticamente con la tabla por parcela de abajo.</p>
     </div>`;
 }
 function obsField(placeholder){
@@ -501,22 +703,21 @@ const FORMULARIOS = {
 
   purga: () => baseBlock('📍 Purga con pig') + `
     <div class="form-card">
-      <div class="section-title">💨 Detalle de purga (totales del lote)</div>
-      <div class="form-grid">
-        <div class="form-field"><label>Mangueras no estranguladas</label><input type="number" id="f-mang-no-estr" step="1" min="0"/></div>
-        <div class="form-field"><label>Mangueras estr. reparadas</label><input type="number" id="f-mang-estr-rep" step="1" min="0"/></div>
-        <div class="form-field full"><label>Mangueras estr. pendientes</label><input type="number" id="f-mang-estr-pend" step="1" min="0"/></div>
+      <div class="section-title">💨 Detalle por parcela</div>
+      <p style="font-size:0.72rem;color:var(--texto-suave);margin-bottom:10px;">Selecciona las parcelas arriba para que aparezcan aquí.</p>
+      <div id="purga-parcelas-table-wrap">
+        <div class="verify-empty">Selecciona EQ, TR y parcelas primero</div>
       </div>
-    </div>` + jornalesField() + obsField('Condiciones de la purga...'),
+    </div>` + jornalesFieldSinAvance() + obsField('Condiciones de la purga...'),
 
   tendido: () => baseBlock('📍 Tendido de manguera') + `
     <div class="form-card">
-      <div class="section-title">🧵 Detalle de tendido</div>
-      <div class="form-grid">
-        <div class="form-field"><label>Metros tendidos</label><input type="number" id="f-metros" step="0.1" min="0"/></div>
-        <div class="form-field"><label>N° de mangueras tendidas</label><input type="number" id="f-mang-tendidas" step="1" min="0"/></div>
+      <div class="section-title">🧵 Detalle por parcela</div>
+      <p style="font-size:0.72rem;color:var(--texto-suave);margin-bottom:10px;">Selecciona las parcelas arriba para que aparezcan aquí.</p>
+      <div id="tendido-parcelas-table-wrap">
+        <div class="verify-empty">Selecciona EQ, TR y parcelas primero</div>
       </div>
-    </div>` + jornalesField() + obsField('Condiciones del tendido...'),
+    </div>` + jornalesFieldSinAvance() + obsField('Condiciones del tendido...'),
 
   flushing: () => baseBlock('📍 Instalación de flushing') + `
     <div class="form-card">
@@ -544,8 +745,8 @@ const CAMPOS_EXTRA = {
   limpieza:   ['f-imof','f-frecuencia','f-mang-no-riegan','f-mang-rep','f-mang-pend'],
   plancero:   ['f-fugas','f-mang-rep','f-mang-pend','f-ha-pend'],
   manguera:   ['f-mang-rev','f-mang-rep','f-mang-pend','f-ha-pend','f-estado'],
-  purga:      ['f-mang-no-estr','f-mang-estr-rep','f-mang-estr-pend'],
-  tendido:    ['f-metros','f-mang-tendidas'],
+  purga:      [],
+  tendido:    [],
   flushing:   ['f-flushing-util','f-flushing-pend'],
   caudal:     ['f-mang-eval','f-caudal','f-caudal-nom','f-presion'],
 };
@@ -764,6 +965,29 @@ function precargarFormulario(r){
       const chk = document.querySelector(`.chk-parcela[value="${p}"]`);
       if (chk) chk.checked = true;
     });
+    actualizarTablasParcela();
+    const detalle = (r.datos_extra && r.datos_extra.detalle_parcelas) || [];
+    if (laborActual === 'purga'){
+      detalle.forEach(d => {
+        const row = document.querySelector(`.purga-row[data-parcela="${d.parcela}"]`);
+        if (!row) return;
+        row.querySelector('.pp-ha').value = d.ha ?? '';
+        row.querySelector('.pp-noestr').value = d.mangueras_no_estranguladas ?? '';
+        row.querySelector('.pp-rep').value = d.mangueras_estranguladas_reparadas ?? '';
+        row.querySelector('.pp-pend').value = d.mangueras_estranguladas_pendientes ?? '';
+      });
+      if (detalle.length) onPurgaTableInput();
+    } else if (laborActual === 'tendido'){
+      detalle.forEach(d => {
+        const row = document.querySelector(`.td-row[data-parcela="${d.parcela}"]`);
+        if (!row) return;
+        row.querySelector('.td-ha').value = d.ha ?? '';
+        row.querySelector('.td-lineas').value = d.lineas_tendidas ?? '';
+        row.querySelector('.td-largo').value = d.largo_lineas ?? '';
+        row.querySelector('.td-dist').value = d.distanciamiento_surcos ?? '';
+      });
+      if (detalle.length) onTendidoTableInput();
+    }
     refreshVerifyTable();
   }, 0);
   if (document.getElementById('f-fundo')) document.getElementById('f-fundo').value = r.fundo || '';
@@ -800,6 +1024,31 @@ async function guardarLabor(){
     avance_ha: num('f-avance-ha'),
     edad_dias: edadRaw ? parseInt(edadRaw) : null,
   };
+
+  if (laborActual === 'purga'){
+    const tableData = getPurgaParcelasData();
+    if (!tableData.length){ showToast('Completa el cuadro de parcelas', 'error'); return; }
+    const totalRep = tableData.reduce((s,r)=>s+r.mangueras_estranguladas_reparadas,0);
+    const totalPend = tableData.reduce((s,r)=>s+r.mangueras_estranguladas_pendientes,0);
+    const totalNoEstr = tableData.reduce((s,r)=>s+r.mangueras_no_estranguladas,0);
+    const totalHa = tableData.reduce((s,r)=>s+r.ha,0);
+    datosExtra.mang_estr_rep = totalRep;
+    datosExtra.mang_estr_pend = totalPend;
+    datosExtra.mang_no_estr = totalNoEstr;
+    datosExtra.total_mangueras = totalRep+totalPend+totalNoEstr;
+    datosExtra.avance_ha = parseFloat(totalHa.toFixed(2));
+    datosExtra.detalle_parcelas = tableData;
+  } else if (laborActual === 'tendido'){
+    const tableData = getTendidoParcelasData();
+    if (!tableData.length){ showToast('Completa el cuadro de parcelas', 'error'); return; }
+    const totalLineas = tableData.reduce((s,r)=>s+r.lineas_tendidas,0);
+    const totalHaTendida = tableData.reduce((s,r)=>s+r.ha_tendida,0);
+    datosExtra.lineas_tendidas = totalLineas;
+    datosExtra.ha_tendida = parseFloat(totalHaTendida.toFixed(2));
+    datosExtra.avance_ha = parseFloat(totalHaTendida.toFixed(2));
+    datosExtra.detalle_parcelas = tableData;
+  }
+
   (CAMPOS_EXTRA[laborActual] || []).forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -923,7 +1172,7 @@ const COLUMNAS_LABOR = {
   tendido: [
     {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
     {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
-    {label:'Metros', val:r=>r.datos_extra?.metros ?? '—'}, {label:'Mangueras', val:r=>r.datos_extra?.mang_tendidas ?? '—'},
+    {label:'Líneas tendidas', val:r=>r.datos_extra?.lineas_tendidas ?? '—'}, {label:'Ha tendida', val:r=>r.datos_extra?.ha_tendida ?? '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
     COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
