@@ -82,11 +82,19 @@
 
 <header>
   <h1>🌾 Registro de Labores</h1>
-  <div class="user-pill hidden" id="user-pill">
-    <span id="user-pill-name">—</span>
-    <span onclick="cerrarSesion()" style="cursor:pointer;">⏻</span>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span id="offline-badge" class="hidden" style="background:#e67e22;color:#fff;font-size:0.68rem;font-weight:700;padding:4px 10px;border-radius:999px;">📡 Sin conexión</span>
+    <div class="user-pill hidden" id="user-pill">
+      <span id="user-pill-name">—</span>
+      <span onclick="cerrarSesion()" style="cursor:pointer;">⏻</span>
+    </div>
   </div>
 </header>
+
+<div id="sync-bar" class="hidden" style="position:fixed;bottom:60px;left:0;right:0;background:#e67e22;color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;font-size:0.8rem;font-weight:700;z-index:35;">
+  <span><span id="sync-count">0</span> registro(s) pendientes de sincronizar</span>
+  <button onclick="trySyncQueue()" style="background:#fff;color:#e67e22;border:none;padding:6px 12px;border-radius:8px;font-weight:700;font-size:0.75rem;">Sincronizar</button>
+</div>
 
 <div id="view-login">
   <div class="login-wrap">
@@ -184,6 +192,73 @@ async function sbFetch(path, options = {}) {
   Object.keys(headers).forEach(k => headers[k] === undefined && delete headers[k]);
   return fetch(SUPABASE_URL + '/rest/v1/' + path, { ...options, headers });
 }
+
+// ============================================================
+// MODO OFFLINE — cola de registros pendientes de sincronizar
+// ============================================================
+let _isOnline = true;
+function isOnline(){ return _isOnline; }
+
+function getQueue(){
+  try{ return JSON.parse(localStorage.getItem('rc_queue') || '[]'); }catch{ return []; }
+}
+function saveQueue(q){ localStorage.setItem('rc_queue', JSON.stringify(q)); }
+function addToQueue(payload){
+  const q = getQueue();
+  q.push({ payload, timestamp: Date.now() });
+  saveQueue(q);
+  updateSyncBar();
+}
+
+async function checkRealConnectivity(){
+  try{
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/labores_campo?limit=0&apikey=${encodeURIComponent(SUPABASE_KEY)}`,
+      { method:'HEAD', cache:'no-store', signal: controller.signal });
+    clearTimeout(timer);
+    _isOnline = true;
+  }catch{
+    _isOnline = false;
+  }
+  updateSyncBar();
+  return _isOnline;
+}
+
+function updateSyncBar(){
+  const q = getQueue();
+  const bar = document.getElementById('sync-bar');
+  const cnt = document.getElementById('sync-count');
+  const badge = document.getElementById('offline-badge');
+  if (!bar) return;
+  bar.classList.toggle('hidden', q.length === 0);
+  if (cnt) cnt.textContent = q.length;
+  if (badge) badge.classList.toggle('hidden', !(q.length > 0 && !_isOnline));
+}
+
+async function trySyncQueue(){
+  const q = getQueue();
+  if (!q.length){ showToast('No hay registros pendientes'); return; }
+  const online = await checkRealConnectivity();
+  if (!online){ showToast('Sin conexión a Supabase', 'error'); return; }
+
+  let synced = 0;
+  const failed = [];
+  for (const item of q){
+    try{
+      const res = await sbFetch('labores_campo', { method:'POST', headers:{'Prefer':'return=minimal'}, body: JSON.stringify(item.payload) });
+      if (res.ok) synced++; else failed.push(item);
+    }catch{ failed.push(item); }
+  }
+  saveQueue(failed);
+  updateSyncBar();
+  if (synced > 0){ showToast(`✅ ${synced} registro(s) sincronizados`); if (!document.getElementById('view-lista').classList.contains('hidden')) cargarLista(); }
+  if (failed.length > 0) showToast(`⚠️ ${failed.length} sin sincronizar`, 'error');
+}
+
+setInterval(checkRealConnectivity, 30000);
+window.addEventListener('online', () => setTimeout(checkRealConnectivity, 1000));
+window.addEventListener('offline', () => { _isOnline = false; updateSyncBar(); });
 
 // Mismos usuarios autorizados que en LCampoR
 const USERS = [
@@ -526,6 +601,8 @@ async function entrarApp(){
   await cargarFCultivoOverrides();
   renderLaborGrid();
   irHome();
+  checkRealConnectivity();
+  updateSyncBar();
 }
 
 // ============================================================
@@ -745,6 +822,14 @@ async function guardarLabor(){
     datos_extra: datosExtra,
   };
 
+  // Sin conexión y es un registro NUEVO (no edición): guardar en cola local
+  if (!registroEditandoId && !isOnline()){
+    addToQueue(registro);
+    showToast('📡 Sin conexión — guardado localmente, se sincronizará después');
+    irHome();
+    return;
+  }
+
   try{
     let res;
     if (registroEditandoId){
@@ -757,7 +842,14 @@ async function guardarLabor(){
     registroEditandoId = null;
     irHome();
   }catch(err){
-    showToast('Error al guardar: revisa tu conexión', 'error');
+    if (!registroEditandoId){
+      addToQueue(registro);
+      _isOnline = false;
+      showToast('📡 Sin conexión — guardado localmente, se sincronizará después');
+      irHome();
+    } else {
+      showToast('Error al guardar: revisa tu conexión', 'error');
+    }
   }
 }
 
@@ -1069,6 +1161,7 @@ async function guardarPermisos(){
 // ============================================================
 poblarLoginUsers();
 renderLaborGrid();
+updateSyncBar();
 if (currentUser){ entrarApp(); }
 
 if ('serviceWorker' in navigator){
