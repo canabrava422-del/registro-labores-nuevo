@@ -67,6 +67,15 @@
   nav.bottom-nav .nav-emoji{font-size:1.2rem;}
   .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--azul-oscuro);color:#fff;padding:11px 20px;border-radius:999px;font-size:0.85rem;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,0.2);}
   .toast.error{background:var(--rojo);}
+  .verify-table-wrap{background:#fff;border-radius:var(--radio);padding:16px;margin-bottom:14px;box-shadow:0 1px 4px rgba(5,31,82,0.06);}
+  .verify-table{width:100%;border-collapse:collapse;font-size:0.78rem;}
+  .verify-table th{text-align:left;padding:6px 8px;color:var(--texto-suave);font-size:0.68rem;text-transform:uppercase;border-bottom:1.5px solid var(--borde);}
+  .verify-table td{padding:7px 8px;border-bottom:1px solid var(--borde);}
+  .verify-table tr:last-child td{border-bottom:none;}
+  .verify-table tr:nth-child(even) td{background:var(--fondo);}
+  .verify-table .td-label{color:var(--texto-suave);font-weight:600;width:55%;}
+  .verify-table .td-val{font-weight:700;color:var(--azul-oscuro);}
+  .verify-empty{text-align:center;color:var(--texto-suave);padding:14px;font-size:0.78rem;}
 </style>
 </head>
 <body>
@@ -530,15 +539,95 @@ function volverHome(){ filtroLaborLista = null; registroEditandoId = null; irHom
 let laborActual = null;
 let registroEditandoId = null;
 
+// ============================================================
+// TABLA DE VERIFICACIÓN (resumen en vivo del formulario)
+// ============================================================
+const CAMPOS_BASE_VERIFY = [
+  { id:'f-eq', label:'EQ' },
+  { id:'f-tr', label:'TR' },
+  { id:'f-parcelas-virtual', label:'Parcelas' },
+  { id:'f-fundo', label:'Fundo' },
+  { id:'f-fecha', label:'Fecha' },
+];
+const ETIQUETAS_EXTRA = {
+  'f-insumo':'Insumo', 'f-dosis-cant':'Dosis cantidad', 'f-dosis-unid':'Dosis unidad',
+  'f-metodo':'Método de aplicación', 'f-operador':'Operador',
+  'f-imof':'IMOF promedio (ml)', 'f-frecuencia':'Frecuencia (días)',
+  'f-mang-no-riegan':'Mangueras que no riegan', 'f-mang-rep':'Mangueras reparadas', 'f-mang-pend':'Mangueras pendientes',
+  'f-fugas':'Fugas encontradas', 'f-ha-pend':'Hectáreas pendientes',
+  'f-mang-rev':'Mangueras revisadas', 'f-estado':'Estado general',
+  'f-mang-no-estr':'Mangueras no estranguladas', 'f-mang-estr-rep':'Mangueras estr. reparadas', 'f-mang-estr-pend':'Mangueras estr. pendientes',
+  'f-metros':'Metros tendidos', 'f-mang-tendidas':'N° mangueras tendidas',
+  'f-flushing-util':'Flushing utilizados', 'f-flushing-pend':'Flushing pendientes',
+  'f-mang-eval':'Mangueras evaluadas', 'f-caudal':'Caudal medido (L/min)', 'f-caudal-nom':'Caudal nominal (L/min)', 'f-presion':'Presión (M.C.A)',
+};
+
+function buildVerifyTable(){
+  return `<div class="verify-table-wrap">
+    <div class="section-title">✅ Verificación del registro</div>
+    <table class="verify-table"><tbody id="verify-tbody">
+      <tr><td class="verify-empty">Completa el formulario para ver el resumen</td></tr>
+    </tbody></table>
+  </div>`;
+}
+
+function attachVerifyListeners(){
+  const cont = document.getElementById('form-container');
+  if (!cont) return;
+  cont.addEventListener('input', refreshVerifyTable);
+  cont.addEventListener('change', refreshVerifyTable);
+}
+
+function refreshVerifyTable(){
+  const tbody = document.getElementById('verify-tbody');
+  if (!tbody) return;
+  const filas = [];
+
+  CAMPOS_BASE_VERIFY.forEach(f => {
+    if (f.id === 'f-parcelas-virtual'){
+      const sel = getParcelasSeleccionadas();
+      if (sel.length) filas.push(['Parcelas', sel.join(', ')]);
+      return;
+    }
+    const el = document.getElementById(f.id);
+    if (el && el.value){
+      const texto = el.tagName === 'SELECT' ? el.options[el.selectedIndex].text : el.value;
+      if (texto && !texto.startsWith('—')) filas.push([f.label, texto]);
+    }
+  });
+
+  (CAMPOS_EXTRA[laborActual] || []).forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.value){
+      const texto = el.tagName === 'SELECT' ? el.options[el.selectedIndex].text : el.value;
+      if (texto && !texto.startsWith('—')) filas.push([ETIQUETAS_EXTRA[id] || id, texto]);
+    }
+  });
+
+  const jorn = val('f-jornales'); if (jorn) filas.push(['Jornales', jorn]);
+  const avan = val('f-avance-ha'); if (avan) filas.push(['Avance (ha)', avan]);
+  const obs = val('f-obs'); if (obs) filas.push(['Observaciones', obs]);
+
+  if (!filas.length){
+    tbody.innerHTML = '<tr><td class="verify-empty">Completa el formulario para ver el resumen</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filas.map(([label, valor]) =>
+    `<tr><td class="td-label">${label}</td><td class="td-val">${valor}</td></tr>`
+  ).join('');
+}
+
 function abrirFormulario(laborId, registroExistente){
   laborActual = laborId;
   registroEditandoId = registroExistente ? registroExistente.id : null;
   const labor = LABORES.find(l => l.id === laborId);
   document.getElementById('form-title').textContent = `${labor.emoji} ${labor.nombre}` + (registroEditandoId ? ' (editando)' : '');
-  document.getElementById('form-container').innerHTML = FORMULARIOS[laborId]();
+  document.getElementById('form-container').innerHTML = FORMULARIOS[laborId]() + buildVerifyTable();
   document.getElementById('view-home').classList.add('hidden');
   document.getElementById('view-form').classList.remove('hidden');
+  attachVerifyListeners();
   if (registroExistente) precargarFormulario(registroExistente);
+  refreshVerifyTable();
 }
 
 function precargarFormulario(r){
@@ -552,6 +641,7 @@ function precargarFormulario(r){
       const chk = document.querySelector(`.chk-parcela[value="${p}"]`);
       if (chk) chk.checked = true;
     });
+    refreshVerifyTable();
   }, 0);
   if (document.getElementById('f-fundo')) document.getElementById('f-fundo').value = r.fundo || '';
   if (document.getElementById('f-fecha')) document.getElementById('f-fecha').value = r.fecha || '';
