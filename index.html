@@ -202,6 +202,34 @@ const USERS = [
 // ============================================================
 const PARCELAS_MAP = {"EQ09-TR01":["001","002","003","004","005","006","007","008","009","010"],"EQ09-TR02":["011","012","013","014","015","016","017","018","019","020"],"EQ09-TR03":["021","022","023","024","025","026","027","028","029","030"],"EQ09-TR04":["031","032","033","034","035","036","037","038","039","040","041"],"EQ09-TR05":["042","043","044","045","046","047","048","049","050","051","052","053","054"],"EQ10-TR01":["001","002","003","004","005","006","007","008","009","010","011","012"],"EQ10-TR02":["013","014","015","016","017","018","019","020","021","022","023"],"EQ10-TR03":["024","025","026","027","028","029","030","031","032","033"],"EQ10-TR04":["034","035","036","037","038","039","040","041","042","043"],"EQ10-TR05":["044","045","046","047","048","049","050","051","052","053"],"EQ11-TR01":["001","002","003","004","005","006","007","008","009","010","011"],"EQ11-TR02":["012","013","014","015","016","017","018","019","020","021"],"EQ11-TR03":["022","023","024","025","026","027","028","029","030","031"],"EQ11-TR04":["032","033","034","035","036","037","038","039","040","041"],"EQ11-TR05":["042","043","044","045","046","047","048","049","050","051","052","053","054"],"EQ12-TR01":["001","002","003","004","005","006","007","008","009","010"],"EQ12-TR02":["011","012","013","014","015","016","017","018","019","020"],"EQ12-TR03":["021","023","024","025","026","027","028","029","030"],"EQ12-TR04":["032","034","035","036","037","038","039","040"],"EQ12-TR05":["041","042","043","044","045","046","047","048","049","050"],"EQ13-TR01":["001","002","003","004","005","006","007","008","009","010","011"],"EQ13-TR02":["012","013","014","015","016","017","018","019","020","021","022"],"EQ13-TR03":["023","024","025","026","027","028","029","030","031","032","033"],"EQ13-TR04":["034","035","036","037","038","039","040","041","042","043","044"],"EQ13-TR05":["045","046","047","048","049","050","051","052","053","054","055"],"EQ14-TR01":["001","002","003","004","005","006","007","008","009","010"],"EQ14-TR02":["011","012","013","014","015","016","017","018","019","020"],"EQ14-TR03":["021","022","023","024","025","026","027","028","029","030","031"],"EQ14-TR04":["032","033","034","035","036","037","038","039","040","041","042"],"EQ14-TR05":["043","044","045","046","047","048","049","050","051","052","053"],"EQ15-TR01":["001","002","003","004","005","006","007","008","009","010","011","012"],"EQ15-TR02":["013","014","015","016","017","018","019","020","021","022","023"],"EQ15-TR03":["024","025","026","027","028","029","030","031","032","033","034"],"EQ15-TR04":["035","036","037","038","039","040","041","042","043","044","045"],"EQ15-TR05":["046","047","048","049","050","051","052","053","054","055"],"EQ16-TR01":["001","002","003","004","005","006","007","008","009","010"],"EQ16-TR02":["011","012","013","014","015","016","017","018","019","020"],"EQ16-TR03":["021","022","023","024","025","026","027","028","029","030"],"EQ16-TR04":["031","032","033","034","035","036","037","038","039","040"],"EQ16-TR05":["041","042","043","044","045","046","047","048"],"EQ17-TR01":["001","002","003","004","005","006","007","008","009","010","011","012","013","014","015","016"],"EQ17-TR02":["017","018","019","020","021","022","023","024","025","026"],"EQ17-TR03":["027","028","029","030","031","032","033","034","035","036"],"EQ17-TR04":["037","038","039","040","041","042","043","044","045","046","047"],"EQ17-TR05":["048","049","050","051","052","053","054","055","056"],"EQ18-TR01":["001","002","003","004","005","006","007","008","009","010"],"EQ18-TR02":["011","012","013","014","015","016","017","018","019","020"],"EQ18-TR03":["021","022","023","024","025","026","027","028","029","030"],"EQ18-TR04":["031","032","033","034","035","036","037","038","039","040"],"EQ18-TR05":["041","042","043","044","045","046","047","048","049","050","051","052","053","054","055"],"EQ19-TR01":["001","002","003","004","005","006","007","008","009","010"],"EQ19-TR02":["011","012","013","014","015","016","017","018","019","020"],"EQ19-TR03":["021","022","023","024","025","026","027","028","029","030"],"EQ19-TR04":["031","032","034","035","036","037","038","039","040"],"EQ19-TR05":["041","042","043","044","045","046","047","048","049","050"],"EQ20-TR01":["001","002","003","004"],"EQ20-TR02":["005","006","007","008"],"EQ20-TR03":["009","010","011","012"],"EQ20-TR04":["013","014","015","016","018","019"],"EQ20-TR05":["020","021","022","023","024","025","026"]};
 
+// ── MAPA EQ-TR → FECHA DE CULTIVO (FCultivo) ──
+// Usado para calcular automáticamente la Edad (días) = hoy - FCultivo
+const FCULTIVO_MAP = {"EQ09-TR01":"2026-02-20","EQ09-TR02":"2026-01-05","EQ09-TR03":"2025-12-01","EQ09-TR04":"2025-08-02","EQ09-TR05":"2025-05-30","EQ10-TR01":"2025-07-02","EQ10-TR02":"2025-09-18","EQ10-TR03":"2025-08-22","EQ10-TR04":"2025-08-27","EQ10-TR05":"2025-09-23","EQ11-TR01":"2025-06-14","EQ11-TR02":"2026-01-03","EQ11-TR03":"2025-12-26","EQ11-TR04":"2025-12-20","EQ11-TR05":"2026-02-25","EQ12-TR01":"2025-06-19","EQ12-TR02":"2025-07-30","EQ12-TR03":"2025-10-03","EQ12-TR04":"2025-08-13","EQ12-TR05":"2025-12-29","EQ13-TR01":"2026-06-12","EQ13-TR02":"2025-06-04","EQ13-TR03":"2025-08-09","EQ13-TR04":"2025-09-05","EQ13-TR05":"2025-10-11","EQ14-TR01":"2026-02-02","EQ14-TR02":"2025-09-10","EQ14-TR03":"2025-11-27","EQ14-TR04":"2025-11-13","EQ14-TR05":"2025-07-22","EQ15-TR01":"2025-07-30","EQ15-TR02":"2025-09-08","EQ15-TR03":"2025-06-06","EQ15-TR04":"2025-11-21","EQ15-TR05":"2025-06-12","EQ16-TR01":"2026-02-11","EQ16-TR02":"2025-09-27","EQ16-TR03":"2026-02-14","EQ16-TR04":"2026-02-17","EQ16-TR05":"2025-12-05","EQ17-TR01":"2025-09-16","EQ17-TR02":"2025-10-25","EQ17-TR03":"2025-09-12","EQ17-TR04":"2025-10-29","EQ17-TR05":"2025-08-07","EQ18-TR01":"2026-04-01","EQ18-TR02":"2025-06-28","EQ18-TR03":"2025-09-25","EQ18-TR04":"2025-11-04","EQ18-TR05":"2025-10-02","EQ19-TR01":"2025-10-16","EQ19-TR02":"2026-04-07","EQ19-TR03":"2025-10-18","EQ19-TR04":"2025-10-22","EQ19-TR05":"2025-11-18","EQ20-TR01":"2025-09-30","EQ20-TR02":"2025-10-01","EQ20-TR03":"2025-10-01","EQ20-TR04":"2025-10-03","EQ20-TR05":"2025-11-17"};
+
+// Overrides definidos por el admin — usa la MISMA tabla fcultivo_overrides de LCampoR
+let FCULTIVO_OVERRIDES = {};
+async function cargarFCultivoOverrides(){
+  try{
+    const res = await sbFetch('fcultivo_overrides?select=eq_tr,fecha_cultivo');
+    if (!res.ok) return;
+    const rows = await res.json();
+    const map = {};
+    rows.forEach(r => { map[r.eq_tr] = r.fecha_cultivo; });
+    FCULTIVO_OVERRIDES = map;
+  }catch(e){}
+}
+function getFCultivo(eq, tr){
+  const key = `${eq}-${tr}`;
+  return FCULTIVO_OVERRIDES[key] || FCULTIVO_MAP[key] || null;
+}
+function calcEdadDias(eq, tr){
+  const fCultivo = getFCultivo(eq, tr);
+  if (!fCultivo) return null;
+  const fc = new Date(fCultivo + 'T00:00:00');
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  return Math.round((hoy - fc) / 86400000);
+}
+
 function optsEQ(){
   let html = '<option value="">— EQ —</option>';
   for (let i = 9; i <= 20; i++) html += `<option>EQ${i.toString().padStart(2,'0')}</option>`;
@@ -278,6 +306,9 @@ function baseBlock(titulo){
         <div class="form-field"><label>Fundo</label>
           <select id="f-fundo">${fundoOpts}</select>
         </div>
+        <div class="form-field"><label>Edad (días) <span style="font-weight:400;text-transform:none;color:var(--verde);">(auto)</span></label>
+          <input type="text" id="f-edad" value="—" readonly style="background:var(--verde-menta);color:var(--azul-oscuro);font-weight:700;pointer-events:none;"/>
+        </div>
         <div class="form-field"><label>Fecha</label>
           <input type="date" id="f-fecha" value="${new Date().toISOString().slice(0,10)}"/>
         </div>
@@ -288,6 +319,17 @@ function baseBlock(titulo){
 function onEqTrChange(){
   const eq = val('f-eq'), tr = val('f-tr');
   const box = document.getElementById('parcelas-box');
+  const edadInput = document.getElementById('f-edad');
+  if (edadInput){
+    if (eq && tr){
+      const edad = calcEdadDias(eq, tr);
+      edadInput.value = edad !== null ? `${edad} días` : 'Sin dato';
+      edadInput.dataset.raw = edad !== null ? edad : '';
+    } else {
+      edadInput.value = '—';
+      edadInput.dataset.raw = '';
+    }
+  }
   if (!eq || !tr){
     box.innerHTML = '<span style="grid-column:1/-1;font-size:0.72rem;color:var(--texto-suave);">Selecciona EQ y TR primero</span>';
     return;
@@ -481,6 +523,7 @@ async function entrarApp(){
   document.getElementById('user-pill-name').textContent = currentUser.nombre;
   document.getElementById('nav-admin').classList.toggle('hidden', currentUser.role !== 'admin');
   await cargarPermisos();
+  await cargarFCultivoOverrides();
   renderLaborGrid();
   irHome();
 }
@@ -548,6 +591,7 @@ const CAMPOS_BASE_VERIFY = [
   { id:'f-tr', label:'TR' },
   { id:'f-parcelas-virtual', label:'Parcelas' },
   { id:'f-fundo', label:'Fundo' },
+  { id:'f-edad', label:'Edad (días)' },
   { id:'f-fecha', label:'Fecha' },
 ];
 const ETIQUETAS_EXTRA = {
@@ -673,9 +717,11 @@ async function guardarLabor(){
   if (!fundo){ showToast('Selecciona un fundo', 'error'); return; }
 
   const parcelas = getParcelasSeleccionadas();
+  const edadRaw = document.getElementById('f-edad')?.dataset?.raw;
   const datosExtra = {
     jornales: num('f-jornales'),
     avance_ha: num('f-avance-ha'),
+    edad_dias: edadRaw ? parseInt(edadRaw) : null,
   };
   (CAMPOS_EXTRA[laborActual] || []).forEach(id => {
     const el = document.getElementById(id);
@@ -734,6 +780,7 @@ function ratioTxt(r){
 const COL_JORNALES = {label:'Jornales', val:r=>r.datos_extra?.jornales ?? '—'};
 const COL_RATIO = {label:'Ratio (jor/ha)', val:r=>ratioTxt(r)};
 const COL_CONTROLADOR = {label:'Controlador', val:r=>r.controlador || '—'};
+const COL_EDAD = {label:'Edad (días)', val:r=>r.datos_extra?.edad_dias ?? '—'};
 
 const COLUMNAS_LABOR = {
   aplicacion: [
@@ -742,7 +789,7 @@ const COLUMNAS_LABOR = {
     {label:'EQ/TR', val:r=>r.equipo||'—'},
     {label:'Parcelas', val:r=>r.parcelas||'—'},
     {label:'Fundo', val:r=>r.fundo||'—'},
-    {label:'Edad (días)', val:r=>'—'},
+    COL_EDAD,
     {label:'Insumo', val:r=>r.insumo||'—'},
     {label:'Dosis', val:r=>r.dosis_cantidad ? `${r.dosis_cantidad} ${r.dosis_unidad||''}` : '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
@@ -752,7 +799,7 @@ const COLUMNAS_LABOR = {
   ],
   limpieza: [
     {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
-    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
+    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
     {label:'IMOF (ml)', val:r=>r.datos_extra?.imof ?? '—'}, {label:'Frecuencia (días)', val:r=>r.datos_extra?.frecuencia ?? '—'},
     {label:'No riegan', val:r=>r.datos_extra?.mang_no_riegan ?? '—'}, {label:'Reparadas', val:r=>r.datos_extra?.mang_rep ?? '—'},
     {label:'Pendientes', val:r=>r.datos_extra?.mang_pend ?? '—'}, {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
@@ -760,7 +807,7 @@ const COLUMNAS_LABOR = {
   ],
   plancero: [
     {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
-    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
+    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
     {label:'Fugas', val:r=>r.datos_extra?.fugas ?? '—'}, {label:'Reparadas', val:r=>r.datos_extra?.mang_rep ?? '—'},
     {label:'Pendientes', val:r=>r.datos_extra?.mang_pend ?? '—'}, {label:'Ha pendientes', val:r=>r.datos_extra?.ha_pend ?? '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
@@ -768,7 +815,7 @@ const COLUMNAS_LABOR = {
   ],
   manguera: [
     {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
-    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
+    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
     {label:'Revisadas', val:r=>r.datos_extra?.mang_rev ?? '—'}, {label:'Reparadas', val:r=>r.datos_extra?.mang_rep ?? '—'},
     {label:'Pendientes', val:r=>r.datos_extra?.mang_pend ?? '—'}, {label:'Estado', val:r=>r.datos_extra?.estado || '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
@@ -776,28 +823,28 @@ const COLUMNAS_LABOR = {
   ],
   purga: [
     {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
-    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
+    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
     {label:'No estranguladas', val:r=>r.datos_extra?.mang_no_estr ?? '—'}, {label:'Estr. reparadas', val:r=>r.datos_extra?.mang_estr_rep ?? '—'},
     {label:'Estr. pendientes', val:r=>r.datos_extra?.mang_estr_pend ?? '—'}, {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
     COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   tendido: [
     {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
-    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
+    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
     {label:'Metros', val:r=>r.datos_extra?.metros ?? '—'}, {label:'Mangueras', val:r=>r.datos_extra?.mang_tendidas ?? '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
     COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   flushing: [
     {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
-    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
+    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
     {label:'Utilizados', val:r=>r.datos_extra?.flushing_util ?? '—'}, {label:'Pendientes', val:r=>r.datos_extra?.flushing_pend ?? '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
     COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   caudal: [
     {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
-    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
+    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
     {label:'Mang. evaluadas', val:r=>r.datos_extra?.mang_eval ?? '—'}, {label:'Caudal medido', val:r=>r.datos_extra?.caudal ?? '—'},
     {label:'Caudal nominal', val:r=>r.datos_extra?.caudal_nom ?? '—'}, {label:'Presión (MCA)', val:r=>r.datos_extra?.presion ?? '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
