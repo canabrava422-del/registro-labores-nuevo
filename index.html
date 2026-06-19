@@ -120,11 +120,39 @@
     </div>
     <div id="lista-registros"></div>
   </section>
+
+  <section id="view-kpis" class="hidden">
+    <p style="font-weight:700;color:var(--azul-oscuro);margin:4px 0 12px;">KPIs de labores</p>
+    <div class="tabs">
+      <div class="tab active" id="kpi-tab-hoy" onclick="cambiarFiltroKpi('hoy')">Hoy</div>
+      <div class="tab" id="kpi-tab-semana" onclick="cambiarFiltroKpi('semana')">Esta semana</div>
+      <div class="tab" id="kpi-tab-todos" onclick="cambiarFiltroKpi('todos')">Todos</div>
+    </div>
+    <div id="kpis-resumen" class="form-grid" style="margin-bottom:14px;"></div>
+    <div id="kpis-por-labor"></div>
+  </section>
+
+  <section id="view-admin" class="hidden">
+    <p style="font-weight:700;color:var(--azul-oscuro);margin:4px 0 12px;">Permisos por usuario</p>
+    <div class="form-card">
+      <div class="form-field full" style="margin-bottom:10px;">
+        <label>Controlador</label>
+        <select id="admin-user-select" onchange="renderAdminPermisos()"></select>
+      </div>
+      <div id="admin-permisos-list" class="form-grid"></div>
+      <button class="btn" onclick="guardarPermisos()">💾 Guardar permisos</button>
+      <p style="font-size:0.72rem;color:var(--texto-suave);margin-top:10px;">
+        Las labores marcadas: el usuario puede <strong>registrar</strong>. Las labores sin marcar: el usuario solo puede <strong>ver</strong> los registros, no llenarlas. Si no marcas ninguna, el usuario puede registrar todas (permiso por defecto).
+      </p>
+    </div>
+  </section>
 </main>
 
 <nav class="bottom-nav hidden" id="bottom-nav">
   <button class="active" id="nav-home" onclick="irHome()"><span class="nav-emoji">📝</span>Registrar</button>
-  <button id="nav-lista" onclick="irLista()"><span class="nav-emoji">📋</span>Mis registros</button>
+  <button id="nav-lista" onclick="filtroLaborLista=null;irLista()"><span class="nav-emoji">📋</span>Mis registros</button>
+  <button id="nav-kpis" onclick="irKpis()"><span class="nav-emoji">📊</span>KPIs</button>
+  <button id="nav-admin" onclick="irAdmin()" class="hidden"><span class="nav-emoji">⚙️</span>Admin</button>
 </nav>
 
 <script>
@@ -191,6 +219,35 @@ const LABORES = [
 
 function val(id){ const el = document.getElementById(id); return el ? el.value : null; }
 function num(id){ const v = val(id); return (v===null || v==='') ? null : parseFloat(v); }
+
+const ALL_LABORES = LABORES.map(l => l.id);
+
+// ============================================================
+// PERMISOS DE LABORES — usa la MISMA tabla permisos_labores
+// que ya tiene LCampoR (usuario -> lista de labores permitidas)
+// ============================================================
+let LABOR_PERMISSIONS = {};
+
+async function cargarPermisos(){
+  try{
+    const res = await sbFetch('permisos_labores?select=usuario,labores');
+    if (!res.ok) return;
+    const rows = await res.json();
+    const map = {};
+    rows.forEach(r => { map[r.usuario] = r.labores || []; });
+    LABOR_PERMISSIONS = map;
+  }catch(e){}
+}
+
+function getAllowedLabores(username){
+  const perms = LABOR_PERMISSIONS[username];
+  if (!perms || !Array.isArray(perms) || !perms.length) return ALL_LABORES;
+  return perms;
+}
+function isLaborAllowed(laborId){
+  if (!currentUser) return true;
+  return getAllowedLabores(currentUser.user).includes(laborId);
+}
 
 function baseBlock(titulo){
   return `
@@ -406,12 +463,15 @@ function cerrarSesion(){
   document.getElementById('view-login').classList.remove('hidden');
 }
 
-function entrarApp(){
+async function entrarApp(){
   document.getElementById('view-login').classList.add('hidden');
   document.getElementById('app-main').classList.remove('hidden');
   document.getElementById('bottom-nav').classList.remove('hidden');
   document.getElementById('user-pill').classList.remove('hidden');
   document.getElementById('user-pill-name').textContent = currentUser.nombre;
+  document.getElementById('nav-admin').classList.toggle('hidden', currentUser.role !== 'admin');
+  await cargarPermisos();
+  renderLaborGrid();
   irHome();
 }
 
@@ -419,28 +479,53 @@ function entrarApp(){
 // NAVEGACIÓN
 // ============================================================
 function renderLaborGrid(){
-  document.getElementById('labor-grid').innerHTML = LABORES.map(l => `
-    <div class="labor-card" onclick="abrirFormulario('${l.id}')">
+  document.getElementById('labor-grid').innerHTML = LABORES.map(l => {
+    const permitido = isLaborAllowed(l.id);
+    return `
+    <div class="labor-card" onclick="${permitido ? `abrirFormulario('${l.id}')` : `verSoloLectura('${l.id}')`}" style="${permitido ? '' : 'opacity:0.6;'}">
       <span class="emoji">${l.emoji}</span>
       <div class="lc-name">${l.nombre}</div>
-    </div>`).join('');
+      ${permitido ? '' : '<div style="font-size:0.6rem;color:var(--texto-suave);margin-top:2px;">Solo ver</div>'}
+    </div>`;
+  }).join('');
 }
+
+function verSoloLectura(laborId){
+  showToast('No tienes permiso para registrar esta labor. Mostrando solo lectura.');
+  filtroLaborLista = laborId;
+  irLista();
+}
+let filtroLaborLista = null;
+
+function ocultarTodasLasVistas(){
+  ['view-home','view-form','view-lista','view-kpis','view-admin'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  ['nav-home','nav-lista','nav-kpis','nav-admin'].forEach(id => document.getElementById(id).classList.remove('active'));
+}
+
 function irHome(){
+  ocultarTodasLasVistas();
   document.getElementById('view-home').classList.remove('hidden');
-  document.getElementById('view-form').classList.add('hidden');
-  document.getElementById('view-lista').classList.add('hidden');
   document.getElementById('nav-home').classList.add('active');
-  document.getElementById('nav-lista').classList.remove('active');
 }
 function irLista(){
-  document.getElementById('view-home').classList.add('hidden');
-  document.getElementById('view-form').classList.add('hidden');
+  ocultarTodasLasVistas();
   document.getElementById('view-lista').classList.remove('hidden');
-  document.getElementById('nav-home').classList.remove('active');
   document.getElementById('nav-lista').classList.add('active');
   cargarLista();
 }
-function volverHome(){ irHome(); }
+function irKpis(){
+  ocultarTodasLasVistas();
+  document.getElementById('view-kpis').classList.remove('hidden');
+  document.getElementById('nav-kpis').classList.add('active');
+  cargarKpis();
+}
+function irAdmin(){
+  ocultarTodasLasVistas();
+  document.getElementById('view-admin').classList.remove('hidden');
+  document.getElementById('nav-admin').classList.add('active');
+  renderAdminUserSelect();
+}
+function volverHome(){ filtroLaborLista = null; irHome(); }
 
 let laborActual = null;
 function abrirFormulario(laborId){
@@ -515,6 +600,7 @@ async function cargarLista(){
 
   const hoy = new Date(); hoy.setHours(0,0,0,0);
   let query = `labores_campo?controlador=eq.${encodeURIComponent(currentUser.nombre)}&order=created_at.desc&limit=100`;
+  if (filtroLaborLista) query += `&labor=eq.${filtroLaborLista}`;
   if (filtroActual === 'hoy'){
     query += `&fecha=eq.${hoy.toISOString().slice(0,10)}`;
   } else if (filtroActual === 'semana'){
@@ -548,6 +634,112 @@ async function cargarLista(){
 }
 
 // ============================================================
+// KPIs
+// ============================================================
+let filtroKpi = 'hoy';
+function cambiarFiltroKpi(f){
+  filtroKpi = f;
+  ['hoy','semana','todos'].forEach(x => document.getElementById('kpi-tab-'+x).classList.toggle('active', x===f));
+  cargarKpis();
+}
+
+async function cargarKpis(){
+  const resumen = document.getElementById('kpis-resumen');
+  const porLabor = document.getElementById('kpis-por-labor');
+  resumen.innerHTML = '<div class="empty-state">Cargando...</div>';
+  porLabor.innerHTML = '';
+
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  let query = `labores_campo?select=labor,fundo,datos_extra,controlador&order=created_at.desc&limit=500`;
+  // Admin ve todo; controlador ve solo lo suyo
+  if (currentUser.role !== 'admin') query += `&controlador=eq.${encodeURIComponent(currentUser.nombre)}`;
+  if (filtroKpi === 'hoy') query += `&fecha=eq.${hoy.toISOString().slice(0,10)}`;
+  else if (filtroKpi === 'semana'){
+    const inicio = new Date(hoy); inicio.setDate(inicio.getDate() - 7);
+    query += `&fecha=gte.${inicio.toISOString().slice(0,10)}`;
+  }
+
+  try{
+    const res = await sbFetch(query);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+
+    let totalHa = 0, totalJornales = 0;
+    const conteoLabor = {};
+    LABORES.forEach(l => conteoLabor[l.id] = 0);
+    data.forEach(r => {
+      conteoLabor[r.labor] = (conteoLabor[r.labor] || 0) + 1;
+      if (r.datos_extra){
+        totalHa += parseFloat(r.datos_extra.avance_ha) || 0;
+        totalJornales += parseFloat(r.datos_extra.jornales) || 0;
+      }
+    });
+
+    resumen.innerHTML = `
+      <div class="form-card" style="text-align:center;padding:14px;">
+        <div style="font-size:1.4rem;font-weight:700;color:var(--azul-oscuro);">${data.length}</div>
+        <div style="font-size:0.7rem;color:var(--texto-suave);text-transform:uppercase;">Registros</div>
+      </div>
+      <div class="form-card" style="text-align:center;padding:14px;">
+        <div style="font-size:1.4rem;font-weight:700;color:var(--azul-oscuro);">${totalHa.toFixed(1)}</div>
+        <div style="font-size:0.7rem;color:var(--texto-suave);text-transform:uppercase;">Ha avanzadas</div>
+      </div>
+      <div class="form-card" style="text-align:center;padding:14px;grid-column:1/-1;">
+        <div style="font-size:1.4rem;font-weight:700;color:var(--azul-oscuro);">${totalJornales.toFixed(1)}</div>
+        <div style="font-size:0.7rem;color:var(--texto-suave);text-transform:uppercase;">Jornales totales</div>
+      </div>`;
+
+    porLabor.innerHTML = LABORES.map(l => `
+      <div class="record-card">
+        <div class="rc-top">
+          <span class="rc-labor">${l.emoji} ${l.nombre}</span>
+          <span class="rc-fecha" style="font-weight:700;color:var(--azul-oscuro);">${conteoLabor[l.id] || 0}</span>
+        </div>
+      </div>`).join('');
+  }catch(err){
+    resumen.innerHTML = '<div class="empty-state">Error al cargar KPIs</div>';
+  }
+}
+
+// ============================================================
+// ADMIN — permisos por usuario (tabla compartida con LCampoR)
+// ============================================================
+function renderAdminUserSelect(){
+  const sel = document.getElementById('admin-user-select');
+  const controladores = USERS.filter(u => u.role === 'controller');
+  sel.innerHTML = controladores.map(u => `<option value="${u.user}">${u.displayName}</option>`).join('');
+  renderAdminPermisos();
+}
+
+function renderAdminPermisos(){
+  const userId = val('admin-user-select');
+  const permitidas = getAllowedLabores(userId);
+  const cont = document.getElementById('admin-permisos-list');
+  cont.innerHTML = LABORES.map(l => `
+    <label style="display:flex;align-items:center;gap:8px;font-size:0.8rem;font-weight:400;text-transform:none;background:#fff;border:1px solid var(--borde);border-radius:var(--radio-sm);padding:10px;grid-column:span 1;">
+      <input type="checkbox" class="chk-permiso" value="${l.id}" ${permitidas.includes(l.id) ? 'checked' : ''}/>
+      ${l.emoji} ${l.nombre}
+    </label>`).join('');
+}
+
+async function guardarPermisos(){
+  const userId = val('admin-user-select');
+  const labores = [...document.querySelectorAll('.chk-permiso:checked')].map(c => c.value);
+  try{
+    const res = await sbFetch('permisos_labores', {
+      method: 'POST',
+      headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ usuario: userId, labores, actualizado_por: currentUser.nombre, updated_at: new Date().toISOString() })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    LABOR_PERMISSIONS[userId] = labores;
+    showToast('✅ Permisos actualizados');
+  }catch(err){
+    showToast('Error al guardar permisos', 'error');
+  }
+}
+
+// ============================================================
 // INIT
 // ============================================================
 poblarLoginUsers();
@@ -559,6 +751,7 @@ if ('serviceWorker' in navigator){
     navigator.serviceWorker.register('/registro-labores-nuevo/sw.js').catch(()=>{});
   });
 }
+
 </script>
 </body>
 </html>
