@@ -1,6 +1,6 @@
 {
-  "name": "Registro de Labores (DEMO)",
-  "short_name": "RegCampo Demo",
+  "name": "Registro de Labores de Campo",
+  "short_name": "RegCampo",
   "description": "Registro diario de labores de campo: aplicación, limpieza de laterales, plan cero fuga, revisión de manguera, purga con pig, tendido de manguera, instalación de flushing y medición de caudal.",
   "start_url": "/registro-labores-nuevo/index.html",
   "scope": "/registro-labores-nuevo/",
