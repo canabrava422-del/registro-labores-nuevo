@@ -525,16 +525,49 @@ function irAdmin(){
   document.getElementById('nav-admin').classList.add('active');
   renderAdminUserSelect();
 }
-function volverHome(){ filtroLaborLista = null; irHome(); }
+function volverHome(){ filtroLaborLista = null; registroEditandoId = null; irHome(); }
 
 let laborActual = null;
-function abrirFormulario(laborId){
+let registroEditandoId = null;
+
+function abrirFormulario(laborId, registroExistente){
   laborActual = laborId;
+  registroEditandoId = registroExistente ? registroExistente.id : null;
   const labor = LABORES.find(l => l.id === laborId);
-  document.getElementById('form-title').textContent = `${labor.emoji} ${labor.nombre}`;
+  document.getElementById('form-title').textContent = `${labor.emoji} ${labor.nombre}` + (registroEditandoId ? ' (editando)' : '');
   document.getElementById('form-container').innerHTML = FORMULARIOS[laborId]();
   document.getElementById('view-home').classList.add('hidden');
   document.getElementById('view-form').classList.remove('hidden');
+  if (registroExistente) precargarFormulario(registroExistente);
+}
+
+function precargarFormulario(r){
+  const [eq, tr] = (r.equipo || '-').split('-');
+  if (val('f-eq') !== null) document.getElementById('f-eq').value = eq || '';
+  if (val('f-tr') !== null) document.getElementById('f-tr').value = tr || '';
+  onEqTrChange();
+  const parcelasSel = (r.parcelas || '').split(',').filter(Boolean);
+  setTimeout(() => {
+    parcelasSel.forEach(p => {
+      const chk = document.querySelector(`.chk-parcela[value="${p}"]`);
+      if (chk) chk.checked = true;
+    });
+  }, 0);
+  if (document.getElementById('f-fundo')) document.getElementById('f-fundo').value = r.fundo || '';
+  if (document.getElementById('f-fecha')) document.getElementById('f-fecha').value = r.fecha || '';
+  if (document.getElementById('f-obs')) document.getElementById('f-obs').value = r.observaciones || '';
+  if (document.getElementById('f-insumo')) document.getElementById('f-insumo').value = r.insumo || '';
+  if (document.getElementById('f-dosis-cant')) document.getElementById('f-dosis-cant').value = r.dosis_cantidad ?? '';
+  if (document.getElementById('f-dosis-unid')) document.getElementById('f-dosis-unid').value = r.dosis_unidad || '';
+  const extra = r.datos_extra || {};
+  if (document.getElementById('f-jornales')) document.getElementById('f-jornales').value = extra.jornales ?? '';
+  if (document.getElementById('f-avance-ha')) document.getElementById('f-avance-ha').value = extra.avance_ha ?? '';
+  (CAMPOS_EXTRA[laborActual] || []).forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const key = id.replace('f-','').replace(/-/g,'_');
+    if (extra[key] !== undefined && extra[key] !== null) el.value = extra[key];
+  });
 }
 
 // ============================================================
@@ -575,9 +608,15 @@ async function guardarLabor(){
   };
 
   try{
-    const res = await sbFetch('labores_campo', { method:'POST', body: JSON.stringify(registro) });
+    let res;
+    if (registroEditandoId){
+      res = await sbFetch(`labores_campo?id=eq.${registroEditandoId}`, { method:'PATCH', body: JSON.stringify(registro) });
+    } else {
+      res = await sbFetch('labores_campo', { method:'POST', body: JSON.stringify(registro) });
+    }
     if (!res.ok) throw new Error(await res.text());
-    showToast('✅ Registro guardado');
+    showToast(registroEditandoId ? '✅ Registro actualizado' : '✅ Registro guardado');
+    registroEditandoId = null;
     irHome();
   }catch(err){
     showToast('Error al guardar: revisa tu conexión', 'error');
@@ -619,6 +658,7 @@ async function cargarLista(){
     cont.innerHTML = data.map(r => {
       const labor = LABORES.find(l => l.id === r.labor);
       const avance = r.datos_extra && r.datos_extra.avance_ha ? r.datos_extra.avance_ha + ' ha' : '';
+      const puedeEditar = isLaborAllowed(r.labor);
       return `
         <div class="record-card">
           <div class="rc-top">
@@ -626,10 +666,32 @@ async function cargarLista(){
             <span class="rc-fecha">${r.fecha}</span>
           </div>
           <div class="rc-meta">${r.fundo || '—'} · ${r.equipo || ''} ${r.parcelas ? '('+r.parcelas+')' : ''} ${avance ? '· '+avance : ''}</div>
+          ${puedeEditar ? `
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button onclick='editarRegistro(${JSON.stringify(r).replace(/'/g,"&#39;")})' style="flex:1;padding:7px;font-size:0.72rem;border:1px solid var(--borde);border-radius:8px;background:#fff;font-weight:700;color:var(--azul);">✏️ Editar</button>
+            <button onclick="eliminarRegistro(${r.id})" style="flex:1;padding:7px;font-size:0.72rem;border:1px solid var(--borde);border-radius:8px;background:#fff;font-weight:700;color:var(--rojo);">🗑️ Eliminar</button>
+          </div>` : ''}
         </div>`;
     }).join('');
   }catch(err){
     cont.innerHTML = '<div class="empty-state">Error al cargar registros</div>';
+  }
+}
+
+function editarRegistro(registro){
+  document.getElementById('view-lista').classList.add('hidden');
+  abrirFormulario(registro.labor, registro);
+}
+
+async function eliminarRegistro(id){
+  if (!confirm('¿Eliminar este registro? Esta acción no se puede deshacer.')) return;
+  try{
+    const res = await sbFetch(`labores_campo?id=eq.${id}`, { method:'DELETE' });
+    if (!res.ok) throw new Error();
+    showToast('Registro eliminado');
+    cargarLista();
+  }catch(err){
+    showToast('Error al eliminar', 'error');
   }
 }
 
