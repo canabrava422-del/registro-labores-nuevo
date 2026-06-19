@@ -119,6 +119,7 @@
     </div>
     <div id="form-container"></div>
     <button class="btn" onclick="guardarLabor()">💾 Guardar registro</button>
+    <div id="form-registros-anteriores" style="margin-top:14px;"></div>
   </section>
 
   <section id="view-lista" class="hidden">
@@ -628,6 +629,7 @@ function abrirFormulario(laborId, registroExistente){
   attachVerifyListeners();
   if (registroExistente) precargarFormulario(registroExistente);
   refreshVerifyTable();
+  cargarRegistrosAnterioresForm(laborId);
 }
 
 function precargarFormulario(r){
@@ -723,6 +725,16 @@ function formatHora(ts){
   }catch{ return '—'; }
 }
 
+function ratioTxt(r){
+  const j = parseFloat(r.datos_extra?.jornales);
+  const a = parseFloat(r.datos_extra?.avance_ha);
+  if (!j || !a) return '—';
+  return (j/a).toFixed(2) + ' jor/ha';
+}
+const COL_JORNALES = {label:'Jornales', val:r=>r.datos_extra?.jornales ?? '—'};
+const COL_RATIO = {label:'Ratio (jor/ha)', val:r=>ratioTxt(r)};
+const COL_CONTROLADOR = {label:'Controlador', val:r=>r.controlador || '—'};
+
 const COLUMNAS_LABOR = {
   aplicacion: [
     {label:'Fecha', val:r=>r.fecha},
@@ -735,6 +747,8 @@ const COLUMNAS_LABOR = {
     {label:'Dosis', val:r=>r.dosis_cantidad ? `${r.dosis_cantidad} ${r.dosis_unidad||''}` : '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
     {label:'Operador', val:r=>r.datos_extra?.operador || '—'},
+    {label:'Método', val:r=>r.datos_extra?.metodo || '—'},
+    COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   limpieza: [
     {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
@@ -742,6 +756,7 @@ const COLUMNAS_LABOR = {
     {label:'IMOF (ml)', val:r=>r.datos_extra?.imof ?? '—'}, {label:'Frecuencia (días)', val:r=>r.datos_extra?.frecuencia ?? '—'},
     {label:'No riegan', val:r=>r.datos_extra?.mang_no_riegan ?? '—'}, {label:'Reparadas', val:r=>r.datos_extra?.mang_rep ?? '—'},
     {label:'Pendientes', val:r=>r.datos_extra?.mang_pend ?? '—'}, {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
+    COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   plancero: [
     {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
@@ -749,6 +764,7 @@ const COLUMNAS_LABOR = {
     {label:'Fugas', val:r=>r.datos_extra?.fugas ?? '—'}, {label:'Reparadas', val:r=>r.datos_extra?.mang_rep ?? '—'},
     {label:'Pendientes', val:r=>r.datos_extra?.mang_pend ?? '—'}, {label:'Ha pendientes', val:r=>r.datos_extra?.ha_pend ?? '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
+    COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   manguera: [
     {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
@@ -756,24 +772,28 @@ const COLUMNAS_LABOR = {
     {label:'Revisadas', val:r=>r.datos_extra?.mang_rev ?? '—'}, {label:'Reparadas', val:r=>r.datos_extra?.mang_rep ?? '—'},
     {label:'Pendientes', val:r=>r.datos_extra?.mang_pend ?? '—'}, {label:'Estado', val:r=>r.datos_extra?.estado || '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
+    COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   purga: [
     {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
     {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
     {label:'No estranguladas', val:r=>r.datos_extra?.mang_no_estr ?? '—'}, {label:'Estr. reparadas', val:r=>r.datos_extra?.mang_estr_rep ?? '—'},
     {label:'Estr. pendientes', val:r=>r.datos_extra?.mang_estr_pend ?? '—'}, {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
+    COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   tendido: [
     {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
     {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
     {label:'Metros', val:r=>r.datos_extra?.metros ?? '—'}, {label:'Mangueras', val:r=>r.datos_extra?.mang_tendidas ?? '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
+    COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   flushing: [
     {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
     {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
     {label:'Utilizados', val:r=>r.datos_extra?.flushing_util ?? '—'}, {label:'Pendientes', val:r=>r.datos_extra?.flushing_pend ?? '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
+    COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   caudal: [
     {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
@@ -781,32 +801,60 @@ const COLUMNAS_LABOR = {
     {label:'Mang. evaluadas', val:r=>r.datos_extra?.mang_eval ?? '—'}, {label:'Caudal medido', val:r=>r.datos_extra?.caudal ?? '—'},
     {label:'Caudal nominal', val:r=>r.datos_extra?.caudal_nom ?? '—'}, {label:'Presión (MCA)', val:r=>r.datos_extra?.presion ?? '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
+    COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
 };
 
-function renderTablaLabor(laborId, registros){
+async function cargarRegistrosAnterioresForm(laborId){
+  const cont = document.getElementById('form-registros-anteriores');
+  if (!cont) return;
+  cont.innerHTML = '<div class="empty-state">Cargando registros anteriores...</div>';
+  try{
+    const res = await sbFetch(`labores_campo?labor=eq.${laborId}&order=created_at.desc&limit=10`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (!data || !data.length){
+      cont.innerHTML = renderTablaLabor(laborId, []);
+      return;
+    }
+    cont.innerHTML = renderTablaLabor(laborId, data, true);
+  }catch(err){
+    cont.innerHTML = '<div class="empty-state">No se pudieron cargar los registros anteriores</div>';
+  }
+}
+function renderTablaLabor(laborId, registros, soloLectura){
   const labor = LABORES.find(l => l.id === laborId);
   const cols = COLUMNAS_LABOR[laborId] || [];
+
+  if (!registros.length){
+    return `
+    <div class="form-card" style="padding:14px 10px;">
+      <div class="section-title" style="padding-left:6px;">📋 Registros anteriores · ${labor ? labor.nombre : laborId}</div>
+      <div class="verify-empty">Sin registros anteriores para esta labor</div>
+    </div>`;
+  }
+
   const filas = registros.map(r => {
-    const puedeEditar = isLaborAllowed(r.labor);
+    const puedeEditar = !soloLectura && isLaborAllowed(r.labor);
     const tds = cols.map(c => `<td>${c.val(r)}</td>`).join('');
-    const acciones = puedeEditar ? `
+    const acciones = soloLectura ? '' : (puedeEditar ? `
       <td style="white-space:nowrap;">
         <button onclick='editarRegistro(${JSON.stringify(r).replace(/'/g,"&#39;")})' style="padding:5px 8px;font-size:0.68rem;border:1px solid var(--borde);border-radius:6px;background:#fff;font-weight:700;color:var(--azul);margin-right:4px;">✏️</button>
         <button onclick="eliminarRegistro(${r.id})" style="padding:5px 8px;font-size:0.68rem;border:1px solid var(--borde);border-radius:6px;background:#fff;font-weight:700;color:var(--rojo);">🗑️</button>
-      </td>` : '<td></td>';
+      </td>` : '<td></td>');
     return `<tr>${tds}${acciones}</tr>`;
   }).join('');
 
   return `
     <div class="form-card" style="padding:14px 10px;">
-      <div class="section-title" style="padding-left:6px;">${labor ? labor.emoji+' '+labor.nombre : laborId}</div>
+      <div class="section-title" style="padding-left:6px;">📋 Registros anteriores · ${labor ? labor.nombre : laborId}</div>
       <div style="overflow-x:auto;">
         <table class="verify-table" style="min-width:600px;">
-          <thead><tr>${cols.map(c=>`<th>${c.label}</th>`).join('')}<th>Acciones</th></tr></thead>
+          <thead><tr>${cols.map(c=>`<th>${c.label}</th>`).join('')}${soloLectura ? '' : '<th>Acciones</th>'}</tr></thead>
           <tbody>${filas}</tbody>
         </table>
       </div>
+      ${soloLectura ? `<div style="font-size:0.625rem;color:var(--texto-suave);margin-top:8px;text-align:right;">Mostrando ${registros.length} registro${registros.length>1?'s':''} más recientes</div>` : ''}
     </div>`;
 }
 let filtroActual = 'hoy';
