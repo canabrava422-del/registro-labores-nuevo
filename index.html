@@ -714,8 +714,101 @@ async function guardarLabor(){
 }
 
 // ============================================================
-// LISTA
+// HISTORIAL EN TABLA POR LABOR (igual estilo que LCampoR)
 // ============================================================
+function formatHora(ts){
+  if (!ts) return '—';
+  try{
+    return new Date(ts).toLocaleTimeString('es-PE', { hour:'2-digit', minute:'2-digit', timeZone:'America/Lima' });
+  }catch{ return '—'; }
+}
+
+const COLUMNAS_LABOR = {
+  aplicacion: [
+    {label:'Fecha', val:r=>r.fecha},
+    {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'EQ/TR', val:r=>r.equipo||'—'},
+    {label:'Parcelas', val:r=>r.parcelas||'—'},
+    {label:'Fundo', val:r=>r.fundo||'—'},
+    {label:'Edad (días)', val:r=>'—'},
+    {label:'Insumo', val:r=>r.insumo||'—'},
+    {label:'Dosis', val:r=>r.dosis_cantidad ? `${r.dosis_cantidad} ${r.dosis_unidad||''}` : '—'},
+    {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
+    {label:'Operador', val:r=>r.datos_extra?.operador || '—'},
+  ],
+  limpieza: [
+    {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
+    {label:'IMOF (ml)', val:r=>r.datos_extra?.imof ?? '—'}, {label:'Frecuencia (días)', val:r=>r.datos_extra?.frecuencia ?? '—'},
+    {label:'No riegan', val:r=>r.datos_extra?.mang_no_riegan ?? '—'}, {label:'Reparadas', val:r=>r.datos_extra?.mang_rep ?? '—'},
+    {label:'Pendientes', val:r=>r.datos_extra?.mang_pend ?? '—'}, {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
+  ],
+  plancero: [
+    {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
+    {label:'Fugas', val:r=>r.datos_extra?.fugas ?? '—'}, {label:'Reparadas', val:r=>r.datos_extra?.mang_rep ?? '—'},
+    {label:'Pendientes', val:r=>r.datos_extra?.mang_pend ?? '—'}, {label:'Ha pendientes', val:r=>r.datos_extra?.ha_pend ?? '—'},
+    {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
+  ],
+  manguera: [
+    {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
+    {label:'Revisadas', val:r=>r.datos_extra?.mang_rev ?? '—'}, {label:'Reparadas', val:r=>r.datos_extra?.mang_rep ?? '—'},
+    {label:'Pendientes', val:r=>r.datos_extra?.mang_pend ?? '—'}, {label:'Estado', val:r=>r.datos_extra?.estado || '—'},
+    {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
+  ],
+  purga: [
+    {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
+    {label:'No estranguladas', val:r=>r.datos_extra?.mang_no_estr ?? '—'}, {label:'Estr. reparadas', val:r=>r.datos_extra?.mang_estr_rep ?? '—'},
+    {label:'Estr. pendientes', val:r=>r.datos_extra?.mang_estr_pend ?? '—'}, {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
+  ],
+  tendido: [
+    {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
+    {label:'Metros', val:r=>r.datos_extra?.metros ?? '—'}, {label:'Mangueras', val:r=>r.datos_extra?.mang_tendidas ?? '—'},
+    {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
+  ],
+  flushing: [
+    {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
+    {label:'Utilizados', val:r=>r.datos_extra?.flushing_util ?? '—'}, {label:'Pendientes', val:r=>r.datos_extra?.flushing_pend ?? '—'},
+    {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
+  ],
+  caudal: [
+    {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
+    {label:'Mang. evaluadas', val:r=>r.datos_extra?.mang_eval ?? '—'}, {label:'Caudal medido', val:r=>r.datos_extra?.caudal ?? '—'},
+    {label:'Caudal nominal', val:r=>r.datos_extra?.caudal_nom ?? '—'}, {label:'Presión (MCA)', val:r=>r.datos_extra?.presion ?? '—'},
+    {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
+  ],
+};
+
+function renderTablaLabor(laborId, registros){
+  const labor = LABORES.find(l => l.id === laborId);
+  const cols = COLUMNAS_LABOR[laborId] || [];
+  const filas = registros.map(r => {
+    const puedeEditar = isLaborAllowed(r.labor);
+    const tds = cols.map(c => `<td>${c.val(r)}</td>`).join('');
+    const acciones = puedeEditar ? `
+      <td style="white-space:nowrap;">
+        <button onclick='editarRegistro(${JSON.stringify(r).replace(/'/g,"&#39;")})' style="padding:5px 8px;font-size:0.68rem;border:1px solid var(--borde);border-radius:6px;background:#fff;font-weight:700;color:var(--azul);margin-right:4px;">✏️</button>
+        <button onclick="eliminarRegistro(${r.id})" style="padding:5px 8px;font-size:0.68rem;border:1px solid var(--borde);border-radius:6px;background:#fff;font-weight:700;color:var(--rojo);">🗑️</button>
+      </td>` : '<td></td>';
+    return `<tr>${tds}${acciones}</tr>`;
+  }).join('');
+
+  return `
+    <div class="form-card" style="padding:14px 10px;">
+      <div class="section-title" style="padding-left:6px;">${labor ? labor.emoji+' '+labor.nombre : laborId}</div>
+      <div style="overflow-x:auto;">
+        <table class="verify-table" style="min-width:600px;">
+          <thead><tr>${cols.map(c=>`<th>${c.label}</th>`).join('')}<th>Acciones</th></tr></thead>
+          <tbody>${filas}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
 let filtroActual = 'hoy';
 function cambiarFiltro(f){
   filtroActual = f;
@@ -745,24 +838,9 @@ async function cargarLista(){
       cont.innerHTML = '<div class="empty-state">No hay registros en este periodo</div>';
       return;
     }
-    cont.innerHTML = data.map(r => {
-      const labor = LABORES.find(l => l.id === r.labor);
-      const avance = r.datos_extra && r.datos_extra.avance_ha ? r.datos_extra.avance_ha + ' ha' : '';
-      const puedeEditar = isLaborAllowed(r.labor);
-      return `
-        <div class="record-card">
-          <div class="rc-top">
-            <span class="rc-labor">${labor ? labor.emoji+' '+labor.nombre : r.labor}</span>
-            <span class="rc-fecha">${r.fecha}</span>
-          </div>
-          <div class="rc-meta">${r.fundo || '—'} · ${r.equipo || ''} ${r.parcelas ? '('+r.parcelas+')' : ''} ${avance ? '· '+avance : ''}</div>
-          ${puedeEditar ? `
-          <div style="display:flex;gap:8px;margin-top:8px;">
-            <button onclick='editarRegistro(${JSON.stringify(r).replace(/'/g,"&#39;")})' style="flex:1;padding:7px;font-size:0.72rem;border:1px solid var(--borde);border-radius:8px;background:#fff;font-weight:700;color:var(--azul);">✏️ Editar</button>
-            <button onclick="eliminarRegistro(${r.id})" style="flex:1;padding:7px;font-size:0.72rem;border:1px solid var(--borde);border-radius:8px;background:#fff;font-weight:700;color:var(--rojo);">🗑️ Eliminar</button>
-          </div>` : ''}
-        </div>`;
-    }).join('');
+    const grupos = {};
+    data.forEach(r => { (grupos[r.labor] = grupos[r.labor] || []).push(r); });
+    cont.innerHTML = Object.keys(grupos).map(laborId => renderTablaLabor(laborId, grupos[laborId])).join('');
   }catch(err){
     cont.innerHTML = '<div class="empty-state">Error al cargar registros</div>';
   }
