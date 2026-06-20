@@ -68,6 +68,13 @@
   .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--azul-oscuro);color:#fff;padding:11px 20px;border-radius:999px;font-size:0.85rem;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,0.2);}
   .toast.error{background:var(--rojo);}
   .verify-table-wrap{background:#fff;border-radius:var(--radio);padding:16px;margin-bottom:14px;box-shadow:0 1px 4px rgba(5,31,82,0.06);}
+  .datos-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .datos-table{border-collapse:collapse;font-size:0.76rem;table-layout:auto;}
+  .datos-table th,.datos-table td{padding:9px 12px;white-space:nowrap;border-bottom:1px solid var(--borde);height:40px;box-sizing:border-box;vertical-align:middle;line-height:1.2;}
+  .datos-table th{background:var(--fondo);text-align:left;font-size:0.64rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--texto-suave);white-space:nowrap;}
+  .datos-table tr:nth-child(even) td{background:var(--fondo);}
+  .datos-table tr:last-child td{border-bottom:none;}
+  .datos-table td.dt-acciones{white-space:nowrap;}
   .verify-table{width:100%;border-collapse:collapse;font-size:0.78rem;}
   .verify-table th{text-align:left;padding:6px 8px;color:var(--texto-suave);font-size:0.68rem;text-transform:uppercase;border-bottom:1.5px solid var(--borde);}
   .verify-table td{padding:7px 8px;border-bottom:1px solid var(--borde);}
@@ -1270,10 +1277,25 @@ async function guardarLabor(){
 // ============================================================
 // HISTORIAL EN TABLA POR LABOR (igual estilo que LCampoR)
 // ============================================================
+function formatDate(d){
+  if (!d) return '—';
+  const [y,m,day] = d.split('-');
+  if (!y || !m || !day) return d;
+  return `${day}/${m}/${y}`;
+}
+
 function formatHora(ts){
   if (!ts) return '—';
   try{
-    return new Date(ts).toLocaleTimeString('es-PE', { hour:'2-digit', minute:'2-digit', timeZone:'America/Lima' });
+    // Supabase guarda created_at como TIMESTAMP (sin zona horaria) y lo
+    // devuelve sin sufijo "Z", por lo que JS lo interpretaría como hora
+    // LOCAL del dispositivo en vez de UTC. Forzamos UTC explícitamente
+    // antes de convertir a la zona horaria de Perú (America/Lima).
+    let isoUtc = ts;
+    if (typeof ts === 'string' && !/Z$|[+-]\d{2}:?\d{2}$/.test(ts)){
+      isoUtc = ts + 'Z';
+    }
+    return new Date(isoUtc).toLocaleTimeString('es-PE', { hour:'2-digit', minute:'2-digit', timeZone:'America/Lima' });
   }catch{ return '—'; }
 }
 
@@ -1290,7 +1312,7 @@ const COL_EDAD = {label:'Edad (días)', val:r=>r.datos_extra?.edad_dias ?? '—'
 
 const COLUMNAS_LABOR = {
   aplicacion: [
-    {label:'Fecha', val:r=>r.fecha},
+    {label:'Fecha', val:r=>formatDate(r.fecha)},
     {label:'Hora', val:r=>formatHora(r.created_at)},
     {label:'EQ/TR', val:r=>r.equipo||'—'},
     {label:'Parcelas', val:r=>r.parcelas||'—'},
@@ -1304,7 +1326,7 @@ const COLUMNAS_LABOR = {
     COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   limpieza: [
-    {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'Fecha', val:r=>formatDate(r.fecha)}, {label:'Hora', val:r=>formatHora(r.created_at)},
     {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
     {label:'IMOF (ml)', val:r=>r.datos_extra?.imof ?? '—'}, {label:'Frecuencia (días)', val:r=>r.datos_extra?.frecuencia ?? '—'},
     {label:'No riegan', val:r=>r.datos_extra?.mang_no_riegan ?? '—'}, {label:'Reparadas', val:r=>r.datos_extra?.mang_rep ?? '—'},
@@ -1312,7 +1334,7 @@ const COLUMNAS_LABOR = {
     COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   plancero: [
-    {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'Fecha', val:r=>formatDate(r.fecha)}, {label:'Hora', val:r=>formatHora(r.created_at)},
     {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
     {label:'Fugas', val:r=>r.datos_extra?.fugas ?? '—'}, {label:'Reparadas', val:r=>r.datos_extra?.mang_rep ?? '—'},
     {label:'Pendientes', val:r=>r.datos_extra?.mang_pend ?? '—'}, {label:'Ha pendientes', val:r=>r.datos_extra?.ha_pend ?? '—'},
@@ -1320,7 +1342,7 @@ const COLUMNAS_LABOR = {
     COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   manguera: [
-    {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'Fecha', val:r=>formatDate(r.fecha)}, {label:'Hora', val:r=>formatHora(r.created_at)},
     {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
     {label:'Revisadas', val:r=>r.datos_extra?.mang_rev ?? '—'}, {label:'Reparadas', val:r=>r.datos_extra?.mang_rep ?? '—'},
     {label:'Pendientes', val:r=>r.datos_extra?.mang_pend ?? '—'}, {label:'Estado', val:r=>r.datos_extra?.estado || '—'},
@@ -1328,28 +1350,28 @@ const COLUMNAS_LABOR = {
     COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   purga: [
-    {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'Fecha', val:r=>formatDate(r.fecha)}, {label:'Hora', val:r=>formatHora(r.created_at)},
     {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
     {label:'No estranguladas', val:r=>r.datos_extra?.mang_no_estr ?? '—'}, {label:'Estr. reparadas', val:r=>r.datos_extra?.mang_estr_rep ?? '—'},
     {label:'Estr. pendientes', val:r=>r.datos_extra?.mang_estr_pend ?? '—'}, {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
     COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   tendido: [
-    {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'Fecha', val:r=>formatDate(r.fecha)}, {label:'Hora', val:r=>formatHora(r.created_at)},
     {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
     {label:'Líneas tendidas', val:r=>r.datos_extra?.lineas_tendidas ?? '—'}, {label:'Ha tendida', val:r=>r.datos_extra?.ha_tendida ?? '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
     COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   flushing: [
-    {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'Fecha', val:r=>formatDate(r.fecha)}, {label:'Hora', val:r=>formatHora(r.created_at)},
     {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
     {label:'Utilizados', val:r=>r.datos_extra?.flushing_util ?? '—'}, {label:'Pendientes', val:r=>r.datos_extra?.flushing_pend ?? '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
     COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
   caudal: [
-    {label:'Fecha', val:r=>r.fecha}, {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'Fecha', val:r=>formatDate(r.fecha)}, {label:'Hora', val:r=>formatHora(r.created_at)},
     {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
     {label:'Mang. evaluadas', val:r=>r.datos_extra?.mang_eval ?? '—'}, {label:'Caudal medido', val:r=>r.datos_extra?.caudal ?? '—'},
     {label:'Caudal nominal', val:r=>r.datos_extra?.caudal_nom ?? '—'}, {label:'Presión (MCA)', val:r=>r.datos_extra?.presion ?? '—'},
@@ -1387,23 +1409,23 @@ function renderTablaLabor(laborId, registros, soloLectura){
     </div>`;
   }
 
+  const esAdmin = currentUser && currentUser.role === 'admin';
   const filas = registros.map(r => {
-    const puedeEditar = !soloLectura && isLaborAllowed(r.labor);
     const tds = cols.map(c => `<td>${c.val(r)}</td>`).join('');
-    const acciones = soloLectura ? '' : (puedeEditar ? `
-      <td style="white-space:nowrap;">
+    const acciones = (soloLectura || !esAdmin) ? '' : `
+      <td class="dt-acciones">
         <button onclick='editarRegistro(${JSON.stringify(r).replace(/'/g,"&#39;")})' style="padding:5px 8px;font-size:0.68rem;border:1px solid var(--borde);border-radius:6px;background:#fff;font-weight:700;color:var(--azul);margin-right:4px;">✏️</button>
         <button onclick="eliminarRegistro(${r.id})" style="padding:5px 8px;font-size:0.68rem;border:1px solid var(--borde);border-radius:6px;background:#fff;font-weight:700;color:var(--rojo);">🗑️</button>
-      </td>` : '<td></td>');
+      </td>`;
     return `<tr>${tds}${acciones}</tr>`;
   }).join('');
 
   return `
     <div class="form-card" style="padding:14px 10px;">
       <div class="section-title" style="padding-left:6px;">📋 Registros anteriores · ${labor ? labor.nombre : laborId}</div>
-      <div style="overflow-x:auto;">
-        <table class="verify-table" style="min-width:600px;">
-          <thead><tr>${cols.map(c=>`<th>${c.label}</th>`).join('')}${soloLectura ? '' : '<th>Acciones</th>'}</tr></thead>
+      <div class="datos-table-scroll">
+        <table class="datos-table">
+          <thead><tr>${cols.map(c=>`<th>${c.label}</th>`).join('')}${(soloLectura || !esAdmin) ? '' : '<th>Acciones</th>'}</tr></thead>
           <tbody>${filas}</tbody>
         </table>
       </div>
@@ -1472,7 +1494,7 @@ function renderPendingQueue(){
   list.innerHTML = q.map(item => {
     const p = item.payload;
     const labor = LABORES.find(l => l.id === p.labor);
-    const fecha = p.fecha || '—';
+    const fecha = p.fecha ? formatDate(p.fecha) : '—';
     const hora = formatHora(item.timestamp);
     return `<div class="hist-card" style="border-left-color:#E67E22;opacity:0.9;">
       <div class="hist-top">
@@ -1511,11 +1533,11 @@ function renderRecordsHistorial(records){
     if (r.equipo) tags.push(`<span class="hist-tag hist-tag-equipo">${r.equipo}</span>`);
     if (r.insumo) tags.push(`<span class="hist-tag hist-tag-insumo">${r.insumo}</span>`);
     const hora = formatHora(r.created_at);
-    const puedeEditar = isLaborAllowed(r.labor);
+    const puedeEditar = currentUser && currentUser.role === 'admin';
     return `<div class="hist-card labor-${r.labor}" onclick="showDetail(${r.id})">
       <div class="hist-top">
         <div class="hist-labor">${labor ? labor.emoji+' '+labor.nombre : r.labor}</div>
-        <div class="hist-date">${r.fecha}${hora!=='—' ? ' · '+hora : ''}</div>
+        <div class="hist-date">${formatDate(r.fecha)}${hora!=='—' ? ' · '+hora : ''}</div>
       </div>
       <div class="hist-tags">${tags.join('')}</div>
       <div class="hist-user">👤 ${r.controlador} · ${r.rol === 'admin' ? '⭐ Admin' : 'Controlador'}</div>
@@ -1555,7 +1577,7 @@ function showDetail(id){
   const rows = [
     ['Fundo', r.fundo || '—', false],
     ['Parcelas', r.parcelas || '—', false],
-    ['Fecha', r.fecha || '—', false],
+    ['Fecha', formatDate(r.fecha), false],
     ['Hora subida', hora!=='—' ? hora : '—', false],
     ['Equipo', r.equipo || '—', true],
     ['Insumo', r.insumo || '—', false],
@@ -1613,7 +1635,7 @@ function showDetail(id){
     </div>`;
   }
 
-  if (isLaborAllowed(r.labor)){
+  if (currentUser && currentUser.role === 'admin'){
     html += `<button class="btn-danger" onclick="closeDetailModal();eliminarRegistro(${r.id})">🗑 Eliminar registro</button>`;
   }
 
@@ -1626,11 +1648,19 @@ function closeDetailModal(){
 }
 
 function editarRegistro(registro){
+  if (!currentUser || currentUser.role !== 'admin'){
+    showToast('Solo un administrador puede editar registros anteriores', 'error');
+    return;
+  }
   document.getElementById('view-lista').classList.add('hidden');
   abrirFormulario(registro.labor, registro);
 }
 
 async function eliminarRegistro(id){
+  if (!currentUser || currentUser.role !== 'admin'){
+    showToast('Solo un administrador puede eliminar registros anteriores', 'error');
+    return;
+  }
   if (!confirm('¿Eliminar este registro? Esta acción no se puede deshacer.')) return;
   try{
     const res = await sbFetch(`labores_campo?id=eq.${id}`, { method:'DELETE' });
@@ -2161,7 +2191,7 @@ function onFCEqTrChange(){
   const isOverride = !!FCULTIVO_OVERRIDES[key];
   if (fecha){
     const edad = calcEdadDias(eq, tr);
-    actualEl.innerHTML = `${fecha} ${isOverride ? '<strong style="color:var(--verde);">(actualizado)</strong>' : ''} — Edad actual: <strong>${edad} días</strong>`;
+    actualEl.innerHTML = `${formatDate(fecha)} ${isOverride ? '<strong style="color:var(--verde);">(actualizado)</strong>' : ''} — Edad actual: <strong>${edad} días</strong>`;
   } else {
     actualEl.textContent = `Sin fecha registrada para ${key}`;
   }
