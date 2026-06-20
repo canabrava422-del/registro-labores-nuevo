@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="3.9.0"/>
+<meta name="app-version" content="3.9.2"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -369,7 +369,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '3.9.0';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '3.9.2';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -531,16 +531,25 @@ const fundoOpts = `<option value="">— Fundo —</option><option>Huaca</option>
 const insumoOpts = `<option value="">— Insumo —</option><option>Aquazix</option><option>Aquaclean</option><option>Ac. Sulfúrico</option><option>Úrea</option><option>Potasio</option><option>Fósforo</option><option>Ac. Fúlvico + Úrea</option><option>Ferroso</option>`;
 const unidOpts = `<option value="">—</option><option>Kg/ha</option><option>L/ha</option><option>ppm</option>`;
 
+// Íconos SVG dibujados a mano para labores sin emoji equivalente real.
+// width/height="1em" para que hereden el tamaño de fuente del contexto donde se inserten.
+const ICONO_CONO_IMHOFF = `<svg width="1em" height="1em" viewBox="0 0 24 24" style="vertical-align:-0.2em;"><path d="M6 4h12l-4.2 15.2c-.15.55-.65.8-1.1.8h-1.4c-.45 0-.95-.25-1.1-.8L6 4z" fill="none" stroke="#0C4A8C" stroke-width="1.6" stroke-linejoin="round"/><line x1="7.3" y1="8.5" x2="16.7" y2="8.5" stroke="#0C4A8C" stroke-width="1.3"/><line x1="8.3" y1="12.5" x2="15.7" y2="12.5" stroke="#0C4A8C" stroke-width="1.3"/><line x1="9.4" y1="16.5" x2="14.6" y2="16.5" stroke="#0C4A8C" stroke-width="1.3"/><ellipse cx="12" cy="22" rx="4" ry="1.1" fill="none" stroke="#0C4A8C" stroke-width="1.3"/><line x1="12" y1="20" x2="12" y2="22" stroke="#0C4A8C" stroke-width="1.3"/></svg>`;
+
+const ICONO_ESPONJAS_PIG = `<svg width="1em" height="1em" viewBox="0 0 24 24" style="vertical-align:-0.2em;"><rect x="2.5" y="9.5" width="8" height="4.5" rx="2.25" fill="none" stroke="#E74C3C" stroke-width="1.5" transform="rotate(-12 6.5 11.75)"/><rect x="9" y="4.5" width="8" height="4.5" rx="2.25" fill="none" stroke="#E74C3C" stroke-width="1.5" transform="rotate(18 13 6.75)"/><rect x="11" y="13" width="8" height="4.5" rx="2.25" fill="none" stroke="#E74C3C" stroke-width="1.5" transform="rotate(-8 15 15.25)"/></svg>`;
+
+const ICONO_CAUDALIMETRO = `<svg width="1em" height="1em" viewBox="0 0 24 24" style="vertical-align:-0.2em;"><line x1="1" y1="12" x2="6.5" y2="12" stroke="#A8E063" stroke-width="1.8" stroke-linecap="round"/><line x1="17.5" y1="12" x2="23" y2="12" stroke="#A8E063" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="#A8E063" stroke-width="1.6"/><path d="M12 8.5v4l3 1.8" fill="none" stroke="#A8E063" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="1" fill="#A8E063"/></svg>`;
+
 const LABORES = [
   { id:'aplicacion', emoji:'🧪', nombre:'Aplicación' },
-  { id:'limpieza',   emoji:'🧹', nombre:'Limpieza de laterales' },
-  { id:'plancero',   emoji:'🔧', nombre:'Plan cero fuga' },
-  { id:'manguera',   emoji:'🛠️', nombre:'Revisión de manguera' },
-  { id:'purga',      emoji:'💨', nombre:'Purga con pig' },
-  { id:'tendido',    emoji:'🧵', nombre:'Tendido de manguera' },
+  { id:'limpieza',   emoji:'🍸', icon:ICONO_CONO_IMHOFF, nombre:'Limpieza de laterales' },
+  { id:'plancero',   emoji:'⏱️', nombre:'Plan cero fuga' },
+  { id:'manguera',   emoji:'✂️', nombre:'Revisión de manguera' },
+  { id:'purga',      emoji:'🧽', icon:ICONO_ESPONJAS_PIG, nombre:'Purga con pig' },
+  { id:'tendido',    emoji:'🌀', nombre:'Tendido de manguera' },
   { id:'flushing',   emoji:'🔩', nombre:'Instalación de flushing' },
-  { id:'caudal',     emoji:'💧', nombre:'Medición de caudal' },
+  { id:'caudal',     emoji:'🌊', icon:ICONO_CAUDALIMETRO, nombre:'Medición de caudal' },
 ];
+function iconoLabor(l){ return l.icon || l.emoji; }
 
 function val(id){ const el = document.getElementById(id); return el ? el.value : null; }
 function num(id){ const v = val(id); return (v===null || v==='') ? null : parseFloat(v); }
@@ -1044,7 +1053,7 @@ function renderLaborGrid(){
     const permitido = isLaborAllowed(l.id);
     return `
     <div class="labor-card" onclick="${permitido ? `abrirFormulario('${l.id}')` : `verSoloLectura('${l.id}')`}" style="${permitido ? '' : 'opacity:0.6;'}">
-      <span class="emoji">${l.emoji}</span>
+      <span class="emoji">${iconoLabor(l)}</span>
       <div class="lc-name">${l.nombre}</div>
       ${permitido ? '' : '<div style="font-size:0.6rem;color:var(--texto-suave);margin-top:2px;">Solo ver</div>'}
     </div>`;
@@ -1171,7 +1180,7 @@ function abrirFormulario(laborId, registroExistente){
   laborActual = laborId;
   registroEditandoId = registroExistente ? registroExistente.id : null;
   const labor = LABORES.find(l => l.id === laborId);
-  document.getElementById('form-title').textContent = `${labor.emoji} ${labor.nombre}` + (registroEditandoId ? ' (editando)' : '');
+  document.getElementById('form-title').innerHTML = `${iconoLabor(labor)} ${labor.nombre}` + (registroEditandoId ? ' (editando)' : '');
   document.getElementById('form-container').innerHTML = FORMULARIOS[laborId]() + buildVerifyTable();
   document.getElementById('view-home').classList.add('hidden');
   document.getElementById('view-form').classList.remove('hidden');
@@ -1561,7 +1570,7 @@ function renderPendingQueue(){
     const hora = formatHora(item.timestamp);
     return `<div class="hist-card" style="border-left-color:#E67E22;opacity:0.9;">
       <div class="hist-top">
-        <div class="hist-labor">📡 ${labor ? labor.emoji+' '+labor.nombre : p.labor}</div>
+        <div class="hist-labor">📡 ${labor ? iconoLabor(labor)+' '+labor.nombre : p.labor}</div>
         <div class="hist-date">${fecha} · ${hora}</div>
       </div>
       <div class="hist-tags">
@@ -1599,7 +1608,7 @@ function renderRecordsHistorial(records){
     const puedeEditar = currentUser && currentUser.role === 'admin';
     return `<div class="hist-card labor-${r.labor}" onclick="showDetail(${r.id})">
       <div class="hist-top">
-        <div class="hist-labor">${labor ? labor.emoji+' '+labor.nombre : r.labor}</div>
+        <div class="hist-labor">${labor ? iconoLabor(labor)+' '+labor.nombre : r.labor}</div>
         <div class="hist-date">${formatDate(r.fecha)}${hora!=='—' ? ' · '+hora : ''}</div>
       </div>
       <div class="hist-tags">${tags.join('')}</div>
@@ -2071,7 +2080,7 @@ function onPermUserChange(){
   checkboxesEl.innerHTML = LABORES.map(l => `
     <label class="perm-chk-row">
       <input type="checkbox" class="chk-permiso" value="${l.id}" ${permitidas.includes(l.id) ? 'checked' : ''}/>
-      <span>${l.emoji} ${l.nombre}</span>
+      <span>${iconoLabor(l)} ${l.nombre}</span>
     </label>`).join('');
   wrap.style.display = 'block';
 }
