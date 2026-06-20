@@ -203,6 +203,10 @@
 
 <main id="app-main" class="hidden">
   <section id="view-home">
+    <div id="home-sync-bar" class="hidden" style="display:flex;align-items:center;justify-content:space-between;background:#FFF3CD;border-radius:var(--radio-sm);padding:10px 14px;margin-bottom:12px;">
+      <span style="font-size:0.8rem;color:#7d5a00;">📡 <span id="home-sync-count">0</span> registro(s) sin sincronizar</span>
+      <button onclick="trySyncQueue()" style="background:#E67E22;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-weight:700;font-size:0.74rem;">↑ Subir ahora</button>
+    </div>
     <div id="anuncios-banner"></div>
     <p style="font-weight:700;color:var(--azul-oscuro);margin:4px 0 12px;">¿Qué labor vas a registrar?</p>
     <div class="labor-grid" id="labor-grid"></div>
@@ -388,10 +392,24 @@ function updateSyncBar(){
   const bar = document.getElementById('sync-bar');
   const cnt = document.getElementById('sync-count');
   const badge = document.getElementById('offline-badge');
-  if (!bar) return;
-  bar.classList.toggle('hidden', q.length === 0);
-  if (cnt) cnt.textContent = q.length;
+  const homeBar = document.getElementById('home-sync-bar');
+  const homeCnt = document.getElementById('home-sync-count');
+
+  // Home e Historial ya tienen su propio banner inline con el mismo aviso;
+  // la barra flotante solo se muestra en el resto de pantallas para no duplicar.
+  const enHomeOLista = !document.getElementById('view-home').classList.contains('hidden') ||
+                        !document.getElementById('view-lista').classList.contains('hidden');
+
+  if (bar){
+    bar.classList.toggle('hidden', q.length === 0 || enHomeOLista);
+    if (cnt) cnt.textContent = q.length;
+  }
   if (badge) badge.classList.toggle('hidden', !(q.length > 0 && !_isOnline));
+  if (homeBar){
+    homeBar.classList.toggle('hidden', q.length === 0);
+    if (homeCnt) homeCnt.textContent = q.length;
+  }
+  if (typeof updateHistorialCounters === 'function') updateHistorialCounters();
 }
 
 async function trySyncQueue(){
@@ -987,18 +1005,21 @@ function irHome(){
   ocultarTodasLasVistas();
   document.getElementById('view-home').classList.remove('hidden');
   document.getElementById('nav-home').classList.add('active');
+  updateSyncBar();
 }
 function irKpis(){
   ocultarTodasLasVistas();
   document.getElementById('view-kpis').classList.remove('hidden');
   document.getElementById('nav-kpis').classList.add('active');
   cargarKpis();
+  updateSyncBar();
 }
 function irAdmin(){
   ocultarTodasLasVistas();
   document.getElementById('view-admin').classList.remove('hidden');
   document.getElementById('nav-admin').classList.add('active');
   renderAjustes();
+  updateSyncBar();
 }
 function volverHome(){ filtroLaborLista = null; registroEditandoId = null; irHome(); }
 
@@ -1400,6 +1421,7 @@ function irLista(){
   document.getElementById('nav-lista').classList.add('active');
   poblarFiltroLabor();
   cargarHistorial();
+  updateSyncBar();
 }
 
 function poblarFiltroLabor(){
