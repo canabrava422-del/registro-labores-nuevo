@@ -84,6 +84,24 @@
   .pp-parcela{font-weight:700;color:var(--azul-oscuro);}
   .pp-input{width:64px;padding:5px;font-size:0.72rem;border:1px solid var(--borde);border-radius:6px;text-align:center;}
   .pp-total{font-weight:700;color:var(--verde);}
+  .hist-card{background:#fff;border-radius:var(--radio-sm);padding:13px 15px;box-shadow:0 1px 4px rgba(5,31,82,0.06);border-left:4px solid var(--azul);cursor:pointer;}
+  .hist-card.labor-aplicacion{border-left-color:var(--verde);}
+  .hist-card.labor-limpieza{border-left-color:#3498DB;}
+  .hist-card.labor-plancero{border-left-color:#E67E22;}
+  .hist-card.labor-manguera{border-left-color:#9B59B6;}
+  .hist-card.labor-purga{border-left-color:#E74C3C;}
+  .hist-card.labor-tendido{border-left-color:#0C4A8C;}
+  .hist-card.labor-flushing{border-left-color:#1ABC9C;}
+  .hist-card.labor-caudal{border-left-color:#D4A017;}
+  .hist-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+  .hist-labor{font-size:0.82rem;font-weight:700;color:var(--azul-oscuro);}
+  .hist-date{font-size:0.68rem;color:var(--texto-suave);font-weight:600;white-space:nowrap;}
+  .hist-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
+  .hist-tag{font-size:0.62rem;font-weight:700;padding:2px 9px;border-radius:20px;}
+  .hist-tag-fundo{background:var(--verde-menta);color:#1e7a3a;}
+  .hist-tag-equipo{background:#E8F4FD;color:#1a5276;}
+  .hist-tag-insumo{background:#fdf3d6;color:#7d5a00;}
+  .hist-user{font-size:0.7rem;color:var(--texto-suave);}
 </style>
 </head>
 <body>
@@ -148,12 +166,43 @@
   </section>
 
   <section id="view-lista" class="hidden">
-    <div class="tabs">
-      <div class="tab active" id="tab-hoy" onclick="cambiarFiltro('hoy')">Hoy</div>
-      <div class="tab" id="tab-semana" onclick="cambiarFiltro('semana')">Esta semana</div>
-      <div class="tab" id="tab-todos" onclick="cambiarFiltro('todos')">Todos</div>
+    <div id="hsb-pendientes-bar" class="hidden" style="display:flex;align-items:center;justify-content:space-between;background:#FFF3CD;border-radius:var(--radio-sm);padding:10px 14px;margin-bottom:12px;">
+      <span style="font-size:0.8rem;color:#7d5a00;">📡 <span id="hsb-count-pendiente-txt">0</span> registro(s) sin sincronizar</span>
+      <button onclick="trySyncQueue()" style="background:#E67E22;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-weight:700;font-size:0.74rem;">↑ Subir ahora</button>
     </div>
-    <div id="lista-registros"></div>
+
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="form-card" style="text-align:center;padding:14px 6px;">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--verde);" id="hsb-count-subido">0</div>
+        <div style="font-size:0.62rem;color:var(--texto-suave);text-transform:uppercase;font-weight:700;">✅ En Supabase</div>
+      </div>
+      <div class="form-card" style="text-align:center;padding:14px 6px;">
+        <div style="font-size:1.5rem;font-weight:700;color:#E67E22;" id="hsb-count-pendiente">0</div>
+        <div style="font-size:0.62rem;color:var(--texto-suave);text-transform:uppercase;font-weight:700;">📡 Pendientes</div>
+      </div>
+      <div class="form-card" style="text-align:center;padding:14px 6px;grid-column:1/-1;">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--azul-oscuro);" id="hsb-count-total">0</div>
+        <div style="font-size:0.62rem;color:var(--texto-suave);text-transform:uppercase;font-weight:700;">Total</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <span style="font-weight:700;color:var(--azul-oscuro);font-size:0.82rem;">✅ Registros en Supabase</span>
+      <button onclick="cargarHistorial()" style="background:var(--verde-menta);border:1px solid var(--verde-claro);color:var(--verde);padding:7px 12px;border-radius:8px;font-weight:700;font-size:0.74rem;">↻ Actualizar</button>
+    </div>
+
+    <div class="form-grid" style="margin-bottom:14px;">
+      <select id="filter-labor" onchange="applyFiltersHistorial()">
+        <option value="">Todas las labores</option>
+      </select>
+      <select id="filter-fundo" onchange="applyFiltersHistorial()">
+        <option value="">Todos los fundos</option>
+        <option>Huaca</option><option>Lobo 1</option><option>Lobo 2</option>
+      </select>
+    </div>
+
+    <div id="pending-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px;"></div>
+    <div id="records-list" style="display:flex;flex-direction:column;gap:10px;"></div>
   </section>
 
   <section id="view-kpis" class="hidden">
@@ -214,7 +263,7 @@
 
 <nav class="bottom-nav hidden" id="bottom-nav">
   <button class="active" id="nav-home" onclick="irHome()"><span class="nav-emoji">📝</span>Registrar</button>
-  <button id="nav-lista" onclick="filtroLaborLista=null;irLista()"><span class="nav-emoji">📋</span>Mis registros</button>
+  <button id="nav-lista" onclick="filtroLaborLista=null;irLista()"><span class="nav-emoji">📋</span>Historial</button>
   <button id="nav-kpis" onclick="irKpis()"><span class="nav-emoji">📊</span>KPIs</button>
   <button id="nav-admin" onclick="irAdmin()" class="hidden"><span class="nav-emoji">⚙️</span>Admin</button>
 </nav>
@@ -298,7 +347,7 @@ async function trySyncQueue(){
   }
   saveQueue(failed);
   updateSyncBar();
-  if (synced > 0){ showToast(`✅ ${synced} registro(s) sincronizados`); if (!document.getElementById('view-lista').classList.contains('hidden')) cargarLista(); }
+  if (synced > 0){ showToast(`✅ ${synced} registro(s) sincronizados`); if (!document.getElementById('view-lista').classList.contains('hidden')) cargarHistorial(); }
   if (failed.length > 0) showToast(`⚠️ ${failed.length} sin sincronizar`, 'error');
 }
 
@@ -877,12 +926,6 @@ function irHome(){
   document.getElementById('view-home').classList.remove('hidden');
   document.getElementById('nav-home').classList.add('active');
 }
-function irLista(){
-  ocultarTodasLasVistas();
-  document.getElementById('view-lista').classList.remove('hidden');
-  document.getElementById('nav-lista').classList.add('active');
-  cargarLista();
-}
 function irKpis(){
   ocultarTodasLasVistas();
   document.getElementById('view-kpis').classList.remove('hidden');
@@ -1287,41 +1330,121 @@ function renderTablaLabor(laborId, registros, soloLectura){
       ${soloLectura ? `<div style="font-size:0.625rem;color:var(--texto-suave);margin-top:8px;text-align:right;">Mostrando ${registros.length} registro${registros.length>1?'s':''} más recientes</div>` : ''}
     </div>`;
 }
-let filtroActual = 'hoy';
-function cambiarFiltro(f){
-  filtroActual = f;
-  ['hoy','semana','todos'].forEach(x => document.getElementById('tab-'+x).classList.toggle('active', x===f));
-  cargarLista();
+// ============================================================
+// HISTORIAL — estilo LCampoR: contadores, filtros y tarjetas
+// ============================================================
+let allRecords = [];
+
+function irLista(){
+  ocultarTodasLasVistas();
+  document.getElementById('view-lista').classList.remove('hidden');
+  document.getElementById('nav-lista').classList.add('active');
+  poblarFiltroLabor();
+  cargarHistorial();
 }
 
-async function cargarLista(){
-  const cont = document.getElementById('lista-registros');
-  cont.innerHTML = '<div class="empty-state">Cargando...</div>';
+function poblarFiltroLabor(){
+  const sel = document.getElementById('filter-labor');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Todas las labores</option>' +
+    LABORES.map(l => `<option value="${l.id}" ${filtroLaborLista===l.id?'selected':''}>${l.emoji} ${l.nombre}</option>`).join('');
+}
 
-  const hoy = new Date(); hoy.setHours(0,0,0,0);
-  let query = `labores_campo?controlador=eq.${encodeURIComponent(currentUser.nombre)}&order=created_at.desc&limit=100`;
-  if (filtroLaborLista) query += `&labor=eq.${filtroLaborLista}`;
-  if (filtroActual === 'hoy'){
-    query += `&fecha=eq.${hoy.toISOString().slice(0,10)}`;
-  } else if (filtroActual === 'semana'){
-    const inicio = new Date(hoy); inicio.setDate(inicio.getDate() - 7);
-    query += `&fecha=gte.${inicio.toISOString().slice(0,10)}`;
-  }
-
+async function cargarHistorial(){
+  const listEl = document.getElementById('records-list');
+  listEl.innerHTML = '<div class="empty-state">Cargando...</div>';
+  renderPendingQueue();
   try{
-    const res = await sbFetch(query);
+    const res = await sbFetch('labores_campo?order=created_at.desc&limit=200');
     if (!res.ok) throw new Error();
-    const data = await res.json();
-    if (!data || data.length === 0){
-      cont.innerHTML = '<div class="empty-state">No hay registros en este periodo</div>';
-      return;
-    }
-    const grupos = {};
-    data.forEach(r => { (grupos[r.labor] = grupos[r.labor] || []).push(r); });
-    cont.innerHTML = Object.keys(grupos).map(laborId => renderTablaLabor(laborId, grupos[laborId])).join('');
+    allRecords = await res.json();
+    applyFiltersHistorial();
+    updateHistorialCounters();
   }catch(err){
-    cont.innerHTML = '<div class="empty-state">Error al cargar registros</div>';
+    listEl.innerHTML = '<div class="empty-state">Error de conexión</div>';
+    updateHistorialCounters();
   }
+}
+
+function updateHistorialCounters(){
+  const q = getQueue();
+  const subido = allRecords.length;
+  const pendiente = q.length;
+  const total = subido + pendiente;
+  const elSub = document.getElementById('hsb-count-subido');
+  const elPend = document.getElementById('hsb-count-pendiente');
+  const elTot = document.getElementById('hsb-count-total');
+  if (elSub) elSub.textContent = subido;
+  if (elPend) elPend.textContent = pendiente;
+  if (elTot) elTot.textContent = total;
+  const bar = document.getElementById('hsb-pendientes-bar');
+  const txt = document.getElementById('hsb-count-pendiente-txt');
+  if (bar) bar.classList.toggle('hidden', pendiente === 0);
+  if (txt) txt.textContent = pendiente;
+}
+
+function renderPendingQueue(){
+  const q = getQueue();
+  const list = document.getElementById('pending-list');
+  if (!list) return;
+  if (!q.length){ list.innerHTML = ''; return; }
+  list.innerHTML = q.map(item => {
+    const p = item.payload;
+    const labor = LABORES.find(l => l.id === p.labor);
+    const fecha = p.fecha || '—';
+    const hora = formatHora(item.timestamp);
+    return `<div class="hist-card" style="border-left-color:#E67E22;opacity:0.9;">
+      <div class="hist-top">
+        <div class="hist-labor">📡 ${labor ? labor.emoji+' '+labor.nombre : p.labor}</div>
+        <div class="hist-date">${fecha} · ${hora}</div>
+      </div>
+      <div class="hist-tags">
+        ${p.fundo ? `<span class="hist-tag hist-tag-fundo">${p.fundo}</span>` : ''}
+        ${p.equipo ? `<span class="hist-tag hist-tag-equipo">${p.equipo}</span>` : ''}
+        <span class="hist-tag" style="background:#FFF3CD;color:#7d5a00;">Pendiente</span>
+      </div>
+      <div class="hist-user">👤 ${p.controlador || '—'} · <span style="color:#E67E22;font-weight:700;">Sin sincronizar</span></div>
+    </div>`;
+  }).join('');
+}
+
+function applyFiltersHistorial(){
+  const filterLabor = val('filter-labor') || filtroLaborLista || '';
+  const filterFundo = val('filter-fundo') || '';
+  let filtered = allRecords;
+  if (filterLabor) filtered = filtered.filter(r => r.labor === filterLabor);
+  if (filterFundo) filtered = filtered.filter(r => r.fundo === filterFundo);
+  renderRecordsHistorial(filtered);
+}
+
+function renderRecordsHistorial(records){
+  const listEl = document.getElementById('records-list');
+  if (!records.length){
+    listEl.innerHTML = '<div class="empty-state">Sin registros para los filtros seleccionados</div>';
+    return;
+  }
+  listEl.innerHTML = records.map(r => {
+    const labor = LABORES.find(l => l.id === r.labor);
+    const tags = [];
+    if (r.fundo) tags.push(`<span class="hist-tag hist-tag-fundo">${r.fundo}</span>`);
+    if (r.equipo) tags.push(`<span class="hist-tag hist-tag-equipo">${r.equipo}</span>`);
+    if (r.insumo) tags.push(`<span class="hist-tag hist-tag-insumo">${r.insumo}</span>`);
+    const hora = formatHora(r.created_at);
+    const puedeEditar = isLaborAllowed(r.labor);
+    return `<div class="hist-card labor-${r.labor}">
+      <div class="hist-top">
+        <div class="hist-labor">${labor ? labor.emoji+' '+labor.nombre : r.labor}</div>
+        <div class="hist-date">${r.fecha}${hora!=='—' ? ' · '+hora : ''}</div>
+      </div>
+      <div class="hist-tags">${tags.join('')}</div>
+      <div class="hist-user">👤 ${r.controlador} · ${r.rol === 'admin' ? '⭐ Admin' : 'Controlador'}</div>
+      ${puedeEditar ? `
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button onclick='event.stopPropagation();editarRegistro(${JSON.stringify(r).replace(/'/g,"&#39;")})' style="flex:1;padding:7px;font-size:0.7rem;border:1px solid var(--borde);border-radius:8px;background:#fff;font-weight:700;color:var(--azul);">✏️ Editar</button>
+        <button onclick="event.stopPropagation();eliminarRegistro(${r.id})" style="flex:1;padding:7px;font-size:0.7rem;border:1px solid var(--borde);border-radius:8px;background:#fff;font-weight:700;color:var(--rojo);">🗑️ Eliminar</button>
+      </div>` : ''}
+    </div>`;
+  }).join('');
 }
 
 function editarRegistro(registro){
@@ -1335,7 +1458,7 @@ async function eliminarRegistro(id){
     const res = await sbFetch(`labores_campo?id=eq.${id}`, { method:'DELETE' });
     if (!res.ok) throw new Error();
     showToast('Registro eliminado');
-    cargarLista();
+    cargarHistorial();
   }catch(err){
     showToast('Error al eliminar', 'error');
   }
