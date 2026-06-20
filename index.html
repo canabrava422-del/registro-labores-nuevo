@@ -117,6 +117,25 @@
   .di-val{font-size:0.88rem;font-weight:600;color:var(--texto);}
   .di-val.mono{font-family:monospace;font-size:0.82rem;}
   .btn-danger{width:100%;padding:13px;background:#fdecea;color:var(--rojo);border:1.5px solid #f5c6cb;border-radius:var(--radio-sm);font-size:0.875rem;font-weight:700;cursor:pointer;margin-top:8px;}
+  .section-title-dash{font-size:0.95rem;font-weight:700;color:var(--azul-oscuro);margin:4px 0 14px;}
+  .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+  .stat-card{background:#fff;border-radius:var(--radio);padding:16px;box-shadow:0 1px 4px rgba(5,31,82,0.06);border-top:3px solid var(--verde);}
+  .stat-card.gold{border-top-color:#D4A017;}
+  .stat-card.blue{border-top-color:#3498DB;}
+  .stat-card.purple{border-top-color:#9B59B6;}
+  .stat-val{font-size:1.75rem;font-weight:700;color:var(--azul-oscuro);line-height:1;}
+  .stat-label{font-size:0.68rem;color:var(--texto-suave);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;}
+  .dash-card{background:#fff;border-radius:var(--radio);padding:16px;margin-bottom:14px;box-shadow:0 1px 4px rgba(5,31,82,0.06);border:1px solid var(--borde);overflow:hidden;}
+  .dash-card canvas{max-height:180px;width:100% !important;}
+  .dash-card-title{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--texto-suave);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--borde);}
+  .dash-mang-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--borde);font-size:0.75rem;}
+  .dash-mang-row:last-child{border-bottom:none;}
+  .dmr-label{color:var(--texto-suave);font-weight:600;}
+  .dmr-val{font-family:monospace;font-size:0.82rem;font-weight:700;color:var(--azul-oscuro);}
+  .dmr-badge{font-size:0.62rem;font-weight:700;padding:2px 8px;border-radius:20px;}
+  .dmr-badge.alto{background:#fdecea;color:var(--rojo);}
+  .dmr-badge.medio{background:#fdf3d6;color:#7d5a00;}
+  .dmr-badge.bajo{background:var(--verde-menta);color:#1e7a3a;}
 </style>
 </head>
 <body>
@@ -221,14 +240,51 @@
   </section>
 
   <section id="view-kpis" class="hidden">
-    <p style="font-weight:700;color:var(--azul-oscuro);margin:4px 0 12px;">KPIs de labores</p>
-    <div class="tabs">
-      <div class="tab active" id="kpi-tab-hoy" onclick="cambiarFiltroKpi('hoy')">Hoy</div>
-      <div class="tab" id="kpi-tab-semana" onclick="cambiarFiltroKpi('semana')">Esta semana</div>
-      <div class="tab" id="kpi-tab-todos" onclick="cambiarFiltroKpi('todos')">Todos</div>
+    <div class="section-title-dash">Dashboard · Registro de Labores</div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-val" id="kpi-total">—</div>
+        <div class="stat-label">Total registros</div>
+      </div>
+      <div class="stat-card gold">
+        <div class="stat-val" id="kpi-hoy">—</div>
+        <div class="stat-label">Hoy</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-val" id="kpi-semana">—</div>
+        <div class="stat-label">Esta semana</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-val" id="kpi-aplicaciones">—</div>
+        <div class="stat-label">Aplicaciones</div>
+      </div>
     </div>
-    <div id="kpis-resumen" class="form-grid" style="margin-bottom:14px;"></div>
-    <div id="kpis-por-labor"></div>
+
+    <div class="dash-card">
+      <div class="dash-card-title">Registros por labor</div>
+      <canvas id="chart-labor" height="160"></canvas>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-title">Registros por fundo</div>
+      <canvas id="chart-fundo" height="140"></canvas>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-title">Actividad últimos 14 días</div>
+      <canvas id="chart-actividad" height="150"></canvas>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-title">Registros por controlador</div>
+      <canvas id="chart-controlador" height="150"></canvas>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-title">Resumen mangueras pendientes</div>
+      <div id="dash-mangueras"></div>
+    </div>
   </section>
 
   <section id="view-admin" class="hidden">
@@ -294,6 +350,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script>
 // ============================================================
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
@@ -1588,70 +1645,128 @@ async function eliminarRegistro(id){
 }
 
 // ============================================================
-// KPIs
+// KPIs — Dashboard estilo LCampoR (Chart.js)
 // ============================================================
-let filtroKpi = 'hoy';
-function cambiarFiltroKpi(f){
-  filtroKpi = f;
-  ['hoy','semana','todos'].forEach(x => document.getElementById('kpi-tab-'+x).classList.toggle('active', x===f));
-  cargarKpis();
+let chartInstances = {};
+function destroyChart(id){
+  if (chartInstances[id]){ chartInstances[id].destroy(); delete chartInstances[id]; }
 }
+const LABOR_COLORS = {
+  aplicacion:'#0C4A8C', limpieza:'#2195C4', plancero:'#E67E22',
+  manguera:'#9B59B6', purga:'#E74C3C', tendido:'#F39C12', flushing:'#1ABC9C', caudal:'#A8E063'
+};
+const FUNDO_COLORS = ['#0C4A8C','#2195C4','#A8E063'];
 
 async function cargarKpis(){
-  const resumen = document.getElementById('kpis-resumen');
-  const porLabor = document.getElementById('kpis-por-labor');
-  resumen.innerHTML = '<div class="empty-state">Cargando...</div>';
-  porLabor.innerHTML = '';
-
-  const hoy = new Date(); hoy.setHours(0,0,0,0);
-  let query = `labores_campo?select=labor,fundo,datos_extra,controlador&order=created_at.desc&limit=500`;
-  // Admin ve todo; controlador ve solo lo suyo
-  if (currentUser.role !== 'admin') query += `&controlador=eq.${encodeURIComponent(currentUser.nombre)}`;
-  if (filtroKpi === 'hoy') query += `&fecha=eq.${hoy.toISOString().slice(0,10)}`;
-  else if (filtroKpi === 'semana'){
-    const inicio = new Date(hoy); inicio.setDate(inicio.getDate() - 7);
-    query += `&fecha=gte.${inicio.toISOString().slice(0,10)}`;
-  }
-
   try{
-    const res = await sbFetch(query);
+    const res = await sbFetch('labores_campo?select=labor,fundo,controlador,fecha,datos_extra&order=created_at.desc&limit=500');
     if (!res.ok) throw new Error();
     const data = await res.json();
+    if (!data.length) return;
 
-    let totalHa = 0, totalJornales = 0;
-    const conteoLabor = {};
-    LABORES.forEach(l => conteoLabor[l.id] = 0);
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    const todayStr = hoy.toISOString().slice(0,10);
+    const weekAgo = new Date(Date.now() - 7*86400000).toISOString().slice(0,10);
+
+    document.getElementById('kpi-total').textContent = data.length;
+    document.getElementById('kpi-hoy').textContent = data.filter(r=>r.fecha===todayStr).length;
+    document.getElementById('kpi-semana').textContent = data.filter(r=>r.fecha>=weekAgo).length;
+    document.getElementById('kpi-aplicaciones').textContent = data.filter(r=>r.labor==='aplicacion').length;
+
+    // Por labor
+    const byLabor = {};
+    data.forEach(r => { byLabor[r.labor] = (byLabor[r.labor]||0)+1; });
+    const laborKeys = Object.keys(byLabor).sort((a,b)=>byLabor[b]-byLabor[a]);
+    destroyChart('labor');
+    const ctxL = document.getElementById('chart-labor');
+    if (ctxL && window.Chart){
+      chartInstances['labor'] = new Chart(ctxL, {
+        type:'bar',
+        data:{ labels: laborKeys.map(k => (LABORES.find(l=>l.id===k)||{}).nombre || k),
+          datasets:[{ data: laborKeys.map(k=>byLabor[k]), backgroundColor: laborKeys.map(k=>LABOR_COLORS[k]||'#888'), borderRadius:6, borderSkipped:false }] },
+        options:{ plugins:{legend:{display:false}}, scales:{
+          y:{beginAtZero:true, ticks:{stepSize:1, font:{size:10}}, grid:{color:'#e8ede9'}},
+          x:{ticks:{font:{size:9}}, grid:{display:false}} }, responsive:true, maintainAspectRatio:false }
+      });
+    }
+
+    // Por fundo
+    const byFundo = {};
+    data.forEach(r => { if(r.fundo) byFundo[r.fundo]=(byFundo[r.fundo]||0)+1; });
+    const fundoKeys = Object.keys(byFundo);
+    destroyChart('fundo');
+    const ctxF = document.getElementById('chart-fundo');
+    if (ctxF && window.Chart){
+      chartInstances['fundo'] = new Chart(ctxF, {
+        type:'doughnut',
+        data:{ labels: fundoKeys, datasets:[{ data: fundoKeys.map(k=>byFundo[k]), backgroundColor: FUNDO_COLORS.slice(0,fundoKeys.length), borderWidth:2, borderColor:'#fff' }] },
+        options:{ plugins:{ legend:{ position:'bottom', labels:{font:{size:11}, padding:12} } }, responsive:true, maintainAspectRatio:false }
+      });
+    }
+
+    // Actividad últimos 14 días
+    const days14 = [], counts14 = [];
+    for (let i=13;i>=0;i--){
+      const d = new Date(Date.now() - i*86400000);
+      const ds = d.toISOString().slice(0,10);
+      days14.push(`${d.getDate()}/${d.getMonth()+1}`);
+      counts14.push(data.filter(r=>r.fecha===ds).length);
+    }
+    destroyChart('actividad');
+    const ctxA = document.getElementById('chart-actividad');
+    if (ctxA && window.Chart){
+      chartInstances['actividad'] = new Chart(ctxA, {
+        type:'line',
+        data:{ labels: days14, datasets:[{ data: counts14, borderColor:'#0C4A8C', backgroundColor:'rgba(12,74,140,0.10)', tension:0.3, fill:true, pointBackgroundColor:'#0C4A8C', pointRadius:3 }] },
+        options:{ plugins:{legend:{display:false}}, scales:{
+          y:{beginAtZero:true, ticks:{stepSize:1, font:{size:10}}, grid:{color:'#e8ede9'}},
+          x:{ticks:{font:{size:9}}, grid:{display:false}} }, responsive:true, maintainAspectRatio:false }
+      });
+    }
+
+    // Por controlador
+    const byCtrl = {};
+    data.forEach(r => { if(r.controlador) byCtrl[r.controlador]=(byCtrl[r.controlador]||0)+1; });
+    const ctrlKeys = Object.keys(byCtrl).sort((a,b)=>byCtrl[b]-byCtrl[a]);
+    destroyChart('controlador');
+    const ctxC = document.getElementById('chart-controlador');
+    if (ctxC && window.Chart){
+      chartInstances['controlador'] = new Chart(ctxC, {
+        type:'bar',
+        data:{ labels: ctrlKeys, datasets:[{ data: ctrlKeys.map(k=>byCtrl[k]), backgroundColor:'#2195C4', borderRadius:6, borderSkipped:false }] },
+        options:{ indexAxis:'y', plugins:{legend:{display:false}}, scales:{
+          x:{beginAtZero:true, ticks:{stepSize:1, font:{size:10}}, grid:{color:'#e8ede9'}},
+          y:{ticks:{font:{size:11}}, grid:{display:false}} }, responsive:true, maintainAspectRatio:false }
+      });
+    }
+
+    // Resumen mangueras pendientes (toma el máximo valor de mang_pend por fundo)
+    const mangPend = {};
     data.forEach(r => {
-      conteoLabor[r.labor] = (conteoLabor[r.labor] || 0) + 1;
-      if (r.datos_extra){
-        totalHa += parseFloat(r.datos_extra.avance_ha) || 0;
-        totalJornales += parseFloat(r.datos_extra.jornales) || 0;
-      }
+      if (!r.datos_extra) return;
+      const p = r.datos_extra.mang_pend;
+      if (p == null) return;
+      const k = r.fundo || 'Sin fundo';
+      mangPend[k] = Math.max(mangPend[k] || 0, p);
     });
-
-    resumen.innerHTML = `
-      <div class="form-card" style="text-align:center;padding:14px;">
-        <div style="font-size:1.4rem;font-weight:700;color:var(--azul-oscuro);">${data.length}</div>
-        <div style="font-size:0.7rem;color:var(--texto-suave);text-transform:uppercase;">Registros</div>
-      </div>
-      <div class="form-card" style="text-align:center;padding:14px;">
-        <div style="font-size:1.4rem;font-weight:700;color:var(--azul-oscuro);">${totalHa.toFixed(1)}</div>
-        <div style="font-size:0.7rem;color:var(--texto-suave);text-transform:uppercase;">Ha avanzadas</div>
-      </div>
-      <div class="form-card" style="text-align:center;padding:14px;grid-column:1/-1;">
-        <div style="font-size:1.4rem;font-weight:700;color:var(--azul-oscuro);">${totalJornales.toFixed(1)}</div>
-        <div style="font-size:0.7rem;color:var(--texto-suave);text-transform:uppercase;">Jornales totales</div>
-      </div>`;
-
-    porLabor.innerHTML = LABORES.map(l => `
-      <div class="record-card">
-        <div class="rc-top">
-          <span class="rc-labor">${l.emoji} ${l.nombre}</span>
-          <span class="rc-fecha" style="font-weight:700;color:var(--azul-oscuro);">${conteoLabor[l.id] || 0}</span>
-        </div>
-      </div>`).join('');
+    const mangEl = document.getElementById('dash-mangueras');
+    if (mangEl){
+      if (!Object.keys(mangPend).length){
+        mangEl.innerHTML = '<div class="verify-empty">Sin datos de mangueras pendientes aún</div>';
+      } else {
+        mangEl.innerHTML = Object.entries(mangPend).sort((a,b)=>b[1]-a[1]).map(([fundo,pend]) => {
+          const nivel = pend > 50 ? 'alto' : pend > 20 ? 'medio' : 'bajo';
+          const txt = pend > 50 ? 'Alto' : pend > 20 ? 'Medio' : 'Bajo';
+          return `<div class="dash-mang-row">
+            <div class="dmr-label">📍 ${fundo}</div>
+            <div class="dmr-val">${pend}</div>
+            <div class="dmr-badge ${nivel}">${txt}</div>
+          </div>`;
+        }).join('');
+      }
+    }
   }catch(err){
-    resumen.innerHTML = '<div class="empty-state">Error al cargar KPIs</div>';
+    console.error('Dashboard error:', err);
   }
 }
 
