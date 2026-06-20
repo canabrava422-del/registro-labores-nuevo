@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="3.10.0"/>
+<meta name="app-version" content="3.12.0"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -47,6 +47,9 @@
   .form-field.full{grid-column:1 / -1;}
   .form-field label{font-size:0.72rem;font-weight:700;color:var(--texto-suave);text-transform:uppercase;letter-spacing:0.02em;}
   .topbar-form{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .app-tabs{display:flex;gap:8px;margin-bottom:14px;}
+  .app-tab{flex:1;text-align:center;padding:11px;border-radius:var(--radio-sm);background:#fff;border:1.5px solid var(--borde);font-weight:700;font-size:0.82rem;color:var(--texto-suave);cursor:pointer;}
+  .app-tab.active{background:var(--azul-oscuro);color:#fff;border-color:var(--azul-oscuro);}
   .back-btn{background:#fff;border:1.5px solid var(--borde);border-radius:var(--radio-sm);padding:9px 13px;font-weight:700;color:var(--azul-oscuro);}
   .topbar-form h2{font-size:1rem;margin:0;color:var(--azul-oscuro);}
   .parcelas-box{border:1.5px solid var(--borde);border-radius:var(--radio-sm);padding:10px;max-height:160px;overflow-y:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:#fff;}
@@ -249,7 +252,7 @@
       <h2 id="form-title">Labor</h2>
     </div>
     <div id="form-container"></div>
-    <button class="btn" onclick="guardarLabor()">💾 Guardar registro</button>
+    <button class="btn" id="btn-guardar-registro" onclick="guardarLabor()">💾 Guardar registro</button>
     <div id="form-registros-anteriores" style="margin-top:14px;"></div>
   </section>
 
@@ -291,6 +294,34 @@
 
     <div id="pending-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px;"></div>
     <div id="records-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+  </section>
+
+  <section id="view-programado" class="hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <span style="font-weight:700;color:var(--azul-oscuro);font-size:0.9rem;">📅 Programado · todas las labores</span>
+      <button onclick="irProgramadoGlobal()" style="background:var(--verde-menta);border:1px solid var(--verde-claro);color:var(--verde);padding:7px 12px;border-radius:8px;font-weight:700;font-size:0.74rem;">↻ Actualizar</button>
+    </div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="form-card" style="text-align:center;padding:14px 6px;">
+        <div style="font-size:1.4rem;font-weight:700;color:#E67E22;" id="prog-global-pendientes">0</div>
+        <div style="font-size:0.62rem;color:var(--texto-suave);text-transform:uppercase;font-weight:700;">🕒 Pendientes</div>
+      </div>
+      <div class="form-card" style="text-align:center;padding:14px 6px;">
+        <div style="font-size:1.4rem;font-weight:700;color:var(--verde);" id="prog-global-cumplidos">0</div>
+        <div style="font-size:0.62rem;color:var(--texto-suave);text-transform:uppercase;font-weight:700;">✅ Ejecutados</div>
+      </div>
+    </div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <select id="prog-global-filter-labor" onchange="renderProgramaGlobalLista()">
+        <option value="">Todas las labores</option>
+      </select>
+      <select id="prog-global-filter-estado" onchange="renderProgramaGlobalLista()">
+        <option value="">Todos los estados</option>
+        <option value="pendiente">Solo pendientes</option>
+        <option value="cumplido">Solo ejecutados</option>
+      </select>
+    </div>
+    <div id="prog-global-lista"></div>
   </section>
 
   <section id="view-kpis" class="hidden">
@@ -348,6 +379,7 @@
 
 <nav class="bottom-nav hidden" id="bottom-nav">
   <button class="active" id="nav-home" onclick="irHome()"><span class="nav-emoji">📝</span>Registrar</button>
+  <button id="nav-programado" onclick="irProgramadoGlobal()"><span class="nav-emoji">📅</span>Programado</button>
   <button id="nav-lista" onclick="filtroLaborLista=null;irLista()"><span class="nav-emoji">📋</span>Historial</button>
   <button id="nav-kpis" onclick="irKpis()"><span class="nav-emoji">📊</span>KPIs</button>
   <button id="nav-admin" onclick="irAdmin()"><span class="nav-emoji">⚙️</span>Ajustes</button>
@@ -370,7 +402,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '3.10.0';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '3.12.0';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -459,7 +491,7 @@ async function trySyncQueue(){
   }
   saveQueue(failed);
   updateSyncBar();
-  if (synced > 0){ showToast(`✅ ${synced} registro(s) sincronizados`); if (!document.getElementById('view-lista').classList.contains('hidden')) cargarHistorial(); }
+  if (synced > 0){ _ejecucionesCache = null; showToast(`✅ ${synced} registro(s) sincronizados`); if (!document.getElementById('view-lista').classList.contains('hidden')) cargarHistorial(); }
   if (failed.length > 0) showToast(`⚠️ ${failed.length} sin sincronizar`, 'error');
 }
 
@@ -941,8 +973,7 @@ const FORMULARIOS = {
           <select id="f-operador"><option value="">— Seleccionar operador —</option><option>Jesus Saldarriaga</option><option>Christian Soto</option><option>Henry Chulle</option><option>Dani Coronado</option><option>Julio Acaro</option><option>Luis Carrasco</option></select>
         </div>
       </div>
-    </div>
-    <div id="form-programa-aplicaciones"></div>` + jornalesField() + obsField(),
+    </div>` + jornalesField() + obsField(),
 
   limpieza: () => baseBlock('📍 Limpieza de laterales') + `
     <div class="form-card">
@@ -1117,8 +1148,8 @@ function verSoloLectura(laborId){
 let filtroLaborLista = null;
 
 function ocultarTodasLasVistas(){
-  ['view-home','view-form','view-lista','view-kpis','view-admin'].forEach(id => document.getElementById(id).classList.add('hidden'));
-  ['nav-home','nav-lista','nav-kpis','nav-admin'].forEach(id => document.getElementById(id).classList.remove('active'));
+  ['view-home','view-form','view-lista','view-programado','view-kpis','view-admin'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  ['nav-home','nav-lista','nav-programado','nav-kpis','nav-admin'].forEach(id => document.getElementById(id).classList.remove('active'));
 }
 
 function irHome(){
@@ -1141,6 +1172,74 @@ function irAdmin(){
   renderAjustes();
   updateSyncBar();
 }
+let _programaGlobalData = [];
+async function irProgramadoGlobal(){
+  ocultarTodasLasVistas();
+  document.getElementById('view-programado').classList.remove('hidden');
+  document.getElementById('nav-programado').classList.add('active');
+  updateSyncBar();
+  const sel = document.getElementById('prog-global-filter-labor');
+  sel.innerHTML = '<option value="">Todas las labores</option>' +
+    LABORES.map(l => `<option value="${l.id}">${l.nombre}</option>`).join('');
+  const lista = document.getElementById('prog-global-lista');
+  lista.innerHTML = '<div class="empty-state">Cargando programa...</div>';
+  try{
+    _ejecucionesCache = null;
+    const res = await sbFetch('programa_aplicaciones?order=fecha_programada.asc&limit=300');
+    if (!res.ok) throw new Error();
+    const items = await res.json();
+    _programaGlobalData = await calcularEstadoPrograma(items);
+    renderProgramaGlobalLista();
+  }catch(e){
+    lista.innerHTML = '<div class="empty-state">Error al cargar el programa</div>';
+  }
+}
+
+function renderProgramaGlobalLista(){
+  const lista = document.getElementById('prog-global-lista');
+  const filtroLabor = val('prog-global-filter-labor');
+  const filtroEstado = val('prog-global-filter-estado');
+  let datos = _programaGlobalData;
+  if (filtroLabor) datos = datos.filter(i => i.labor === filtroLabor);
+  if (filtroEstado === 'pendiente') datos = datos.filter(i => !i.cumplido);
+  if (filtroEstado === 'cumplido') datos = datos.filter(i => i.cumplido);
+
+  document.getElementById('prog-global-pendientes').textContent = _programaGlobalData.filter(i => !i.cumplido).length;
+  document.getElementById('prog-global-cumplidos').textContent = _programaGlobalData.filter(i => i.cumplido).length;
+
+  if (!datos.length){
+    lista.innerHTML = '<div class="empty-state">Sin tareas programadas para este filtro</div>';
+    return;
+  }
+  const esAdmin = currentUser && currentUser.role === 'admin';
+  const pendientes = datos.filter(i => !i.cumplido);
+  const cumplidos = datos.filter(i => i.cumplido);
+  const ordenado = [...pendientes, ...cumplidos];
+  lista.innerHTML = ordenado.map(i => {
+    const labor = LABORES.find(l => l.id === i.labor);
+    return `
+      <div class="hist-card labor-${i.labor}" style="margin-bottom:10px;">
+        <div class="hist-top">
+          <div class="hist-labor">${labor ? iconoLabor(labor)+' '+labor.nombre : i.labor}</div>
+          <div class="hist-date">${formatDate(i.fecha_programada)}</div>
+        </div>
+        <div class="hist-tags">
+          <span class="hist-tag hist-tag-equipo">${i.eq_tr}</span>
+          ${i.fundo ? `<span class="hist-tag hist-tag-fundo">${i.fundo}</span>` : ''}
+          ${i.insumo ? `<span class="hist-tag hist-tag-insumo">${i.insumo}</span>` : ''}
+        </div>
+        <div class="hist-user">Parcelas: ${i.parcelas || '—'}</div>
+        ${i.notas ? `<div class="hist-user" style="font-style:italic;">"${i.notas}"</div>` : ''}
+        <div style="margin-top:6px;">
+          ${i.cumplido
+            ? `<span class="hist-tag" style="background:var(--verde-menta);color:#1e7a3a;">✅ Ejecutado el ${formatDate(i.fechaEjecucion)}${i.ejecutadoPor ? ' · '+i.ejecutadoPor : ''}</span>`
+            : `<span class="hist-tag" style="background:#FFF3CD;color:#7d5a00;">🕒 Pendiente</span>`}
+        </div>
+        ${esAdmin ? `<button onclick="eliminarPrograma(${i.id})" style="margin-top:8px;padding:5px 10px;font-size:0.68rem;border:1px solid var(--borde);border-radius:6px;background:#fff;font-weight:700;color:var(--rojo);">🗑️ Eliminar del programa</button>` : ''}
+      </div>`;
+  }).join('');
+}
+
 function volverHome(){ filtroLaborLista = null; registroEditandoId = null; irHome(); }
 
 let laborActual = null;
@@ -1169,6 +1268,44 @@ const ETIQUETAS_EXTRA = {
   'f-flushing-util':'Flushing utilizados', 'f-flushing-pend':'Flushing pendientes',
   'f-mang-eval':'Mangueras evaluadas', 'f-caudal':'Caudal medido (L/min)', 'f-caudal-nom':'Caudal nominal (L/min)', 'f-presion':'Presión (M.C.A)',
 };
+
+// ============================================================
+// ENVOLTORIO GENÉRICO DE PESTAÑAS EJECUTADO / PROGRAMADO
+// Aplica a las 8 labores, no solo Aplicación.
+// ============================================================
+function buildTabsShell(laborId, ejecutadoHtml){
+  const labor = LABORES.find(l => l.id === laborId);
+  const campoInsumo = laborId === 'aplicacion' ? `
+          <div class="form-field"><label>Insumo</label><div class="select-wrapper"><select id="prog-insumo">${insumoOpts}</select></div></div>` : '';
+  return `
+    <div class="app-tabs">
+      <button class="app-tab active" data-tab="ejecutado" onclick="switchAppTab('ejecutado')">📝 Ejecutado</button>
+      <button class="app-tab" data-tab="programado" onclick="switchAppTab('programado')">📅 Programado</button>
+    </div>
+    <div id="tab-ejecutado">${ejecutadoHtml}</div>
+    <div id="tab-programado" class="hidden">
+      <div class="form-card" id="programar-toggle-wrap">
+        <button class="btn secundario" onclick="toggleProgramarForm()">📅 Programar ${labor.nombre}</button>
+      </div>
+      <div class="form-card hidden" id="programar-form-wrap">
+        <div class="section-title">📅 Nueva tarea programada · ${labor.nombre}</div>
+        <div class="form-grid" style="margin-bottom:10px;">
+          <div class="form-field"><label>EQ</label><div class="select-wrapper"><select id="prog-eq" onchange="onProgEqTrChange()"></select></div></div>
+          <div class="form-field"><label>TR</label><div class="select-wrapper"><select id="prog-tr" onchange="onProgEqTrChange()"></select></div></div>
+          <div class="form-field full"><label>Parcelas</label>
+            <div class="parcelas-box" id="prog-parcelas-box">
+              <span style="grid-column:1/-1;font-size:0.72rem;color:var(--texto-suave);">Selecciona EQ y TR primero</span>
+            </div>
+          </div>
+          <div class="form-field"><label>Fundo</label><div class="select-wrapper"><select id="prog-fundo">${fundoOpts}</select></div></div>${campoInsumo}
+          <div class="form-field full"><label>Fecha programada</label><input type="date" id="prog-fecha" value="${new Date().toISOString().slice(0,10)}"/></div>
+          <div class="form-field full"><label>Notas (opcional)</label><textarea id="prog-notas" placeholder="Indicaciones para el controlador..."></textarea></div>
+        </div>
+        <button class="btn" onclick="guardarProgramaLabor()">💾 Guardar en el programa</button>
+      </div>
+      <div id="form-programa-aplicaciones"></div>
+    </div>`;
+}
 
 function buildVerifyTable(){
   return `<div class="verify-table-wrap">
@@ -1230,14 +1367,14 @@ function abrirFormulario(laborId, registroExistente){
   registroEditandoId = registroExistente ? registroExistente.id : null;
   const labor = LABORES.find(l => l.id === laborId);
   document.getElementById('form-title').innerHTML = `${iconoLabor(labor)} ${labor.nombre}` + (registroEditandoId ? ' (editando)' : '');
-  document.getElementById('form-container').innerHTML = FORMULARIOS[laborId]() + buildVerifyTable();
+  document.getElementById('form-container').innerHTML = buildTabsShell(laborId, FORMULARIOS[laborId]()) + buildVerifyTable();
   document.getElementById('view-home').classList.add('hidden');
   document.getElementById('view-form').classList.remove('hidden');
   attachVerifyListeners();
   if (registroExistente) precargarFormulario(registroExistente);
   refreshVerifyTable();
   cargarRegistrosAnterioresForm(laborId);
-  if (laborId === 'aplicacion') cargarProgramaEnFormulario();
+  switchAppTab('ejecutado');
 }
 
 function precargarFormulario(r){
@@ -1387,6 +1524,7 @@ async function guardarLabor(){
     if (!res.ok) throw new Error(await res.text());
     showToast(registroEditandoId ? '✅ Registro actualizado' : '✅ Registro guardado');
     registroEditandoId = null;
+    _ejecucionesCache = null;
     irHome();
   }catch(err){
     if (!registroEditandoId){
@@ -1791,6 +1929,7 @@ async function eliminarRegistro(id){
   try{
     const res = await sbFetch(`labores_campo?id=eq.${id}`, { method:'DELETE' });
     if (!res.ok) throw new Error();
+    _ejecucionesCache = null;
     showToast('Registro eliminado');
     cargarHistorial();
   }catch(err){
@@ -2012,26 +2151,6 @@ function renderAjustes(){
     </div>
 
     <div class="ajustes-section">
-      <h3>📅 Programa de aplicaciones pendientes</h3>
-      <p class="ajustes-desc">Define qué EQ-TR y parcelas deben aplicarse. La app muestra automáticamente, en el formulario de Aplicación, si ya se cumplió o sigue pendiente.</p>
-      <div class="form-grid" style="margin-bottom:10px;">
-        <div class="form-field"><label>EQ</label><div class="select-wrapper"><select id="prog-eq" onchange="onProgEqTrChange()"></select></div></div>
-        <div class="form-field"><label>TR</label><div class="select-wrapper"><select id="prog-tr" onchange="onProgEqTrChange()"></select></div></div>
-        <div class="form-field full"><label>Parcelas a aplicar</label>
-          <div class="parcelas-box" id="prog-parcelas-box">
-            <span style="grid-column:1/-1;font-size:0.72rem;color:var(--texto-suave);">Selecciona EQ y TR primero</span>
-          </div>
-        </div>
-        <div class="form-field"><label>Fundo</label><div class="select-wrapper"><select id="prog-fundo">${fundoOpts}</select></div></div>
-        <div class="form-field"><label>Insumo</label><div class="select-wrapper"><select id="prog-insumo">${insumoOpts}</select></div></div>
-        <div class="form-field full"><label>Fecha programada</label><input type="date" id="prog-fecha" value="${new Date().toISOString().slice(0,10)}"/></div>
-        <div class="form-field full"><label>Notas (opcional)</label><textarea id="prog-notas" placeholder="Indicaciones para el controlador..."></textarea></div>
-      </div>
-      <button class="btn" onclick="guardarProgramaAplicacion()">📅 Agregar al programa</button>
-      <div id="admin-programa-list" style="margin-top:14px;"></div>
-    </div>
-
-    <div class="ajustes-section">
       <h3>📢 Anuncios para controladores</h3>
       <div class="field-spaced" style="margin-bottom:10px;">
         <label>Nuevo anuncio</label>
@@ -2078,8 +2197,6 @@ function renderAjustes(){
 
   renderAdminUserSelect();
   poblarFCSelects();
-  poblarProgramaSelects();
-  cargarProgramaAdmin();
   cargarAnunciosAdmin();
   cargarSolicitudesAdmin();
   runDiagnostics();
@@ -2493,7 +2610,7 @@ function getProgParcelasSeleccionadas(){
   return [...document.querySelectorAll('.prog-chk-parcela:checked')].map(c => c.value);
 }
 
-async function guardarProgramaAplicacion(){
+async function guardarProgramaLabor(){
   const eq = val('prog-eq'), tr = val('prog-tr'), fundo = val('prog-fundo'), fecha = val('prog-fecha');
   const parcelas = getProgParcelasSeleccionadas();
   if (!eq || !tr){ showToast('Selecciona EQ y TR', 'error'); return; }
@@ -2504,7 +2621,7 @@ async function guardarProgramaAplicacion(){
     const res = await sbFetch('programa_aplicaciones', {
       method:'POST',
       body: JSON.stringify({
-        eq_tr: `${eq}-${tr}`, parcelas: parcelas.join(','), fundo,
+        labor: laborActual, eq_tr: `${eq}-${tr}`, parcelas: parcelas.join(','), fundo,
         insumo: val('prog-insumo') || null, fecha_programada: fecha,
         notas: val('prog-notas') || null, creado_por: currentUser.nombre
       })
@@ -2512,25 +2629,29 @@ async function guardarProgramaAplicacion(){
     if (!res.ok) throw new Error();
     showToast('✅ Agregado al programa');
     document.getElementById('prog-notas').value = '';
-    cargarProgramaAdmin();
+    cargarProgramaTab();
   }catch(e){
     showToast('Error al guardar', 'error');
   }
 }
 
 // Calcula, para cada ítem del programa, si ya se ejecutó comparando
-// contra los registros reales de la labor "aplicacion" (mismo EQ-TR,
-// al menos una parcela en común, y fecha del registro >= fecha programada).
+// contra los registros reales de ESA MISMA labor (mismo EQ-TR, al menos
+// una parcela en común). No depende de que la fecha coincida exactamente:
+// basta con que el registro ejecutado sea de fecha igual o posterior a
+// la fecha programada.
+let _ejecucionesCache = null;
 async function calcularEstadoPrograma(items){
-  let ejecuciones = [];
-  try{
-    const res = await sbFetch('labores_campo?labor=eq.aplicacion&select=equipo,parcelas,fecha,controlador&order=fecha.desc&limit=500');
-    if (res.ok) ejecuciones = await res.json();
-  }catch(e){}
-
+  if (!_ejecucionesCache){
+    try{
+      const res = await sbFetch('labores_campo?select=labor,equipo,parcelas,fecha,controlador&order=fecha.desc&limit=1000');
+      _ejecucionesCache = res.ok ? await res.json() : [];
+    }catch(e){ _ejecucionesCache = []; }
+  }
   return items.map(item => {
     const parcelasProg = (item.parcelas || '').split(',').filter(Boolean);
-    const match = ejecuciones.find(r => {
+    const match = _ejecucionesCache.find(r => {
+      if (r.labor !== item.labor) return false;
       if (r.equipo !== item.eq_tr) return false;
       if (r.fecha < item.fecha_programada) return false;
       const parcelasEj = (r.parcelas || '').split(',').filter(Boolean);
@@ -2540,61 +2661,65 @@ async function calcularEstadoPrograma(items){
   });
 }
 
-async function cargarProgramaAdmin(){
-  const cont = document.getElementById('admin-programa-list');
-  if (!cont) return;
-  cont.innerHTML = '<div class="empty-state">Cargando...</div>';
-  try{
-    const res = await sbFetch('programa_aplicaciones?order=fecha_programada.asc&limit=100');
-    if (!res.ok) throw new Error();
-    const items = await res.json();
-    if (!items.length){ cont.innerHTML = '<div class="empty-state">Sin aplicaciones programadas</div>'; return; }
-    const conEstado = await calcularEstadoPrograma(items);
-    cont.innerHTML = conEstado.map(i => `
-      <div class="record-card">
-        <div class="rc-top">
-          <span class="rc-labor">${i.eq_tr} · ${i.fundo||'—'}</span>
-          <span class="rc-fecha">${formatDate(i.fecha_programada)}</span>
-        </div>
-        <div class="rc-meta">Parcelas: ${i.parcelas || '—'} ${i.insumo ? '· '+i.insumo : ''}</div>
-        ${i.notas ? `<div class="rc-meta" style="font-style:italic;">"${i.notas}"</div>` : ''}
-        <div style="margin-top:6px;">
-          ${i.cumplido
-            ? `<span class="hist-tag" style="background:var(--verde-menta);color:#1e7a3a;">✅ Cumplido el ${formatDate(i.fechaEjecucion)}${i.ejecutadoPor ? ' · '+i.ejecutadoPor : ''}</span>`
-            : `<span class="hist-tag" style="background:#FFF3CD;color:#7d5a00;">🕒 Pendiente</span>`}
-        </div>
-        <button onclick="eliminarPrograma(${i.id})" style="margin-top:8px;padding:5px 10px;font-size:0.68rem;border:1px solid var(--borde);border-radius:6px;background:#fff;font-weight:700;color:var(--rojo);">🗑️ Eliminar del programa</button>
-      </div>`).join('');
-  }catch(e){
-    cont.innerHTML = '<div class="empty-state">Error al cargar el programa</div>';
-  }
-}
-
 async function eliminarPrograma(id){
-  if (!confirm('¿Eliminar este ítem del programa de aplicaciones?')) return;
+  if (!confirm('¿Eliminar este ítem del programa?')) return;
   try{
     await sbFetch(`programa_aplicaciones?id=eq.${id}`, { method:'DELETE' });
-    cargarProgramaAdmin();
+    _ejecucionesCache = null;
+    if (document.getElementById('form-programa-aplicaciones')) cargarProgramaTab();
+    if (document.getElementById('prog-global-lista')) irProgramadoGlobal();
   }catch(e){ showToast('Error al eliminar', 'error'); }
 }
 
-// Vista de solo lectura del programa, mostrada dentro del formulario de Aplicación
-async function cargarProgramaEnFormulario(){
+// ============================================================
+// PESTAÑAS EJECUTADO / PROGRAMADO (las 8 labores)
+// ============================================================
+function switchAppTab(tab){
+  document.querySelectorAll('.app-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  const ejecutado = document.getElementById('tab-ejecutado');
+  const programado = document.getElementById('tab-programado');
+  if (ejecutado) ejecutado.classList.toggle('hidden', tab !== 'ejecutado');
+  if (programado) programado.classList.toggle('hidden', tab !== 'programado');
+
+  // La tabla de verificación, el botón Guardar y "Registros anteriores"
+  // solo tienen sentido en la pestaña Ejecutado.
+  const verify = document.querySelector('.verify-table-wrap');
+  if (verify) verify.style.display = tab === 'ejecutado' ? '' : 'none';
+  const guardarBtn = document.getElementById('btn-guardar-registro');
+  if (guardarBtn) guardarBtn.style.display = tab === 'ejecutado' ? '' : 'none';
+  const regAnt = document.getElementById('form-registros-anteriores');
+  if (regAnt) regAnt.style.display = tab === 'ejecutado' ? '' : 'none';
+
+  if (tab === 'programado'){
+    poblarProgramaSelects();
+    const toggleWrap = document.getElementById('programar-toggle-wrap');
+    if (toggleWrap) toggleWrap.classList.toggle('hidden', !(currentUser && currentUser.role === 'admin'));
+    cargarProgramaTab();
+  }
+}
+
+function toggleProgramarForm(){
+  const wrap = document.getElementById('programar-form-wrap');
+  if (wrap) wrap.classList.toggle('hidden');
+}
+
+async function cargarProgramaTab(){
   const cont = document.getElementById('form-programa-aplicaciones');
   if (!cont) return;
   cont.innerHTML = '<div class="empty-state">Cargando programa...</div>';
+  const esAdmin = currentUser && currentUser.role === 'admin';
   try{
-    const res = await sbFetch('programa_aplicaciones?order=fecha_programada.asc&limit=100');
+    const res = await sbFetch(`programa_aplicaciones?labor=eq.${laborActual}&order=fecha_programada.asc&limit=100`);
     if (!res.ok) throw new Error();
     const items = await res.json();
-    if (!items.length){ cont.innerHTML = ''; return; }
+    if (!items.length){ cont.innerHTML = '<div class="empty-state">Sin tareas programadas para esta labor</div>'; return; }
     const conEstado = await calcularEstadoPrograma(items);
     const pendientes = conEstado.filter(i => !i.cumplido);
     const cumplidos = conEstado.filter(i => i.cumplido);
     const ordenado = [...pendientes, ...cumplidos];
     cont.innerHTML = `
       <div class="form-card">
-        <div class="section-title">📅 Programa de aplicaciones</div>
+        <div class="section-title">📋 Listado del programa</div>
         ${ordenado.map(i => `
           <div class="record-card" style="margin-bottom:8px;">
             <div class="rc-top">
@@ -2605,13 +2730,14 @@ async function cargarProgramaEnFormulario(){
             ${i.notas ? `<div class="rc-meta" style="font-style:italic;">"${i.notas}"</div>` : ''}
             <div style="margin-top:6px;">
               ${i.cumplido
-                ? `<span class="hist-tag" style="background:var(--verde-menta);color:#1e7a3a;">✅ Cumplido el ${formatDate(i.fechaEjecucion)}</span>`
+                ? `<span class="hist-tag" style="background:var(--verde-menta);color:#1e7a3a;">✅ Cumplido el ${formatDate(i.fechaEjecucion)}${i.ejecutadoPor ? ' · '+i.ejecutadoPor : ''}</span>`
                 : `<span class="hist-tag" style="background:#FFF3CD;color:#7d5a00;">🕒 Pendiente</span>`}
             </div>
+            ${esAdmin ? `<button onclick="eliminarPrograma(${i.id})" style="margin-top:8px;padding:5px 10px;font-size:0.68rem;border:1px solid var(--borde);border-radius:6px;background:#fff;font-weight:700;color:var(--rojo);">🗑️ Eliminar del programa</button>` : ''}
           </div>`).join('')}
       </div>`;
   }catch(e){
-    cont.innerHTML = '';
+    cont.innerHTML = '<div class="empty-state">Error al cargar el programa</div>';
   }
 }
 
