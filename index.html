@@ -102,6 +102,21 @@
   .hist-tag-equipo{background:#E8F4FD;color:#1a5276;}
   .hist-tag-insumo{background:#fdf3d6;color:#7d5a00;}
   .hist-user{font-size:0.7rem;color:var(--texto-suave);}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:flex-end;}
+  .modal-overlay.open{display:flex;}
+  .modal-sheet{background:#fff;border-radius:20px 20px 0 0;width:100%;max-height:85vh;overflow-y:auto;animation:slideUp 0.25s ease;}
+  @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  .modal-handle{display:flex;justify-content:center;padding:12px 0 4px;}
+  .modal-handle::after{content:'';width:36px;height:4px;background:var(--borde);border-radius:2px;}
+  .modal-header{padding:8px 20px 16px;border-bottom:1px solid var(--borde);display:flex;justify-content:space-between;align-items:center;}
+  .modal-header h3{font-size:1.05rem;font-weight:700;color:var(--azul-oscuro);}
+  .modal-close{background:var(--fondo);border:none;width:32px;height:32px;border-radius:50%;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--texto-suave);}
+  .modal-body{padding:20px;}
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+  .di-label{font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--texto-suave);margin-bottom:2px;}
+  .di-val{font-size:0.88rem;font-weight:600;color:var(--texto);}
+  .di-val.mono{font-family:monospace;font-size:0.82rem;}
+  .btn-danger{width:100%;padding:13px;background:#fdecea;color:var(--rojo);border:1.5px solid #f5c6cb;border-radius:var(--radio-sm);font-size:0.875rem;font-weight:700;cursor:pointer;margin-top:8px;}
 </style>
 </head>
 <body>
@@ -267,6 +282,17 @@
   <button id="nav-kpis" onclick="irKpis()"><span class="nav-emoji">📊</span>KPIs</button>
   <button id="nav-admin" onclick="irAdmin()" class="hidden"><span class="nav-emoji">⚙️</span>Admin</button>
 </nav>
+
+<div class="modal-overlay" id="detail-modal" onclick="if(event.target===this)closeDetailModal()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <h3 id="modal-title">Detalle</h3>
+      <button class="modal-close" onclick="closeDetailModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
 
 <script>
 // ============================================================
@@ -1431,7 +1457,7 @@ function renderRecordsHistorial(records){
     if (r.insumo) tags.push(`<span class="hist-tag hist-tag-insumo">${r.insumo}</span>`);
     const hora = formatHora(r.created_at);
     const puedeEditar = isLaborAllowed(r.labor);
-    return `<div class="hist-card labor-${r.labor}">
+    return `<div class="hist-card labor-${r.labor}" onclick="showDetail(${r.id})">
       <div class="hist-top">
         <div class="hist-labor">${labor ? labor.emoji+' '+labor.nombre : r.labor}</div>
         <div class="hist-date">${r.fecha}${hora!=='—' ? ' · '+hora : ''}</div>
@@ -1445,6 +1471,103 @@ function renderRecordsHistorial(records){
       </div>` : ''}
     </div>`;
   }).join('');
+}
+
+// ============================================================
+// MODAL DE DETALLE — igual formato que LCampoR
+// ============================================================
+const DETAIL_LABEL_MAP = {
+  avance_ha:'Avance (ha)', operador:'Operador', metodo:'Método',
+  imof:'IMOF promedio (ml)', frecuencia:'Frecuencia (días)',
+  edad_dias:'Edad (días)', mang_no_riegan:'Mang. no riegan',
+  mang_rep:'Mang. reparadas', mang_pend:'Mang. pendientes',
+  mang_estr_rep:'Mang. estr. reparadas', mang_estr_pend:'Mang. estr. pendientes',
+  mang_no_estr:'Mang. no estranguladas', total_mangueras:'Total mangueras',
+  mang_rev:'Mang. revisadas', fugas:'Fugas encontradas', ha_pend:'Ha pendientes',
+  presion:'Presión (M.C.A)', flushing_util:'Flushing utilizados', flushing_pend:'Flushing pendientes',
+  mang_eval:'Mangueras evaluadas', caudal:'Caudal medido (L/min)', caudal_nom:'Caudal nominal (L/min)',
+  estado:'Estado', lineas_tendidas:'Líneas tendidas', ha_tendida:'Ha tendida',
+  jornales:'Jornales', ratio_jor_ha:'Ratio (jor/ha)',
+};
+
+function showDetail(id){
+  const r = allRecords.find(x => x.id === id);
+  if (!r) return;
+  const labor = LABORES.find(l => l.id === r.labor);
+  document.getElementById('modal-title').textContent = labor ? labor.nombre : r.labor;
+
+  const hora = formatHora(r.created_at);
+  const rows = [
+    ['Fundo', r.fundo || '—', false],
+    ['Parcelas', r.parcelas || '—', false],
+    ['Fecha', r.fecha || '—', false],
+    ['Hora subida', hora!=='—' ? hora : '—', false],
+    ['Equipo', r.equipo || '—', true],
+    ['Insumo', r.insumo || '—', false],
+    ['Dosis', r.dosis_cantidad ? `${r.dosis_cantidad} ${r.dosis_unidad||''}` : '—', false],
+    ['Registrado por', r.controlador || '—', false],
+    ['Rol', r.rol === 'admin' ? '⭐ Administrador' : 'Controlador', false],
+  ];
+
+  if (r.datos_extra){
+    Object.entries(r.datos_extra).forEach(([k,v]) => {
+      if (k === 'detalle_parcelas') return;
+      if (v !== null && v !== undefined && v !== ''){
+        const label = DETAIL_LABEL_MAP[k] || k.replace(/_/g,' ');
+        const display = k === 'ratio_jor_ha' ? `${v} jor/ha` : String(v);
+        rows.push([label, display, false]);
+      }
+    });
+  }
+
+  let html = '<div class="detail-grid">' +
+    rows.map(([label,v,mono]) => `
+      <div class="detail-item">
+        <div class="di-label">${label}</div>
+        <div class="di-val${mono?' mono':''}">${v}</div>
+      </div>`).join('') +
+    '</div>';
+
+  const detalle = r.datos_extra?.detalle_parcelas;
+  if (r.labor === 'purga' && Array.isArray(detalle) && detalle.length){
+    html += `<div style="margin-top:10px;">
+      <strong style="font-size:0.62rem;text-transform:uppercase;letter-spacing:.5px;color:var(--texto-suave);">Detalle por parcela</strong>
+      <div class="pp-table-scroll" style="margin-top:6px;">
+        <table class="pp-table">
+          <thead><tr><th>Parcela</th><th>Ha</th><th>No estr.</th><th>Estr. reparadas</th><th>Estr. pendientes</th><th>Total</th></tr></thead>
+          <tbody>${detalle.map(p => `<tr><td class="pp-parcela">${p.parcela}</td><td>${p.ha}</td><td>${p.mangueras_no_estranguladas}</td><td>${p.mangueras_estranguladas_reparadas??0}</td><td>${p.mangueras_estranguladas_pendientes??0}</td><td class="pp-total">${p.total_mangueras}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+  if (r.labor === 'tendido' && Array.isArray(detalle) && detalle.length){
+    html += `<div style="margin-top:10px;">
+      <strong style="font-size:0.62rem;text-transform:uppercase;letter-spacing:.5px;color:var(--texto-suave);">Detalle por parcela</strong>
+      <div class="pp-table-scroll" style="margin-top:6px;">
+        <table class="pp-table">
+          <thead><tr><th>Parcela</th><th>Ha</th><th>Líneas</th><th>Largo (m)</th><th>Distanc. (m)</th><th>Ha tendida</th></tr></thead>
+          <tbody>${detalle.map(p => `<tr><td class="pp-parcela">${p.parcela}</td><td>${p.ha}</td><td>${p.lineas_tendidas}</td><td>${p.largo_lineas}</td><td>${p.distanciamiento_surcos}</td><td class="pp-total">${p.ha_tendida}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  if (r.observaciones){
+    html += `<div style="background:var(--fondo);border-radius:8px;padding:12px;font-size:0.82rem;line-height:1.6;color:var(--texto);">
+      <strong style="font-size:0.62rem;text-transform:uppercase;letter-spacing:.5px;color:var(--texto-suave);">Observaciones</strong><br/>${r.observaciones}
+    </div>`;
+  }
+
+  if (isLaborAllowed(r.labor)){
+    html += `<button class="btn-danger" onclick="closeDetailModal();eliminarRegistro(${r.id})">🗑 Eliminar registro</button>`;
+  }
+
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+function closeDetailModal(){
+  document.getElementById('detail-modal').classList.remove('open');
 }
 
 function editarRegistro(registro){
