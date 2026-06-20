@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="3.7.0"/>
+<meta name="app-version" content="3.9.0"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -162,20 +162,43 @@
   .badge-role-pill{font-size:0.66rem;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--fondo);color:var(--texto-suave);}
   .badge-role-pill.admin{background:#fdf3d6;color:#7d5a00;}
   .diag-box{background:var(--fondo);border-radius:10px;padding:12px;font-family:monospace;font-size:0.72rem;line-height:1.7;white-space:pre-wrap;word-break:break-all;color:var(--texto);}
+  .notif-item{padding:11px 12px;border-radius:10px;margin-bottom:6px;background:var(--fondo);}
+  .notif-item.unread{background:var(--verde-menta);}
+  .notif-meta{display:flex;align-items:center;gap:8px;font-size:0.68rem;color:var(--texto-suave);margin-bottom:4px;}
+  .notif-meta .notif-trash{margin-left:auto;cursor:pointer;color:var(--rojo);font-size:0.85rem;}
+  .notif-msg{font-size:0.82rem;color:var(--texto);line-height:1.4;}
+  .notif-empty{text-align:center;color:var(--texto-suave);font-size:0.8rem;padding:24px 10px;}
 </style>
 </head>
 <body>
 
 <header>
-  <h1>🌾 Registro de Labores</h1>
+  <div>
+    <h1>🌾 Registro de Labores</h1>
+    <p id="header-welcome" class="hidden" style="margin:2px 0 0;font-size:0.74rem;color:rgba(255,255,255,0.75);font-weight:500;">Bienvenido, —</p>
+  </div>
   <div style="display:flex;align-items:center;gap:8px;">
     <span id="offline-badge" class="hidden" style="background:#e67e22;color:#fff;font-size:0.68rem;font-weight:700;padding:4px 10px;border-radius:999px;">📡 Sin conexión</span>
+    <button id="notif-bell-btn" onclick="toggleNotifPanel()" class="hidden" style="position:relative;background:rgba(255,255,255,0.14);border:none;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F4C430" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span id="notif-dot" class="hidden" style="position:absolute;top:-3px;right:-3px;min-width:17px;height:17px;padding:0 3px;border-radius:999px;background:#E74C3C;color:#fff;font-size:0.6rem;font-weight:700;border:1.5px solid var(--azul-oscuro);display:flex;align-items:center;justify-content:center;">0</span>
+    </button>
     <div class="user-pill hidden" id="user-pill">
       <span id="user-pill-name">—</span>
-      <span onclick="cerrarSesion()" style="cursor:pointer;">⏻</span>
+      <button onclick="cerrarSesion()" style="background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
     </div>
   </div>
 </header>
+
+<div id="notif-panel" class="hidden" style="position:fixed;top:62px;right:14px;left:14px;max-width:380px;margin-left:auto;background:#fff;border-radius:var(--radio);box-shadow:0 8px 30px rgba(5,31,82,0.25);z-index:60;max-height:60vh;overflow-y:auto;">
+  <div style="padding:12px 16px;border-bottom:1px solid var(--borde);font-weight:700;color:var(--azul-oscuro);font-size:0.85rem;display:flex;justify-content:space-between;align-items:center;">
+    <span>🔔 Notificaciones</span>
+    <span onclick="toggleNotifPanel()" style="cursor:pointer;color:var(--texto-suave);">✕</span>
+  </div>
+  <div id="notif-list" style="padding:6px;"></div>
+</div>
 
 <div id="sync-bar" class="hidden" style="position:fixed;bottom:60px;left:0;right:0;background:#e67e22;color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;font-size:0.8rem;font-weight:700;z-index:35;">
   <span><span id="sync-count">0</span> registro(s) pendientes de sincronizar</span>
@@ -346,7 +369,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '3.7.0';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '3.9.0';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -603,8 +626,27 @@ function onEqTrChange(){
     box.innerHTML = '<span style="grid-column:1/-1;font-size:0.72rem;color:var(--texto-suave);">Sin parcelas registradas para este EQ-TR</span>';
     return;
   }
-  box.innerHTML = parcelas.map(p => `
-    <label><input type="checkbox" class="chk-parcela" value="${p}" onchange="actualizarTablasParcela()"/>${p}</label>`).join('');
+  box.innerHTML = `
+    <label style="grid-column:1/-1;font-weight:700;border-bottom:1px solid var(--borde);padding-bottom:6px;margin-bottom:2px;">
+      <input type="checkbox" id="chk-todos-parcelas" onchange="onTodosParcelaChange()"/>Todos
+    </label>` + parcelas.map(p => `
+    <label><input type="checkbox" class="chk-parcela" value="${p}" onchange="onParcelaIndividualChange()"/>${p}</label>`).join('');
+  actualizarTablasParcela();
+}
+
+function onTodosParcelaChange(){
+  const todosChk = document.getElementById('chk-todos-parcelas');
+  if (todosChk.checked){
+    document.querySelectorAll('.chk-parcela').forEach(c => { c.checked = false; });
+  }
+  actualizarTablasParcela();
+  refreshVerifyTable();
+}
+
+function onParcelaIndividualChange(){
+  const algunoMarcado = [...document.querySelectorAll('.chk-parcela')].some(c => c.checked);
+  const todosChk = document.getElementById('chk-todos-parcelas');
+  if (algunoMarcado && todosChk) todosChk.checked = false;
   actualizarTablasParcela();
 }
 
@@ -614,6 +656,11 @@ function actualizarTablasParcela(){
 }
 
 function getParcelasSeleccionadas(){
+  const todosChk = document.getElementById('chk-todos-parcelas');
+  if (todosChk && todosChk.checked){
+    const eq = val('f-eq'), tr = val('f-tr');
+    return PARCELAS_MAP[`${eq}-${tr}`] || [];
+  }
   return [...document.querySelectorAll('.chk-parcela:checked')].map(c => c.value);
 }
 
@@ -963,6 +1010,9 @@ function cerrarSesion(){
   document.getElementById('app-main').classList.add('hidden');
   document.getElementById('bottom-nav').classList.add('hidden');
   document.getElementById('user-pill').classList.add('hidden');
+  document.getElementById('notif-bell-btn').classList.add('hidden');
+  document.getElementById('notif-panel').classList.add('hidden');
+  document.getElementById('header-welcome').classList.add('hidden');
   document.getElementById('view-login').classList.remove('hidden');
 }
 
@@ -971,7 +1021,11 @@ async function entrarApp(){
   document.getElementById('app-main').classList.remove('hidden');
   document.getElementById('bottom-nav').classList.remove('hidden');
   document.getElementById('user-pill').classList.remove('hidden');
+  document.getElementById('notif-bell-btn').classList.remove('hidden');
   document.getElementById('user-pill-name').textContent = currentUser.nombre;
+  const welcomeEl = document.getElementById('header-welcome');
+  welcomeEl.textContent = `👋 Bienvenido, ${currentUser.nombre}`;
+  welcomeEl.classList.remove('hidden');
   await cargarPermisos();
   await cargarFCultivoOverrides();
   renderLaborGrid();
@@ -979,6 +1033,7 @@ async function entrarApp(){
   checkRealConnectivity();
   updateSyncBar();
   cargarAnuncioBanner();
+  cargarNotificaciones();
 }
 
 // ============================================================
@@ -1133,10 +1188,18 @@ function precargarFormulario(r){
   onEqTrChange();
   const parcelasSel = (r.parcelas || '').split(',').filter(Boolean);
   setTimeout(() => {
-    parcelasSel.forEach(p => {
-      const chk = document.querySelector(`.chk-parcela[value="${p}"]`);
-      if (chk) chk.checked = true;
-    });
+    const todasDelEqTr = PARCELAS_MAP[`${eq}-${tr}`] || [];
+    const esTodas = todasDelEqTr.length && parcelasSel.length === todasDelEqTr.length &&
+      todasDelEqTr.every(p => parcelasSel.includes(p));
+    const todosChk = document.getElementById('chk-todos-parcelas');
+    if (esTodas && todosChk){
+      todosChk.checked = true;
+    } else {
+      parcelasSel.forEach(p => {
+        const chk = document.querySelector(`.chk-parcela[value="${p}"]`);
+        if (chk) chk.checked = true;
+      });
+    }
     actualizarTablasParcela();
     const detalle = (r.datos_extra && r.datos_extra.detalle_parcelas) || [];
     if (laborActual === 'purga'){
@@ -2034,6 +2097,91 @@ async function guardarPermisos(){
 // ============================================================
 // ANUNCIOS — usa la misma tabla anuncios de LCampoR
 // ============================================================
+// ============================================================
+// PANEL DE NOTIFICACIONES — anuncios + aviso de nueva versión
+// ============================================================
+function getDismissedNotifs(){
+  try{ return JSON.parse(localStorage.getItem('rc_notif_dismissed') || '[]'); }catch{ return []; }
+}
+function dismissNotif(key){
+  const d = getDismissedNotifs();
+  if (!d.includes(key)) d.push(key);
+  localStorage.setItem('rc_notif_dismissed', JSON.stringify(d));
+  cargarNotificaciones();
+}
+
+function toggleNotifPanel(){
+  const panel = document.getElementById('notif-panel');
+  const abrir = panel.classList.contains('hidden');
+  panel.classList.toggle('hidden');
+  if (abrir){
+    cargarNotificaciones();
+    document.getElementById('notif-dot').classList.add('hidden');
+    localStorage.setItem('rc_notif_seen', new Date().toISOString());
+  }
+}
+
+async function cargarNotificaciones(){
+  const list = document.getElementById('notif-list');
+  const dismissed = getDismissedNotifs();
+  let items = [];
+
+  // Aviso de versión nueva (sintético, no viene de la base de datos)
+  const versionKey = `version-${APP_VERSION}`;
+  if (!dismissed.includes(versionKey)){
+    items.push({
+      key: versionKey, tipo: 'version',
+      autor: 'Sistema', mensaje: `🆕 La app se actualizó a la versión ${APP_VERSION}.`,
+      fechaTexto: 'Ahora', orden: Date.now()
+    });
+  }
+
+  // Anuncios del administrador
+  try{
+    const res = await sbFetch('anuncios?order=created_at.desc&limit=20');
+    if (res.ok){
+      const data = await res.json();
+      data.forEach(a => {
+        const key = `anuncio-${a.id}`;
+        if (dismissed.includes(key)) return;
+        const d = new Date(a.created_at);
+        items.push({
+          key, id: a.id, tipo: 'anuncio',
+          autor: a.autor || 'Admin', mensaje: a.mensaje,
+          fechaTexto: isNaN(d) ? '' : d.toLocaleString('es-PE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }),
+          orden: isNaN(d) ? 0 : d.getTime()
+        });
+      });
+    }
+  }catch(e){}
+
+  items.sort((a,b) => b.orden - a.orden);
+
+  if (!list) { actualizarNotifDot(items.length); return; }
+  if (!items.length){
+    list.innerHTML = '<div class="notif-empty">Sin notificaciones nuevas</div>';
+  } else {
+    list.innerHTML = items.map(i => `
+      <div class="notif-item unread">
+        <div class="notif-meta">
+          <span>${i.tipo==='version' ? '🆕' : '📢'} ${i.autor}</span>
+          <span>${i.fechaTexto}</span>
+          <span class="notif-trash" onclick="dismissNotif('${i.key}')" title="Eliminar">🗑</span>
+        </div>
+        <div class="notif-msg">${i.mensaje}</div>
+      </div>`).join('');
+  }
+  actualizarNotifDot(items.length);
+}
+
+function actualizarNotifDot(cantidad){
+  const dot = document.getElementById('notif-dot');
+  if (!dot) return;
+  const panelAbierto = !document.getElementById('notif-panel').classList.contains('hidden');
+  dot.textContent = cantidad > 9 ? '9+' : cantidad;
+  dot.classList.toggle('hidden', cantidad === 0 || panelAbierto);
+}
+
 async function cargarAnuncioBanner(){
   const cont = document.getElementById('anuncios-banner');
   if (!cont) return;
@@ -2061,6 +2209,7 @@ async function publicarAnuncio(){
     showToast('✅ Anuncio publicado');
     cargarAnunciosAdmin();
     cargarAnuncioBanner();
+    cargarNotificaciones();
   }catch(e){
     showToast('Error al publicar', 'error');
   }
@@ -2091,6 +2240,7 @@ async function eliminarAnuncio(id){
     await sbFetch(`anuncios?id=eq.${id}`, { method:'DELETE' });
     cargarAnunciosAdmin();
     cargarAnuncioBanner();
+    cargarNotificaciones();
   }catch(e){ showToast('Error al eliminar', 'error'); }
 }
 
