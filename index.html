@@ -118,12 +118,21 @@
         <input type="password" id="login-pass" placeholder="Tu clave"/>
       </div>
       <button class="btn" onclick="intentarLogin()">Ingresar</button>
+      <p style="margin-top:14px;font-size:0.78rem;"><a href="#" onclick="toggleSolicitudClave();return false;" style="color:var(--azul);">¿Olvidaste tu clave?</a></p>
+      <div id="solicitud-clave-box" class="hidden" style="margin-top:10px;text-align:left;">
+        <div class="field-spaced">
+          <label>Nueva clave deseada</label>
+          <input type="text" id="solicitud-nueva-clave" placeholder="Escribe la clave que quieres usar"/>
+        </div>
+        <button class="btn" style="background:var(--azul);" onclick="enviarSolicitudClave()">Enviar solicitud al admin</button>
+      </div>
     </div>
   </div>
 </div>
 
 <main id="app-main" class="hidden">
   <section id="view-home">
+    <div id="anuncios-banner"></div>
     <p style="font-weight:700;color:var(--azul-oscuro);margin:4px 0 12px;">¿Qué labor vas a registrar?</p>
     <div class="labor-grid" id="labor-grid"></div>
   </section>
@@ -170,6 +179,35 @@
       <p style="font-size:0.72rem;color:var(--texto-suave);margin-top:10px;">
         Las labores marcadas: el usuario puede <strong>registrar</strong>. Las labores sin marcar: el usuario solo puede <strong>ver</strong> los registros, no llenarlas. Si no marcas ninguna, el usuario puede registrar todas (permiso por defecto).
       </p>
+    </div>
+
+    <p style="font-weight:700;color:var(--azul-oscuro);margin:18px 0 12px;">📅 Fecha de cultivo (FCultivo)</p>
+    <div class="form-card">
+      <div class="form-grid" style="margin-bottom:10px;">
+        <div class="form-field"><label>EQ</label><select id="fc-eq" onchange="onFCEqTrChange()"></select></div>
+        <div class="form-field"><label>TR</label><select id="fc-tr" onchange="onFCEqTrChange()"></select></div>
+      </div>
+      <div id="fc-actual" style="font-size:0.8rem;color:var(--texto-suave);margin-bottom:10px;">Selecciona EQ y TR</div>
+      <div class="form-field full" style="margin-bottom:10px;">
+        <label>Nueva fecha de cultivo</label>
+        <input type="date" id="fc-nueva"/>
+      </div>
+      <button class="btn" onclick="guardarFCultivo()">💾 Guardar fecha de cultivo</button>
+    </div>
+
+    <p style="font-weight:700;color:var(--azul-oscuro);margin:18px 0 12px;">📢 Anuncios para controladores</p>
+    <div class="form-card">
+      <div class="form-field full" style="margin-bottom:10px;">
+        <label>Nuevo anuncio</label>
+        <textarea id="anuncio-nuevo" placeholder="Escribe un mensaje para todos los controladores..."></textarea>
+      </div>
+      <button class="btn" onclick="publicarAnuncio()">📢 Publicar anuncio</button>
+      <div id="admin-anuncios-list" style="margin-top:14px;"></div>
+    </div>
+
+    <p style="font-weight:700;color:var(--azul-oscuro);margin:18px 0 12px;">🔑 Solicitudes de clave</p>
+    <div class="form-card">
+      <div id="admin-solicitudes-list"><div class="empty-state">Cargando...</div></div>
     </div>
   </section>
 </main>
@@ -804,6 +842,7 @@ async function entrarApp(){
   irHome();
   checkRealConnectivity();
   updateSyncBar();
+  cargarAnuncioBanner();
 }
 
 // ============================================================
@@ -855,6 +894,9 @@ function irAdmin(){
   document.getElementById('view-admin').classList.remove('hidden');
   document.getElementById('nav-admin').classList.add('active');
   renderAdminUserSelect();
+  poblarFCSelects();
+  cargarAnunciosAdmin();
+  cargarSolicitudesAdmin();
 }
 function volverHome(){ filtroLaborLista = null; registroEditandoId = null; irHome(); }
 
@@ -1402,6 +1444,176 @@ async function guardarPermisos(){
     showToast('✅ Permisos actualizados');
   }catch(err){
     showToast('Error al guardar permisos', 'error');
+  }
+}
+
+// ============================================================
+// ANUNCIOS — usa la misma tabla anuncios de LCampoR
+// ============================================================
+async function cargarAnuncioBanner(){
+  const cont = document.getElementById('anuncios-banner');
+  if (!cont) return;
+  try{
+    const res = await sbFetch('anuncios?order=created_at.desc&limit=1');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.length){ cont.innerHTML = ''; return; }
+    const a = data[0];
+    cont.innerHTML = `
+      <div class="form-card" style="background:var(--verde-menta);border:1px solid var(--verde-claro);">
+        <div style="font-size:0.7rem;font-weight:700;color:var(--azul-oscuro);text-transform:uppercase;margin-bottom:4px;">📢 Anuncio · ${a.autor||'Admin'}</div>
+        <div style="font-size:0.85rem;color:var(--texto);">${a.mensaje}</div>
+      </div>`;
+  }catch(e){}
+}
+
+async function publicarAnuncio(){
+  const mensaje = val('anuncio-nuevo');
+  if (!mensaje){ showToast('Escribe un mensaje', 'error'); return; }
+  try{
+    const res = await sbFetch('anuncios', { method:'POST', body: JSON.stringify({ mensaje, autor: currentUser.nombre }) });
+    if (!res.ok) throw new Error();
+    document.getElementById('anuncio-nuevo').value = '';
+    showToast('✅ Anuncio publicado');
+    cargarAnunciosAdmin();
+    cargarAnuncioBanner();
+  }catch(e){
+    showToast('Error al publicar', 'error');
+  }
+}
+
+async function cargarAnunciosAdmin(){
+  const cont = document.getElementById('admin-anuncios-list');
+  if (!cont) return;
+  try{
+    const res = await sbFetch('anuncios?order=created_at.desc&limit=10');
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (!data.length){ cont.innerHTML = '<div class="empty-state">Sin anuncios aún</div>'; return; }
+    cont.innerHTML = data.map(a => `
+      <div class="record-card">
+        <div class="rc-top"><span class="rc-labor">${a.autor||'Admin'}</span><span class="rc-fecha">${new Date(a.created_at).toLocaleDateString('es-PE')}</span></div>
+        <div class="rc-meta">${a.mensaje}</div>
+        <button onclick="eliminarAnuncio(${a.id})" style="margin-top:6px;padding:5px 10px;font-size:0.68rem;border:1px solid var(--borde);border-radius:6px;background:#fff;font-weight:700;color:var(--rojo);">🗑️ Eliminar</button>
+      </div>`).join('');
+  }catch(e){
+    cont.innerHTML = '<div class="empty-state">Error al cargar anuncios</div>';
+  }
+}
+
+async function eliminarAnuncio(id){
+  if (!confirm('¿Eliminar este anuncio?')) return;
+  try{
+    await sbFetch(`anuncios?id=eq.${id}`, { method:'DELETE' });
+    cargarAnunciosAdmin();
+    cargarAnuncioBanner();
+  }catch(e){ showToast('Error al eliminar', 'error'); }
+}
+
+// ============================================================
+// SOLICITUD DE CLAVE — usa la misma tabla solicitudes_clave
+// ============================================================
+function toggleSolicitudClave(){
+  document.getElementById('solicitud-clave-box').classList.toggle('hidden');
+}
+
+async function enviarSolicitudClave(){
+  const userId = val('login-user');
+  const nuevaClave = val('solicitud-nueva-clave');
+  const u = USERS.find(x => x.user === userId);
+  if (!u){ showToast('Selecciona tu usuario primero', 'error'); return; }
+  if (!nuevaClave){ showToast('Escribe la clave que deseas', 'error'); return; }
+  try{
+    const res = await sbFetch('solicitudes_clave', {
+      method:'POST',
+      body: JSON.stringify({ usuario: u.user, nombre: u.displayName, nueva_clave: nuevaClave, estado: 'pendiente' })
+    });
+    if (!res.ok) throw new Error();
+    showToast('✅ Solicitud enviada. El admin la revisará pronto.');
+    document.getElementById('solicitud-nueva-clave').value = '';
+    document.getElementById('solicitud-clave-box').classList.add('hidden');
+  }catch(e){
+    showToast('Error al enviar la solicitud', 'error');
+  }
+}
+
+async function cargarSolicitudesAdmin(){
+  const cont = document.getElementById('admin-solicitudes-list');
+  if (!cont) return;
+  try{
+    const res = await sbFetch('solicitudes_clave?estado=eq.pendiente&order=created_at.desc&limit=20');
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (!data.length){ cont.innerHTML = '<div class="empty-state">Sin solicitudes pendientes</div>'; return; }
+    cont.innerHTML = data.map(s => `
+      <div class="record-card">
+        <div class="rc-top"><span class="rc-labor">${s.nombre}</span><span class="rc-fecha">${new Date(s.created_at).toLocaleDateString('es-PE')}</span></div>
+        <div class="rc-meta">Clave deseada: <strong>${s.nueva_clave}</strong></div>
+        <p style="font-size:0.68rem;color:var(--texto-suave);margin:6px 0;">Recuerda: debes actualizar la clave manualmente en el código (USERS) después de aprobar.</p>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <button onclick="resolverSolicitud(${s.id},'aprobada')" style="flex:1;padding:7px;font-size:0.72rem;border:1px solid var(--borde);border-radius:8px;background:#fff;font-weight:700;color:var(--verde);">✅ Aprobar</button>
+          <button onclick="resolverSolicitud(${s.id},'rechazada')" style="flex:1;padding:7px;font-size:0.72rem;border:1px solid var(--borde);border-radius:8px;background:#fff;font-weight:700;color:var(--rojo);">❌ Rechazar</button>
+        </div>
+      </div>`).join('');
+  }catch(e){
+    cont.innerHTML = '<div class="empty-state">Error al cargar solicitudes</div>';
+  }
+}
+
+async function resolverSolicitud(id, estado){
+  try{
+    await sbFetch(`solicitudes_clave?id=eq.${id}`, {
+      method:'PATCH',
+      body: JSON.stringify({ estado, revisado_por: currentUser.nombre, revisado_at: new Date().toISOString() })
+    });
+    showToast(estado === 'aprobada' ? '✅ Solicitud aprobada' : 'Solicitud rechazada');
+    cargarSolicitudesAdmin();
+  }catch(e){
+    showToast('Error al actualizar', 'error');
+  }
+}
+
+// ============================================================
+// FCULTIVO — editor de fecha de siembra (admin)
+// ============================================================
+function poblarFCSelects(){
+  document.getElementById('fc-eq').innerHTML = optsEQ();
+  document.getElementById('fc-tr').innerHTML = optsTR();
+}
+
+function onFCEqTrChange(){
+  const eq = val('fc-eq'), tr = val('fc-tr');
+  const actualEl = document.getElementById('fc-actual');
+  const nuevaEl = document.getElementById('fc-nueva');
+  if (!eq || !tr){ actualEl.textContent = 'Selecciona EQ y TR'; nuevaEl.value = ''; return; }
+  const fecha = getFCultivo(eq, tr);
+  const key = `${eq}-${tr}`;
+  const isOverride = !!FCULTIVO_OVERRIDES[key];
+  if (fecha){
+    const edad = calcEdadDias(eq, tr);
+    actualEl.innerHTML = `${fecha} ${isOverride ? '<strong style="color:var(--verde);">(actualizado)</strong>' : ''} — Edad actual: <strong>${edad} días</strong>`;
+  } else {
+    actualEl.textContent = `Sin fecha registrada para ${key}`;
+  }
+  nuevaEl.value = fecha || '';
+}
+
+async function guardarFCultivo(){
+  const eq = val('fc-eq'), tr = val('fc-tr'), nueva = val('fc-nueva');
+  if (!eq || !tr){ showToast('Selecciona EQ y TR', 'error'); return; }
+  if (!nueva){ showToast('Selecciona la nueva fecha', 'error'); return; }
+  try{
+    const res = await sbFetch('fcultivo_overrides', {
+      method:'POST',
+      headers: { 'Prefer':'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ eq_tr: `${eq}-${tr}`, fecha_cultivo: nueva, actualizado_por: currentUser.nombre, updated_at: new Date().toISOString() })
+    });
+    if (!res.ok) throw new Error();
+    FCULTIVO_OVERRIDES[`${eq}-${tr}`] = nueva;
+    showToast('✅ Fecha de cultivo actualizada');
+    onFCEqTrChange();
+  }catch(e){
+    showToast('Error al guardar', 'error');
   }
 }
 
