@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="1.0.0"/>
+<meta name="app-version" content="3.4.0"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -136,6 +136,25 @@
   .dmr-badge.alto{background:#fdecea;color:var(--rojo);}
   .dmr-badge.medio{background:#fdf3d6;color:#7d5a00;}
   .dmr-badge.bajo{background:var(--verde-menta);color:#1e7a3a;}
+  .ajustes-section{background:#fff;border-radius:var(--radio);padding:16px;margin-bottom:14px;box-shadow:0 1px 4px rgba(5,31,82,0.06);}
+  .ajustes-section h3{font-size:0.92rem;font-weight:700;color:var(--azul-oscuro);margin:0 0 6px;}
+  .ajustes-section .ajustes-desc{font-size:0.78rem;color:var(--texto-suave);margin-bottom:12px;line-height:1.5;}
+  .select-wrapper{position:relative;width:100%;min-width:0;overflow:hidden;border-radius:var(--radio-sm);}
+  .select-wrapper::after{content:'▾';position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--texto-suave);pointer-events:none;font-size:0.78rem;}
+  .select-wrapper select{width:100%;-webkit-appearance:none;appearance:none;padding:11px 32px 11px 14px;border:1.5px solid var(--borde);border-radius:var(--radio-sm);font-size:0.92rem;background:#fff;color:var(--texto);font-family:inherit;}
+  .perm-chk-row{display:flex;align-items:center;gap:9px;font-size:0.85rem;cursor:pointer;background:var(--fondo);border:1.5px solid var(--borde);border-radius:10px;padding:11px 12px;margin-bottom:8px;}
+  .perm-chk-row input{width:18px;height:18px;flex-shrink:0;accent-color:var(--verde);}
+  .perm-chk-row span{flex:1;}
+  .font-size-control{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .font-size-control button{width:44px;height:44px;border-radius:50%;border:1.5px solid var(--borde);background:#fff;font-weight:700;font-size:1.1rem;color:var(--azul-oscuro);}
+  .font-size-control .fsc-val{font-weight:700;color:var(--azul-oscuro);font-size:0.9rem;}
+  .user-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--borde);}
+  .user-row:last-child{border-bottom:none;}
+  .user-row .user-name{font-weight:700;font-size:0.85rem;color:var(--azul-oscuro);}
+  .user-row .user-role{font-size:0.72rem;color:var(--texto-suave);margin-top:2px;}
+  .badge-role-pill{font-size:0.66rem;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--fondo);color:var(--texto-suave);}
+  .badge-role-pill.admin{background:#fdf3d6;color:#7d5a00;}
+  .diag-box{background:var(--fondo);border-radius:10px;padding:12px;font-family:monospace;font-size:0.72rem;line-height:1.7;white-space:pre-wrap;word-break:break-all;color:var(--texto);}
 </style>
 </head>
 <body>
@@ -288,47 +307,7 @@
   </section>
 
   <section id="view-admin" class="hidden">
-    <p style="font-weight:700;color:var(--azul-oscuro);margin:4px 0 12px;">Permisos por usuario</p>
-    <div class="form-card">
-      <div class="form-field full" style="margin-bottom:10px;">
-        <label>Controlador</label>
-        <select id="admin-user-select" onchange="renderAdminPermisos()"></select>
-      </div>
-      <div id="admin-permisos-list" class="form-grid"></div>
-      <button class="btn" onclick="guardarPermisos()">💾 Guardar permisos</button>
-      <p style="font-size:0.72rem;color:var(--texto-suave);margin-top:10px;">
-        Las labores marcadas: el usuario puede <strong>registrar</strong>. Las labores sin marcar: el usuario solo puede <strong>ver</strong> los registros, no llenarlas. Si no marcas ninguna, el usuario puede registrar todas (permiso por defecto).
-      </p>
-    </div>
-
-    <p style="font-weight:700;color:var(--azul-oscuro);margin:18px 0 12px;">📅 Fecha de cultivo (FCultivo)</p>
-    <div class="form-card">
-      <div class="form-grid" style="margin-bottom:10px;">
-        <div class="form-field"><label>EQ</label><select id="fc-eq" onchange="onFCEqTrChange()"></select></div>
-        <div class="form-field"><label>TR</label><select id="fc-tr" onchange="onFCEqTrChange()"></select></div>
-      </div>
-      <div id="fc-actual" style="font-size:0.8rem;color:var(--texto-suave);margin-bottom:10px;">Selecciona EQ y TR</div>
-      <div class="form-field full" style="margin-bottom:10px;">
-        <label>Nueva fecha de cultivo</label>
-        <input type="date" id="fc-nueva"/>
-      </div>
-      <button class="btn" onclick="guardarFCultivo()">💾 Guardar fecha de cultivo</button>
-    </div>
-
-    <p style="font-weight:700;color:var(--azul-oscuro);margin:18px 0 12px;">📢 Anuncios para controladores</p>
-    <div class="form-card">
-      <div class="form-field full" style="margin-bottom:10px;">
-        <label>Nuevo anuncio</label>
-        <textarea id="anuncio-nuevo" placeholder="Escribe un mensaje para todos los controladores..."></textarea>
-      </div>
-      <button class="btn" onclick="publicarAnuncio()">📢 Publicar anuncio</button>
-      <div id="admin-anuncios-list" style="margin-top:14px;"></div>
-    </div>
-
-    <p style="font-weight:700;color:var(--azul-oscuro);margin:18px 0 12px;">🔑 Solicitudes de clave</p>
-    <div class="form-card">
-      <div id="admin-solicitudes-list"><div class="empty-state">Cargando...</div></div>
-    </div>
+    <div id="ajustes-content"></div>
   </section>
 </main>
 
@@ -336,7 +315,7 @@
   <button class="active" id="nav-home" onclick="irHome()"><span class="nav-emoji">📝</span>Registrar</button>
   <button id="nav-lista" onclick="filtroLaborLista=null;irLista()"><span class="nav-emoji">📋</span>Historial</button>
   <button id="nav-kpis" onclick="irKpis()"><span class="nav-emoji">📊</span>KPIs</button>
-  <button id="nav-admin" onclick="irAdmin()" class="hidden"><span class="nav-emoji">⚙️</span>Admin</button>
+  <button id="nav-admin" onclick="irAdmin()"><span class="nav-emoji">⚙️</span>Ajustes</button>
 </nav>
 
 <div class="modal-overlay" id="detail-modal" onclick="if(event.target===this)closeDetailModal()">
@@ -356,6 +335,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '3.4.0';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -967,7 +947,6 @@ async function entrarApp(){
   document.getElementById('bottom-nav').classList.remove('hidden');
   document.getElementById('user-pill').classList.remove('hidden');
   document.getElementById('user-pill-name').textContent = currentUser.nombre;
-  document.getElementById('nav-admin').classList.toggle('hidden', currentUser.role !== 'admin');
   await cargarPermisos();
   await cargarFCultivoOverrides();
   renderLaborGrid();
@@ -1019,10 +998,7 @@ function irAdmin(){
   ocultarTodasLasVistas();
   document.getElementById('view-admin').classList.remove('hidden');
   document.getElementById('nav-admin').classList.add('active');
-  renderAdminUserSelect();
-  poblarFCSelects();
-  cargarAnunciosAdmin();
-  cargarSolicitudesAdmin();
+  renderAjustes();
 }
 function volverHome(){ filtroLaborLista = null; registroEditandoId = null; irHome(); }
 
@@ -1773,26 +1749,221 @@ async function cargarKpis(){
 // ============================================================
 // ADMIN — permisos por usuario (tabla compartida con LCampoR)
 // ============================================================
-function renderAdminUserSelect(){
-  const sel = document.getElementById('admin-user-select');
-  const controladores = USERS.filter(u => u.role === 'controller');
-  sel.innerHTML = controladores.map(u => `<option value="${u.user}">${u.displayName}</option>`).join('');
-  renderAdminPermisos();
+// ============================================================
+// AJUSTES — dispatcher según rol (todo lo de "Admin" en LCampoR)
+// ============================================================
+function renderAjustes(){
+  const cont = document.getElementById('ajustes-content');
+  if (currentUser.role !== 'admin'){
+    cont.innerHTML = `
+      <div class="ajustes-section">
+        <h3>ℹ️ Información del sistema</h3>
+        <div style="font-size:0.8rem;color:var(--texto-suave);line-height:2;">
+          <div>🌾 <strong>Proyecto:</strong> Magdalena / Caña Brava</div>
+          <div>🏡 <strong>Fundos:</strong> Huaca · Lobo 1 · Lobo 2</div>
+          <div>🔧 <strong>Versión:</strong> ${APP_VERSION}</div>
+          <div>☁️ <strong>Backend:</strong> Supabase (compartido con LCampoR)</div>
+        </div>
+      </div>
+
+      <div class="ajustes-section">
+        <h3>🔠 Tamaño de letra</h3>
+        <p class="ajustes-desc">Ajusta el tamaño del texto en toda la app a tu preferencia.</p>
+        ${fontSizeControlHTML()}
+      </div>
+
+      <div class="ajustes-section">
+        <h3>🔑 Solicitar cambio de contraseña</h3>
+        <p class="ajustes-desc">Escribe la clave que deseas usar. El administrador revisará tu solicitud y la activará.</p>
+        <div class="field-spaced">
+          <label>Nueva clave deseada</label>
+          <input type="text" id="ajustes-nueva-clave" placeholder="Escribe la clave que quieres usar"/>
+        </div>
+        <button class="btn" onclick="enviarSolicitudClaveAjustes()">📨 Enviar solicitud</button>
+      </div>`;
+    return;
+  }
+
+  // VISTA ADMIN — todo lo que tenía el tab Admin de LCampoR
+  cont.innerHTML = `
+    <div class="ajustes-section">
+      <h3>🔠 Tamaño de letra</h3>
+      <p class="ajustes-desc">Ajusta el tamaño del texto en toda la app.</p>
+      ${fontSizeControlHTML()}
+    </div>
+
+    <div class="ajustes-section">
+      <h3>📲 Instalar app</h3>
+      <p class="ajustes-desc">Instala esta app en tu pantalla de inicio para acceder más rápido y usarla sin internet. En Android: menú del navegador → "Instalar app". En iPhone: Safari → compartir → "Añadir a pantalla de inicio".</p>
+    </div>
+
+    <div class="ajustes-section">
+      <h3>🔍 Diagnóstico técnico</h3>
+      <p class="ajustes-desc">Información del estado actual de la app en este dispositivo.</p>
+      <div class="diag-box" id="diag-output">Cargando diagnóstico...</div>
+      <button class="btn secundario" onclick="runDiagnostics()" style="margin-top:10px;">🔄 Actualizar diagnóstico</button>
+    </div>
+
+    <div class="ajustes-section">
+      <h3>🔐 Permisos por labor</h3>
+      <p class="ajustes-desc">Elige qué labores puede registrar cada controlador. Si no marcas ninguna, tendrá acceso a todas por defecto.</p>
+      <div class="field-spaced" style="margin-bottom:12px;">
+        <label>Controlador</label>
+        <div class="select-wrapper">
+          <select id="perm-user" onchange="onPermUserChange()">
+            <option value="">— Selecciona un controlador —</option>
+          </select>
+        </div>
+      </div>
+      <div id="perm-checkboxes-wrap" style="display:none;">
+        <div id="perm-checkboxes"></div>
+        <button class="btn" onclick="guardarPermisos()">🔐 Guardar permisos</button>
+      </div>
+    </div>
+
+    <div class="ajustes-section">
+      <h3>🌱 Fechas de cultivo (FCultivo)</h3>
+      <p class="ajustes-desc">Cuando se renueve un campo, actualiza aquí su fecha de cultivo. La Edad (días) de los nuevos registros se calcula automáticamente desde esta fecha.</p>
+      <div class="form-grid" style="margin-bottom:10px;">
+        <div class="form-field"><label>EQ</label><div class="select-wrapper"><select id="fc-eq" onchange="onFCEqTrChange()"></select></div></div>
+        <div class="form-field"><label>TR</label><div class="select-wrapper"><select id="fc-tr" onchange="onFCEqTrChange()"></select></div></div>
+        <div class="form-field full"><label>Fecha de cultivo actual</label><div id="fc-actual" style="padding:11px 13px;border:1.5px solid var(--borde);border-radius:var(--radio-sm);background:var(--fondo);font-size:0.8rem;color:var(--texto-suave);">Selecciona EQ y TR</div></div>
+        <div class="form-field full"><label>Nueva fecha de cultivo</label><input type="date" id="fc-nueva"/></div>
+      </div>
+      <button class="btn" onclick="guardarFCultivo()">🌱 Actualizar fecha de cultivo</button>
+    </div>
+
+    <div class="ajustes-section">
+      <h3>📢 Anuncios para controladores</h3>
+      <div class="field-spaced" style="margin-bottom:10px;">
+        <label>Nuevo anuncio</label>
+        <textarea id="anuncio-nuevo" placeholder="Escribe un mensaje para todos los controladores..."></textarea>
+      </div>
+      <button class="btn" onclick="publicarAnuncio()">📢 Publicar anuncio</button>
+      <div id="admin-anuncios-list" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="ajustes-section">
+      <h3>🔑 Solicitudes de cambio de contraseña</h3>
+      <div id="admin-solicitudes-list"><div class="empty-state">Cargando...</div></div>
+    </div>
+
+    <div class="ajustes-section">
+      <h3>👥 Usuarios autorizados</h3>
+      <div id="users-list">
+        ${USERS.map(u => `
+        <div class="user-row">
+          <div>
+            <div class="user-name">${u.role==='admin'?'⭐ ':'👷 '}${u.displayName}</div>
+            <div class="user-role">Usuario: <strong>${u.user}</strong></div>
+          </div>
+          <span class="badge-role-pill${u.role==='admin'?' admin':''}">${u.role==='admin'?'Admin':'Ctrl'}</span>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="ajustes-section">
+      <h3>🗑️ Administración de datos</h3>
+      <p class="ajustes-desc">Para eliminar registros individuales, ábrelos desde el Historial y usa el botón eliminar.</p>
+      <button class="btn secundario" onclick="filtroLaborLista=null;irLista();">Ver todos los registros</button>
+    </div>
+
+    <div class="ajustes-section">
+      <h3>ℹ️ Información del sistema</h3>
+      <div style="font-size:0.8rem;color:var(--texto-suave);line-height:2;">
+        <div>🌾 <strong>Proyecto:</strong> Magdalena / Caña Brava</div>
+        <div>🏡 <strong>Fundos:</strong> Huaca · Lobo 1 · Lobo 2</div>
+        <div>🔧 <strong>Versión:</strong> ${APP_VERSION}</div>
+        <div>☁️ <strong>Backend:</strong> Supabase (compartido con LCampoR)</div>
+      </div>
+    </div>`;
+
+  renderAdminUserSelect();
+  poblarFCSelects();
+  cargarAnunciosAdmin();
+  cargarSolicitudesAdmin();
+  runDiagnostics();
 }
 
-function renderAdminPermisos(){
-  const userId = val('admin-user-select');
+// ============================================================
+// TAMAÑO DE LETRA — persistido en localStorage
+// ============================================================
+function fontSizeControlHTML(){
+  const scale = parseInt(localStorage.getItem('rc_font_scale') || '100');
+  return `
+    <div class="font-size-control">
+      <button onclick="cambiarFontScale(-10)">A-</button>
+      <span class="fsc-val" id="fsc-val">${scale}%</span>
+      <button onclick="cambiarFontScale(10)">A+</button>
+    </div>`;
+}
+function aplicarFontScale(){
+  const scale = parseInt(localStorage.getItem('rc_font_scale') || '100');
+  document.documentElement.style.fontSize = (16 * scale/100) + 'px';
+}
+function cambiarFontScale(delta){
+  let scale = parseInt(localStorage.getItem('rc_font_scale') || '100');
+  scale = Math.min(140, Math.max(80, scale + delta));
+  localStorage.setItem('rc_font_scale', scale);
+  aplicarFontScale();
+  const el = document.getElementById('fsc-val');
+  if (el) el.textContent = scale + '%';
+}
+
+// ============================================================
+// DIAGNÓSTICO TÉCNICO
+// ============================================================
+async function runDiagnostics(){
+  const el = document.getElementById('diag-output');
+  if (!el) return;
+  let swStatus = 'No soportado';
+  try{
+    if ('serviceWorker' in navigator){
+      const reg = await navigator.serviceWorker.getRegistration();
+      swStatus = reg ? (reg.active ? 'Activo' : 'Registrado, sin activar') : 'No registrado';
+    }
+  }catch(e){}
+  const q = getQueue();
+  el.textContent =
+`App: Registro de Labores (RegCampo)
+Versión: ${APP_VERSION}
+Usuario: ${currentUser.nombre} (${currentUser.role})
+Conexión: ${isOnline() ? 'En línea' : 'Sin conexión'}
+Service Worker: ${swStatus}
+Registros pendientes en cola: ${q.length}
+Navegador: ${navigator.userAgent}
+Fecha/hora: ${new Date().toLocaleString('es-PE')}`;
+}
+
+// ============================================================
+// PERMISOS POR LABOR
+// ============================================================
+function renderAdminUserSelect(){
+  const sel = document.getElementById('perm-user');
+  if (!sel) return;
+  const controladores = USERS.filter(u => u.role === 'controller');
+  sel.innerHTML = '<option value="">— Selecciona un controlador —</option>' +
+    controladores.map(u => `<option value="${u.user}">${u.displayName}</option>`).join('');
+  document.getElementById('perm-checkboxes-wrap').style.display = 'none';
+}
+
+function onPermUserChange(){
+  const userId = val('perm-user');
+  const wrap = document.getElementById('perm-checkboxes-wrap');
+  const checkboxesEl = document.getElementById('perm-checkboxes');
+  if (!userId){ wrap.style.display = 'none'; return; }
   const permitidas = getAllowedLabores(userId);
-  const cont = document.getElementById('admin-permisos-list');
-  cont.innerHTML = LABORES.map(l => `
-    <label style="display:flex;align-items:center;gap:8px;font-size:0.8rem;font-weight:400;text-transform:none;background:#fff;border:1px solid var(--borde);border-radius:var(--radio-sm);padding:10px;grid-column:span 1;">
+  checkboxesEl.innerHTML = LABORES.map(l => `
+    <label class="perm-chk-row">
       <input type="checkbox" class="chk-permiso" value="${l.id}" ${permitidas.includes(l.id) ? 'checked' : ''}/>
-      ${l.emoji} ${l.nombre}
+      <span>${l.emoji} ${l.nombre}</span>
     </label>`).join('');
+  wrap.style.display = 'block';
 }
 
 async function guardarPermisos(){
-  const userId = val('admin-user-select');
+  const userId = val('perm-user');
+  if (!userId){ showToast('Selecciona un controlador', 'error'); return; }
   const labores = [...document.querySelectorAll('.chk-permiso:checked')].map(c => c.value);
   try{
     const res = await sbFetch('permisos_labores', {
@@ -1898,6 +2069,22 @@ async function enviarSolicitudClave(){
   }
 }
 
+async function enviarSolicitudClaveAjustes(){
+  const nuevaClave = val('ajustes-nueva-clave');
+  if (!nuevaClave){ showToast('Escribe la clave que deseas', 'error'); return; }
+  try{
+    const res = await sbFetch('solicitudes_clave', {
+      method:'POST',
+      body: JSON.stringify({ usuario: currentUser.user, nombre: currentUser.nombre, nueva_clave: nuevaClave, estado: 'pendiente' })
+    });
+    if (!res.ok) throw new Error();
+    showToast('✅ Solicitud enviada. El admin la revisará pronto.');
+    document.getElementById('ajustes-nueva-clave').value = '';
+  }catch(e){
+    showToast('Error al enviar la solicitud', 'error');
+  }
+}
+
 async function cargarSolicitudesAdmin(){
   const cont = document.getElementById('admin-solicitudes-list');
   if (!cont) return;
@@ -1984,6 +2171,7 @@ async function guardarFCultivo(){
 poblarLoginUsers();
 renderLaborGrid();
 updateSyncBar();
+aplicarFontScale();
 if (currentUser){ entrarApp(); }
 
 if ('serviceWorker' in navigator){
