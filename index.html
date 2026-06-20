@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="3.9.2"/>
+<meta name="app-version" content="3.9.4"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -369,7 +369,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '3.9.2';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '3.9.4';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -594,7 +594,8 @@ function baseBlock(titulo){
         <div class="form-field"><label>TR</label>
           <select id="f-tr" onchange="onEqTrChange()">${optsTR()}</select>
         </div>
-        <div class="form-field full"><label>Parcelas</label>
+        <div class="form-field full" id="parcelas-wrap"><label>Parcelas</label>
+          <input type="text" id="parcelas-resumen" readonly placeholder="Toca para seleccionar parcelas" onclick="abrirParcelasBox()" style="background:var(--verde-menta);color:var(--azul-oscuro);font-weight:700;margin-bottom:8px;cursor:pointer;"/>
           <div class="parcelas-box" id="parcelas-box">
             <span style="grid-column:1/-1;font-size:0.72rem;color:var(--texto-suave);">Selecciona EQ y TR primero</span>
           </div>
@@ -612,6 +613,23 @@ function baseBlock(titulo){
     </div>`;
 }
 
+// ============================================================
+// MOSTRAR/OCULTAR EL CUADRO DE PARCELAS (se cierra al tocar fuera)
+// ============================================================
+function abrirParcelasBox(){
+  const box = document.getElementById('parcelas-box');
+  if (box) box.classList.remove('hidden');
+}
+
+document.addEventListener('click', function(e){
+  const wrap = document.getElementById('parcelas-wrap');
+  if (!wrap) return; // no estamos en una pantalla con selector de parcelas
+  if (!wrap.contains(e.target)){
+    const box = document.getElementById('parcelas-box');
+    if (box) box.classList.add('hidden');
+  }
+});
+
 function onEqTrChange(){
   const eq = val('f-eq'), tr = val('f-tr');
   const box = document.getElementById('parcelas-box');
@@ -628,11 +646,13 @@ function onEqTrChange(){
   }
   if (!eq || !tr){
     box.innerHTML = '<span style="grid-column:1/-1;font-size:0.72rem;color:var(--texto-suave);">Selecciona EQ y TR primero</span>';
+    if (document.getElementById('parcelas-resumen')) document.getElementById('parcelas-resumen').value = '';
     return;
   }
   const parcelas = PARCELAS_MAP[`${eq}-${tr}`] || [];
   if (!parcelas.length){
     box.innerHTML = '<span style="grid-column:1/-1;font-size:0.72rem;color:var(--texto-suave);">Sin parcelas registradas para este EQ-TR</span>';
+    if (document.getElementById('parcelas-resumen')) document.getElementById('parcelas-resumen').value = '';
     return;
   }
   box.innerHTML = `
@@ -640,7 +660,9 @@ function onEqTrChange(){
       <input type="checkbox" id="chk-todos-parcelas" onchange="onTodosParcelaChange()"/>Todos
     </label>` + parcelas.map(p => `
     <label><input type="checkbox" class="chk-parcela" value="${p}" onchange="onParcelaIndividualChange()"/>${p}</label>`).join('');
+  abrirParcelasBox();
   actualizarTablasParcela();
+  actualizarResumenParcelas();
 }
 
 function onTodosParcelaChange(){
@@ -649,6 +671,7 @@ function onTodosParcelaChange(){
     document.querySelectorAll('.chk-parcela').forEach(c => { c.checked = false; });
   }
   actualizarTablasParcela();
+  actualizarResumenParcelas();
   refreshVerifyTable();
 }
 
@@ -657,6 +680,21 @@ function onParcelaIndividualChange(){
   const todosChk = document.getElementById('chk-todos-parcelas');
   if (algunoMarcado && todosChk) todosChk.checked = false;
   actualizarTablasParcela();
+  actualizarResumenParcelas();
+}
+
+function actualizarResumenParcelas(){
+  const input = document.getElementById('parcelas-resumen');
+  if (!input) return;
+  const todosChk = document.getElementById('chk-todos-parcelas');
+  if (todosChk && todosChk.checked){
+    const eq = val('f-eq'), tr = val('f-tr');
+    const total = (PARCELAS_MAP[`${eq}-${tr}`] || []).length;
+    input.value = `Todas las parcelas (${total})`;
+    return;
+  }
+  const seleccionadas = getParcelasSeleccionadas();
+  input.value = seleccionadas.length ? seleccionadas.join(', ') : '';
 }
 
 function actualizarTablasParcela(){
@@ -1210,6 +1248,7 @@ function precargarFormulario(r){
       });
     }
     actualizarTablasParcela();
+    actualizarResumenParcelas();
     const detalle = (r.datos_extra && r.datos_extra.detalle_parcelas) || [];
     if (laborActual === 'purga'){
       detalle.forEach(d => {
@@ -1233,6 +1272,8 @@ function precargarFormulario(r){
       if (detalle.length) onTendidoTableInput();
     }
     refreshVerifyTable();
+    const boxEl = document.getElementById('parcelas-box');
+    if (boxEl) boxEl.classList.add('hidden');
   }, 0);
   if (document.getElementById('f-fundo')) document.getElementById('f-fundo').value = r.fundo || '';
   if (document.getElementById('f-fecha')) document.getElementById('f-fecha').value = r.fecha || '';
