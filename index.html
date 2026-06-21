@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.6.0"/>
+<meta name="app-version" content="4.7.0"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -438,7 +438,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.6.0';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.7.0';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -929,8 +929,7 @@ function buildTendidoParcelasTable(){
       ancho: row.querySelector('.td-ancho')?.value || '',
       estado: row.querySelector('.td-estado')?.value || '',
       tipo: row.querySelector('.td-tipo')?.value || '',
-      desde: row.querySelector('.td-desde')?.value || '',
-      hasta: row.querySelector('.td-hasta')?.value || '',
+      rangos: row.querySelector('.td-rangos')?.value || '',
       largo: row.querySelector('.td-largo')?.value || '',
       dist: row.querySelector('.td-dist')?.value || ''
     };
@@ -940,7 +939,7 @@ function buildTendidoParcelasTable(){
     const v = prev[p] || {
       ha: getHaParcela(fundo, eq, tr, p) ?? '',
       ancho: dim ? dim.ancho : '',
-      estado: '', tipo: '', desde: '', hasta: '',
+      estado: '', tipo: '', rangos: '',
       largo: dim ? dim.largo : '',
       dist: ''
     };
@@ -948,7 +947,7 @@ function buildTendidoParcelasTable(){
       <tr class="td-row" data-parcela="${p}">
         <td class="pp-parcela">${p}</td>
         <td><input type="number" class="pp-input td-ha" value="${v.ha}" placeholder="0.00" step="0.01" min="0" oninput="onTendidoTableInput()"/></td>
-        <td><input type="number" class="pp-input td-ancho" value="${v.ancho}" placeholder="0.0" step="0.1" min="0" oninput="onTendidoTableInput()" title="Ancho de la parcela en metros"/></td>
+        <td><input type="number" class="pp-input td-ancho" value="${v.ancho}" placeholder="0.0" step="0.1" min="0" oninput="onTendidoTableInput()" title="Ancho de la parcela = largo de la manguera (m)"/></td>
         <td>
           <select class="pp-input td-estado" onchange="onTendidoTableInput()">
             <option value="" ${!v.estado?'selected':''}>—</option>
@@ -964,9 +963,8 @@ function buildTendidoParcelasTable(){
             <option value="0.57 m" ${v.tipo==='0.57 m'?'selected':''}>0.57 m</option>
           </select>
         </td>
-        <td><input type="number" class="pp-input td-desde" value="${v.desde}" placeholder="1" step="1" min="1" oninput="onTendidoTableInput()" title="Línea desde"/></td>
-        <td><input type="number" class="pp-input td-hasta" value="${v.hasta}" placeholder="—" step="1" min="1" oninput="onTendidoTableInput()" title="Línea hasta"/></td>
-        <td><input type="number" class="pp-input td-largo" value="${v.largo}" placeholder="0.0" step="0.1" min="0" oninput="onTendidoTableInput()"/></td>
+        <td><input type="text" class="pp-input td-rangos" value="${v.rangos}" placeholder="Ej: 2-15,20,25-30" style="width:130px;" oninput="onTendidoTableInput()" title="Líneas tendidas (pueden ser no consecutivas)"/></td>
+        <td><input type="number" class="pp-input td-largo" value="${v.largo}" placeholder="0.0" step="0.1" min="0" oninput="onTendidoTableInput()" title="Largo de la parcela, perpendicular a las mangueras"/></td>
         <td><input type="number" class="pp-input td-dist" value="${v.dist}" placeholder="0.0" step="0.1" min="0" oninput="onTendidoTableInput()"/></td>
         <td class="pp-total" id="td-hatendida-${p}">0.00</td>
       </tr>`;
@@ -974,18 +972,37 @@ function buildTendidoParcelasTable(){
   wrap.innerHTML = `
     <div class="pp-table-scroll">
       <table class="pp-table">
-        <thead><tr><th>Parcela</th><th>Ha</th><th>Ancho parc. (m)</th><th>Estado de manguera</th><th>Tipo de manguera</th><th>Línea desde</th><th>Línea hasta</th><th>Largo líneas (m)</th><th>Distanc. surcos (m)</th><th>Ha tendida</th></tr></thead>
+        <thead><tr><th>Parcela</th><th>Ha</th><th>Ancho parc. (m)</th><th>Estado de manguera</th><th>Tipo de manguera</th><th>Líneas tendidas</th><th>Largo líneas (m)</th><th>Distanc. surcos (m)</th><th>Ha tendida</th></tr></thead>
         <tbody>${rows}</tbody>
-        <tfoot><tr><td>Total</td><td id="td-total-ha">0.00</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td id="td-total-hatendida">0.00</td></tr></tfoot>
+        <tfoot><tr><td>Total</td><td id="td-total-ha">0.00</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td id="td-total-hatendida">0.00</td></tr></tfoot>
       </table>
     </div>
     <div id="tendido-mapas-wrap" style="margin-top:14px;"></div>`;
   onTendidoTableInput();
 }
 
+// Interpreta un texto de líneas como "2-15,20,25-30" en una lista de
+// rangos [inicio,fin]. Permite tramos NO consecutivos.
+function parseRangosLineas(str){
+  if (!str) return [];
+  return str.split(',').map(s => s.trim()).filter(Boolean).map(part => {
+    if (part.includes('-')){
+      const [a,b] = part.split('-').map(n => parseInt(n.trim(), 10));
+      if (!isNaN(a) && !isNaN(b)) return [Math.min(a,b), Math.max(a,b)];
+      return null;
+    }
+    const n = parseInt(part, 10);
+    return isNaN(n) ? null : [n, n];
+  }).filter(Boolean);
+}
+function contarLineasEnRangos(rangos){
+  return rangos.reduce((s, [a,b]) => s + (b - a + 1), 0);
+}
+
 // Mapa visual: rectángulo de la parcela con una línea por manguera,
-// numerada de DERECHA a IZQUIERDA, resaltando el rango tendido.
-function buildTendidoMiniMapa(parcela, largo, ancho, dist, desde, hasta){
+// numerada de DERECHA a IZQUIERDA, resaltando los tramos tendidos
+// (pueden ser varios rangos no consecutivos).
+function buildTendidoMiniMapa(parcela, largo, ancho, dist, rangosStr){
   largo = parseFloat(largo) || 0;
   ancho = parseFloat(ancho) || 0;
   dist = parseFloat(dist) || 0;
@@ -996,24 +1013,26 @@ function buildTendidoMiniMapa(parcela, largo, ancho, dist, desde, hasta){
     </div>`;
   }
   const totalLineas = Math.max(1, Math.round(largo / dist));
-  desde = Math.max(1, parseInt(desde) || 1);
-  hasta = Math.min(totalLineas, parseInt(hasta) || totalLineas);
+  const rangos = parseRangosLineas(rangosStr).map(([a,b]) => [Math.max(1,a), Math.min(totalLineas,b)]);
+  const activasSet = new Set();
+  rangos.forEach(([a,b]) => { for (let i=a; i<=b; i++) activasSet.add(i); });
 
   const vbW = 320, vbH = Math.max(70, Math.min(220, Math.round(320 * (largo / ancho))));
   let lineas = '';
   // Numeración de DERECHA a IZQUIERDA: la línea N°1 va en el borde derecho.
   for (let i = 1; i <= totalLineas; i++){
     const x = vbW - ((i - 0.5) / totalLineas) * vbW;
-    const activa = i >= desde && i <= hasta;
+    const activa = activasSet.has(i);
     lineas += `<line x1="${x.toFixed(1)}" y1="6" x2="${x.toFixed(1)}" y2="${(vbH-6).toFixed(1)}" stroke="${activa ? '#1B7FAE' : '#D6E9F0'}" stroke-width="${activa ? 2.2 : 1}"/>`;
   }
+  const rangosTexto = rangos.length ? rangos.map(([a,b]) => a===b ? `${a}` : `${a}-${b}`).join(', ') : '—';
   return `<div class="form-card" style="padding:12px;">
-    <div style="font-size:0.72rem;font-weight:700;color:var(--azul-oscuro);margin-bottom:6px;">📍 Parcela ${parcela} — tendido línea ${desde} a ${hasta}</div>
+    <div style="font-size:0.72rem;font-weight:700;color:var(--azul-oscuro);margin-bottom:6px;">📍 Parcela ${parcela} — líneas tendidas: ${rangosTexto}</div>
     <div style="overflow-x:auto;">
       <svg width="100%" height="${vbH+12}" viewBox="0 0 ${vbW} ${vbH}" style="background:#F0F8FB;border-radius:8px;">${lineas}</svg>
     </div>
     <div style="font-size:0.66rem;color:var(--texto-suave);margin-top:5px;">
-      Total de líneas: ${totalLineas} (largo ${largo} m ÷ ${dist} m) · Líneas resaltadas: ${hasta-desde+1} · Numeración de derecha a izquierda
+      Total de líneas: ${totalLineas} (largo ${largo} m ÷ ${dist} m) · Líneas resaltadas: ${activasSet.size} · Numeración de derecha a izquierda
     </div>
   </div>`;
 }
@@ -1026,16 +1045,17 @@ function onTendidoTableInput(){
     const parcela = row.dataset.parcela;
     const ha = parseFloat(row.querySelector('.td-ha')?.value) || 0;
     const ancho = row.querySelector('.td-ancho')?.value || '';
-    const desde = row.querySelector('.td-desde')?.value || '';
-    const hasta = row.querySelector('.td-hasta')?.value || '';
+    const rangosStr = row.querySelector('.td-rangos')?.value || '';
     const largo = row.querySelector('.td-largo')?.value || '';
     const dist = row.querySelector('.td-dist')?.value || '';
-    const numLineas = (parseInt(hasta) || 0) - (parseInt(desde) || 0) + 1;
-    const haTendida = numLineas > 0 ? (numLineas * (parseFloat(largo)||0)) / 5550 : 0;
+    const numLineas = contarLineasEnRangos(parseRangosLineas(rangosStr));
+    // El ANCHO de la parcela equivale al largo de cada manguera; el área
+    // tendida usa esa longitud, no el "largo" (que es perpendicular).
+    const haTendida = numLineas > 0 ? (numLineas * (parseFloat(ancho)||0)) / 5550 : 0;
     const cell = row.querySelector('.pp-total');
     if (cell) cell.textContent = haTendida.toFixed(2);
     totalHa += ha; totalHaTendida += haTendida;
-    mapasHtml += buildTendidoMiniMapa(parcela, largo, ancho, dist, desde, hasta);
+    mapasHtml += buildTendidoMiniMapa(parcela, largo, ancho, dist, rangosStr);
   });
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('td-total-ha', totalHa.toFixed(2));
@@ -1053,15 +1073,16 @@ function getTendidoParcelasData(){
     const ancho = parseFloat(row.querySelector('.td-ancho')?.value) || 0;
     const estado = row.querySelector('.td-estado')?.value || '';
     const tipo = row.querySelector('.td-tipo')?.value || '';
-    const desde = parseInt(row.querySelector('.td-desde')?.value) || 0;
-    const hasta = parseInt(row.querySelector('.td-hasta')?.value) || 0;
+    const rangosStr = row.querySelector('.td-rangos')?.value || '';
     const largo = parseFloat(row.querySelector('.td-largo')?.value) || 0;
     const dist = parseFloat(row.querySelector('.td-dist')?.value) || 0;
-    const numLineas = hasta && desde ? (hasta - desde + 1) : 0;
-    const haTendida = parseFloat(((numLineas*largo)/5550).toFixed(2));
+    const rangos = parseRangosLineas(rangosStr);
+    const numLineas = contarLineasEnRangos(rangos);
+    // El ANCHO de la parcela = largo de cada manguera (se usa para el área tendida)
+    const haTendida = parseFloat(((numLineas*ancho)/5550).toFixed(2));
     rows.push({
       parcela, ha, ancho_parcela: ancho, estado_manguera: estado, tipo_manguera: tipo,
-      linea_desde: desde, linea_hasta: hasta, lineas_tendidas: numLineas,
+      rangos_lineas: rangos, lineas_tendidas: numLineas,
       largo_lineas: largo, distanciamiento_surcos: dist, ha_tendida: haTendida
     });
   });
@@ -1096,6 +1117,17 @@ function initMapaFundoTendido(){
   cargarMapaFundoTendido();
 }
 
+let _mapaFundoZoom = 1;
+let _mapaFundoVB = null;
+function zoomMapaFundo(delta){
+  if (!_mapaFundoVB) return;
+  _mapaFundoZoom = delta === 0 ? 1 : Math.max(0.5, Math.min(5, _mapaFundoZoom + delta));
+  const svg = document.getElementById('mapa-fundo-svg');
+  if (!svg) return;
+  svg.setAttribute('width', Math.round(_mapaFundoVB.w * _mapaFundoZoom));
+  svg.setAttribute('height', Math.round(_mapaFundoVB.h * _mapaFundoZoom));
+}
+
 async function cargarMapaFundoTendido(){
   const fundo = val('mapa-fundo-select');
   const cont = document.getElementById('mapa-fundo-contenido');
@@ -1112,7 +1144,8 @@ async function cargarMapaFundoTendido(){
     registros.forEach(r => {
       const detalle = (r.datos_extra && r.datos_extra.detalle_parcelas) || [];
       detalle.forEach(d => {
-        if (d.linea_desde && d.linea_hasta) tendidas.set(`${r.equipo}-${d.parcela}`, d.tipo_manguera || '');
+        const tieneRangos = (Array.isArray(d.rangos_lineas) && d.rangos_lineas.length) || (d.linea_desde && d.linea_hasta);
+        if (tieneRangos) tendidas.set(`${r.equipo}-${d.parcela}`, d.tipo_manguera || '');
       });
     });
 
@@ -1160,9 +1193,17 @@ async function cargarMapaFundoTendido(){
           shapes += `<polygon points="${pts}" fill="${color}" stroke="#9DB8C2" stroke-width="0.8"><title>${titulo}</title></polygon>`;
         });
       });
+      _mapaFundoZoom = 1;
+      _mapaFundoVB = vb;
       cont.innerHTML = `${resumenHtml}
-        <div style="overflow-x:auto;">
-          <svg width="100%" height="${Math.min(560, vb.h)}" viewBox="0 0 ${vb.w} ${vb.h}" style="background:#fff;border-radius:8px;border:1px solid var(--borde);">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+          <button onclick="zoomMapaFundo(-0.5)" style="width:36px;height:36px;border-radius:8px;border:1.5px solid var(--borde);background:#fff;font-weight:700;font-size:1rem;color:var(--azul-oscuro);">−</button>
+          <button onclick="zoomMapaFundo(0.5)" style="width:36px;height:36px;border-radius:8px;border:1.5px solid var(--borde);background:#fff;font-weight:700;font-size:1rem;color:var(--azul-oscuro);">+</button>
+          <button onclick="zoomMapaFundo(0)" style="padding:0 12px;height:36px;border-radius:8px;border:1.5px solid var(--borde);background:#fff;font-weight:700;font-size:0.74rem;color:var(--texto-suave);">Restablecer</button>
+          <span style="font-size:0.68rem;color:var(--texto-suave);">Pellizca o usa los botones para acercar</span>
+        </div>
+        <div id="mapa-fundo-scroll" style="overflow:auto;max-height:560px;border:1px solid var(--borde);border-radius:8px;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;">
+          <svg id="mapa-fundo-svg" width="${vb.w}" height="${vb.h}" viewBox="0 0 ${vb.w} ${vb.h}" style="background:#fff;display:block;">
             ${shapes}
           </svg>
         </div>
@@ -1742,8 +1783,14 @@ function precargarFormulario(r){
         row.querySelector('.td-ancho').value = d.ancho_parcela ?? '';
         row.querySelector('.td-estado').value = d.estado_manguera ?? '';
         row.querySelector('.td-tipo').value = d.tipo_manguera ?? '';
-        row.querySelector('.td-desde').value = d.linea_desde ?? '';
-        row.querySelector('.td-hasta').value = d.linea_hasta ?? '';
+        // Compatibilidad con registros viejos que solo tenían un rango (linea_desde/linea_hasta)
+        let rangosTexto = '';
+        if (Array.isArray(d.rangos_lineas) && d.rangos_lineas.length){
+          rangosTexto = d.rangos_lineas.map(([a,b]) => a===b ? `${a}` : `${a}-${b}`).join(',');
+        } else if (d.linea_desde && d.linea_hasta){
+          rangosTexto = d.linea_desde === d.linea_hasta ? `${d.linea_desde}` : `${d.linea_desde}-${d.linea_hasta}`;
+        }
+        row.querySelector('.td-rangos').value = rangosTexto;
         row.querySelector('.td-largo').value = d.largo_lineas ?? '';
         row.querySelector('.td-dist').value = d.distanciamiento_surcos ?? '';
       });
@@ -2250,12 +2297,19 @@ function showDetail(id){
     </div>`;
   }
   if (r.labor === 'tendido' && Array.isArray(detalle) && detalle.length){
+    const fmtRangos = (p) => {
+      if (Array.isArray(p.rangos_lineas) && p.rangos_lineas.length){
+        return p.rangos_lineas.map(([a,b]) => a===b ? `${a}` : `${a}-${b}`).join(', ');
+      }
+      if (p.linea_desde && p.linea_hasta) return p.linea_desde === p.linea_hasta ? `${p.linea_desde}` : `${p.linea_desde}-${p.linea_hasta}`;
+      return '—';
+    };
     html += `<div style="margin-top:10px;">
       <strong style="font-size:0.62rem;text-transform:uppercase;letter-spacing:.5px;color:var(--texto-suave);">Detalle por parcela</strong>
       <div class="pp-table-scroll" style="margin-top:6px;">
         <table class="pp-table">
-          <thead><tr><th>Parcela</th><th>Ha</th><th>Estado</th><th>Tipo</th><th>Líneas</th><th>Largo (m)</th><th>Distanc. (m)</th><th>Ha tendida</th></tr></thead>
-          <tbody>${detalle.map(p => `<tr><td class="pp-parcela">${p.parcela}</td><td>${p.ha}</td><td>${p.estado_manguera||'—'}</td><td>${p.tipo_manguera||'—'}</td><td>${p.lineas_tendidas}</td><td>${p.largo_lineas}</td><td>${p.distanciamiento_surcos}</td><td class="pp-total">${p.ha_tendida}</td></tr>`).join('')}</tbody>
+          <thead><tr><th>Parcela</th><th>Ha</th><th>Estado</th><th>Tipo</th><th>Líneas tendidas</th><th>N°</th><th>Largo (m)</th><th>Distanc. (m)</th><th>Ha tendida</th></tr></thead>
+          <tbody>${detalle.map(p => `<tr><td class="pp-parcela">${p.parcela}</td><td>${p.ha}</td><td>${p.estado_manguera||'—'}</td><td>${p.tipo_manguera||'—'}</td><td>${fmtRangos(p)}</td><td>${p.lineas_tendidas}</td><td>${p.largo_lineas}</td><td>${p.distanciamiento_surcos}</td><td class="pp-total">${p.ha_tendida}</td></tr>`).join('')}</tbody>
         </table>
       </div>
     </div>`;
