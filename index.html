@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.8.0"/>
+<meta name="app-version" content="4.9.0"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -438,7 +438,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.8.0';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.9.0';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -818,6 +818,20 @@ function actualizarResumenParcelas(){
 function actualizarTablasParcela(){
   if (laborActual === 'purga') buildPurgaParcelasTable();
   if (laborActual === 'tendido') buildTendidoParcelasTable();
+  if (laborActual === 'caudal') buildCaudalParcelasTable();
+  if (laborActual === 'aplicacion') actualizarAvanceAplicacion();
+}
+
+// El Avance (ha) en Aplicación se calcula solo, sumando las hectáreas
+// reales de cada parcela seleccionada (no se escribe a mano).
+function actualizarAvanceAplicacion(){
+  const avanceInput = document.getElementById('f-avance-ha');
+  if (!avanceInput) return;
+  const fundo = val('f-fundo'), eq = val('f-eq'), tr = val('f-tr');
+  const parcelas = getParcelasSeleccionadas();
+  let total = 0;
+  parcelas.forEach(p => { total += getHaParcela(fundo, eq, tr, p) || 0; });
+  avanceInput.value = total ? total.toFixed(2) : '';
 }
 
 function getParcelasSeleccionadas(){
@@ -1090,6 +1104,140 @@ function getTendidoParcelasData(){
 }
 
 // ============================================================
+// TABLA POR PARCELA — Medición de caudal
+// ============================================================
+// Divisor para calcular "Has por tender" según el distanciamiento entre
+// surcos. Si se necesitan más distanciamientos, agregar aquí.
+const DIVISOR_HAS_POR_TENDER = { '1.8': 37, '1.6': 42 };
+function getDivisorHasPorTender(dist){
+  const key = parseFloat(dist).toFixed(1);
+  return DIVISOR_HAS_POR_TENDER[key] ?? null;
+}
+
+function buildCaudalParcelasTable(){
+  const wrap = document.getElementById('caudal-parcelas-table-wrap');
+  if (!wrap) return;
+  const fundo = val('f-fundo'), eq = val('f-eq'), tr = val('f-tr');
+  const parcelas = getParcelasSeleccionadas();
+  if (!fundo || !eq || !tr || !parcelas.length){
+    wrap.innerHTML = '<div class="verify-empty">Selecciona fundo, EQ, TR y parcelas primero</div>';
+    return;
+  }
+  const prev = {};
+  wrap.querySelectorAll('.cd-row').forEach(row => {
+    const p = row.dataset.parcela;
+    prev[p] = {
+      ha: row.querySelector('.cd-ha')?.value || '',
+      critico: row.querySelector('.cd-critico')?.value || '',
+      regular: row.querySelector('.cd-regular')?.value || '',
+      bueno: row.querySelector('.cd-bueno')?.value || '',
+      exceso: row.querySelector('.cd-exceso')?.value || '',
+      cond: [...row.querySelectorAll('.cd-cond:checked')].map(c => c.value),
+      longitud: row.querySelector('.cd-longitud')?.value || '',
+      dist: row.querySelector('.cd-dist')?.value || ''
+    };
+  });
+  const rows = parcelas.map(p => {
+    const dim = getDimParcela(fundo, eq, tr, p);
+    const v = prev[p] || {
+      ha: getHaParcela(fundo, eq, tr, p) ?? '',
+      critico:'', regular:'', bueno:'', exceso:'', cond:[],
+      longitud: dim ? dim.largo : '',
+      dist: ''
+    };
+    const condCheck = (val) => v.cond.includes(val) ? 'checked' : '';
+    return `
+      <tr class="cd-row" data-parcela="${p}">
+        <td class="pp-parcela">${p}</td>
+        <td><input type="number" class="pp-input cd-ha" value="${v.ha}" placeholder="0.00" step="0.01" min="0" oninput="onCaudalTableInput()"/></td>
+        <td><input type="number" class="pp-input cd-critico" value="${v.critico}" placeholder="0" step="1" min="0" oninput="onCaudalTableInput()" title="Mangueras 0-3 L/min"/></td>
+        <td><input type="number" class="pp-input cd-regular" value="${v.regular}" placeholder="0" step="1" min="0" oninput="onCaudalTableInput()" title="Mangueras 3-5 L/min"/></td>
+        <td><input type="number" class="pp-input cd-bueno" value="${v.bueno}" placeholder="0" step="1" min="0" oninput="onCaudalTableInput()" title="Mangueras 5-7 L/min"/></td>
+        <td><input type="number" class="pp-input cd-exceso" value="${v.exceso}" placeholder="0" step="1" min="0" oninput="onCaudalTableInput()" title="Mangueras >7 L/min"/></td>
+        <td style="white-space:nowrap;text-align:left;">
+          <label style="display:flex;align-items:center;gap:3px;font-size:0.62rem;font-weight:400;text-transform:none;"><input type="checkbox" class="cd-cond" value="Crítico" ${condCheck('Crítico')} onchange="onCaudalTableInput()"/>Crítico</label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:0.62rem;font-weight:400;text-transform:none;"><input type="checkbox" class="cd-cond" value="Regular" ${condCheck('Regular')} onchange="onCaudalTableInput()"/>Regular</label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:0.62rem;font-weight:400;text-transform:none;"><input type="checkbox" class="cd-cond" value="Bueno" ${condCheck('Bueno')} onchange="onCaudalTableInput()"/>Bueno</label>
+        </td>
+        <td><input type="number" class="pp-input cd-longitud" value="${v.longitud}" placeholder="0.0" step="0.1" min="0" oninput="onCaudalTableInput()" title="Longitud de manguera (m)"/></td>
+        <td><input type="number" class="pp-input cd-dist" value="${v.dist}" placeholder="0.0" step="0.1" min="0" oninput="onCaudalTableInput()" title="Distanciamiento entre surcos (m)"/></td>
+        <td class="pp-total" id="cd-haspend-${p}">—</td>
+      </tr>`;
+  }).join('');
+  wrap.innerHTML = `
+    <div class="pp-table-scroll">
+      <table class="pp-table">
+        <thead><tr><th>Parcela</th><th>Ha</th><th>Crítico<br/>(0-3 L/min)</th><th>Regular<br/>(3-5 L/min)</th><th>Bueno<br/>(5-7 L/min)</th><th>Exceso<br/>(&gt;7 L/min)</th><th>Condición de tendido</th><th>Longitud manguera (m)</th><th>Distanc. surco (m)</th><th>Has por tender</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr><td>Total</td><td id="cd-total-ha">0.00</td><td id="cd-total-critico">0</td><td id="cd-total-regular">0</td><td id="cd-total-bueno">0</td><td id="cd-total-exceso">0</td><td>—</td><td>—</td><td>—</td><td id="cd-total-haspend">0.00</td></tr></tfoot>
+      </table>
+    </div>
+    <p style="font-size:0.66rem;color:var(--texto-suave);margin-top:8px;">"Has por tender" = suma de mangueras de las condiciones marcadas ÷ divisor según distanciamiento (1.8 m → 37 · 1.6 m → 42).</p>`;
+  onCaudalTableInput();
+}
+
+function onCaudalTableInput(){
+  let totalHa=0, totalCritico=0, totalRegular=0, totalBueno=0, totalExceso=0, totalHasPend=0;
+  document.querySelectorAll('.cd-row').forEach(row => {
+    const ha = parseFloat(row.querySelector('.cd-ha')?.value) || 0;
+    const critico = parseInt(row.querySelector('.cd-critico')?.value) || 0;
+    const regular = parseInt(row.querySelector('.cd-regular')?.value) || 0;
+    const bueno = parseInt(row.querySelector('.cd-bueno')?.value) || 0;
+    const exceso = parseInt(row.querySelector('.cd-exceso')?.value) || 0;
+    const dist = row.querySelector('.cd-dist')?.value || '';
+    const condSeleccionadas = [...row.querySelectorAll('.cd-cond:checked')].map(c => c.value);
+
+    const valoresPorCondicion = { 'Crítico': critico, 'Regular': regular, 'Bueno': bueno };
+    const sumaSeleccionada = condSeleccionadas.reduce((s, c) => s + (valoresPorCondicion[c] || 0), 0);
+    const divisor = getDivisorHasPorTender(dist);
+    const cell = row.querySelector('.pp-total');
+    let hasPend = null;
+    if (condSeleccionadas.length && divisor){
+      hasPend = sumaSeleccionada / divisor;
+      if (cell) cell.textContent = hasPend.toFixed(2);
+      totalHasPend += hasPend;
+    } else {
+      if (cell) cell.textContent = condSeleccionadas.length ? 'Sin divisor' : '—';
+    }
+    totalHa += ha; totalCritico += critico; totalRegular += regular; totalBueno += bueno; totalExceso += exceso;
+  });
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('cd-total-ha', totalHa.toFixed(2));
+  set('cd-total-critico', totalCritico);
+  set('cd-total-regular', totalRegular);
+  set('cd-total-bueno', totalBueno);
+  set('cd-total-exceso', totalExceso);
+  set('cd-total-haspend', totalHasPend.toFixed(2));
+  setAvanceHaOculto(totalHa);
+  refreshVerifyTable();
+}
+
+function getCaudalParcelasData(){
+  const rows = [];
+  document.querySelectorAll('.cd-row').forEach(row => {
+    const parcela = row.dataset.parcela;
+    const ha = parseFloat(row.querySelector('.cd-ha')?.value) || 0;
+    const critico = parseInt(row.querySelector('.cd-critico')?.value) || 0;
+    const regular = parseInt(row.querySelector('.cd-regular')?.value) || 0;
+    const bueno = parseInt(row.querySelector('.cd-bueno')?.value) || 0;
+    const exceso = parseInt(row.querySelector('.cd-exceso')?.value) || 0;
+    const condicionTendido = [...row.querySelectorAll('.cd-cond:checked')].map(c => c.value);
+    const longitud = parseFloat(row.querySelector('.cd-longitud')?.value) || 0;
+    const dist = parseFloat(row.querySelector('.cd-dist')?.value) || 0;
+    const valoresPorCondicion = { 'Crítico': critico, 'Regular': regular, 'Bueno': bueno };
+    const sumaSeleccionada = condicionTendido.reduce((s,c) => s + (valoresPorCondicion[c]||0), 0);
+    const divisor = getDivisorHasPorTender(dist);
+    const hasPorTender = (condicionTendido.length && divisor) ? parseFloat((sumaSeleccionada/divisor).toFixed(2)) : null;
+    rows.push({
+      parcela, ha, critico, regular, bueno, exceso,
+      condicion_tendido: condicionTendido, longitud_manguera: longitud,
+      distanciamiento_surco: dist, has_por_tender: hasPorTender
+    });
+  });
+  return rows;
+}
+
+// ============================================================
 // MAPA DEL FUNDO — Tendido de manguera (todas las parcelas tendidas)
 // ============================================================
 function initMapaFundoTendido(){
@@ -1139,6 +1287,8 @@ function distanciaToques(touches){
 
 let _pinchDistInicial = null;
 let _pinchZoomInicial = 1;
+let _pinchOrigenX = 0, _pinchOrigenY = 0;       // punto del contenido (sin escalar) bajo los dedos
+let _pinchPantallaX = 0, _pinchPantallaY = 0;   // posición en pantalla de ese punto al iniciar
 function attachPinchZoomMapaFundo(){
   const scroll = document.getElementById('mapa-fundo-scroll');
   if (!scroll) return;
@@ -1146,6 +1296,14 @@ function attachPinchZoomMapaFundo(){
     if (e.touches.length === 2){
       _pinchDistInicial = distanciaToques(e.touches);
       _pinchZoomInicial = _mapaFundoZoom;
+      const rect = scroll.getBoundingClientRect();
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      _pinchPantallaX = midX - rect.left;
+      _pinchPantallaY = midY - rect.top;
+      // Punto del SVG (en unidades sin escalar) que está justo bajo los dedos
+      _pinchOrigenX = (scroll.scrollLeft + _pinchPantallaX) / _mapaFundoZoom;
+      _pinchOrigenY = (scroll.scrollTop + _pinchPantallaY) / _mapaFundoZoom;
     }
   };
   scroll.ontouchmove = (e) => {
@@ -1155,6 +1313,9 @@ function attachPinchZoomMapaFundo(){
       const factor = nueva / _pinchDistInicial;
       _mapaFundoZoom = Math.max(0.5, Math.min(6, _pinchZoomInicial * factor));
       aplicarZoomMapaFundo();
+      // Reposiciona el scroll para que el mismo punto del mapa siga bajo los dedos
+      scroll.scrollLeft = _pinchOrigenX * _mapaFundoZoom - _pinchPantallaX;
+      scroll.scrollTop = _pinchOrigenY * _mapaFundoZoom - _pinchPantallaY;
     }
   };
   scroll.ontouchend = (e) => {
@@ -1478,12 +1639,10 @@ const FORMULARIOS = {
 
   caudal: () => baseBlock('📍 Medición de caudal') + `
     <div class="form-card">
-      <div class="section-title">💧 Datos de medición</div>
-      <div class="form-grid">
-        <div class="form-field full"><label>N° de mangueras evaluadas</label><input type="number" id="f-mang-eval" step="1" min="0"/></div>
-        <div class="form-field"><label>Caudal medido promedio (L/min)</label><input type="number" id="f-caudal" step="0.01" min="0"/></div>
-        <div class="form-field"><label>Caudal nominal (L/min)</label><input type="number" id="f-caudal-nom" step="0.01" min="0" placeholder="7.10"/></div>
-        <div class="form-field full"><label>Presión de operación (M.C.A)</label><input type="number" id="f-presion" step="0.1" min="0"/></div>
+      <div class="section-title">💧 Detalle por parcela</div>
+      <p style="font-size:0.72rem;color:var(--texto-suave);margin-bottom:10px;">Selecciona las parcelas arriba para que aparezcan aquí.</p>
+      <div id="caudal-parcelas-table-wrap">
+        <div class="verify-empty">Selecciona fundo, EQ, TR y parcelas primero</div>
       </div>
     </div>` + jornalesField() + obsField('Condiciones de medición...'),
 };
@@ -1496,7 +1655,7 @@ const CAMPOS_EXTRA = {
   purga:      [],
   tendido:    [],
   flushing:   ['f-flushing-util','f-flushing-pend'],
-  caudal:     ['f-mang-eval','f-caudal','f-caudal-nom','f-presion'],
+  caudal:     [],
 };
 
 // ============================================================
@@ -1874,6 +2033,21 @@ function precargarFormulario(r){
         row.querySelector('.td-dist').value = d.distanciamiento_surcos ?? '';
       });
       if (detalle.length) onTendidoTableInput();
+    } else if (laborActual === 'caudal'){
+      detalle.forEach(d => {
+        const row = document.querySelector(`.cd-row[data-parcela="${d.parcela}"]`);
+        if (!row) return;
+        row.querySelector('.cd-ha').value = d.ha ?? '';
+        row.querySelector('.cd-critico').value = d.critico ?? '';
+        row.querySelector('.cd-regular').value = d.regular ?? '';
+        row.querySelector('.cd-bueno').value = d.bueno ?? '';
+        row.querySelector('.cd-exceso').value = d.exceso ?? '';
+        row.querySelector('.cd-longitud').value = d.longitud_manguera ?? '';
+        row.querySelector('.cd-dist').value = d.distanciamiento_surco ?? '';
+        const condicion = Array.isArray(d.condicion_tendido) ? d.condicion_tendido : [];
+        row.querySelectorAll('.cd-cond').forEach(chk => { chk.checked = condicion.includes(chk.value); });
+      });
+      if (detalle.length) onCaudalTableInput();
     }
     refreshVerifyTable();
     const boxEl = document.getElementById('parcelas-box');
@@ -1934,6 +2108,23 @@ async function guardarLabor(){
     datosExtra.lineas_tendidas = totalLineas;
     datosExtra.ha_tendida = parseFloat(totalHaTendida.toFixed(2));
     datosExtra.avance_ha = parseFloat(totalHaTendida.toFixed(2));
+    datosExtra.detalle_parcelas = tableData;
+  } else if (laborActual === 'caudal'){
+    const tableData = getCaudalParcelasData();
+    if (!tableData.length){ showToast('Completa el cuadro de parcelas', 'error'); return; }
+    const totalHa = tableData.reduce((s,r)=>s+r.ha,0);
+    const totalCritico = tableData.reduce((s,r)=>s+r.critico,0);
+    const totalRegular = tableData.reduce((s,r)=>s+r.regular,0);
+    const totalBueno = tableData.reduce((s,r)=>s+r.bueno,0);
+    const totalExceso = tableData.reduce((s,r)=>s+r.exceso,0);
+    const totalHasPorTender = tableData.reduce((s,r)=>s+(r.has_por_tender||0),0);
+    datosExtra.mang_eval = totalCritico+totalRegular+totalBueno+totalExceso;
+    datosExtra.critico = totalCritico;
+    datosExtra.regular = totalRegular;
+    datosExtra.bueno = totalBueno;
+    datosExtra.exceso = totalExceso;
+    datosExtra.has_por_tender = parseFloat(totalHasPorTender.toFixed(2));
+    datosExtra.avance_ha = parseFloat(totalHa.toFixed(2));
     datosExtra.detalle_parcelas = tableData;
   }
 
@@ -2090,8 +2281,10 @@ const COLUMNAS_LABOR = {
   caudal: [
     {label:'Fecha', val:r=>formatDate(r.fecha)}, {label:'Hora', val:r=>formatHora(r.created_at)},
     {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
-    {label:'Mang. evaluadas', val:r=>r.datos_extra?.mang_eval ?? '—'}, {label:'Caudal medido', val:r=>r.datos_extra?.caudal ?? '—'},
-    {label:'Caudal nominal', val:r=>r.datos_extra?.caudal_nom ?? '—'}, {label:'Presión (MCA)', val:r=>r.datos_extra?.presion ?? '—'},
+    {label:'Mang. evaluadas', val:r=>r.datos_extra?.mang_eval ?? '—'},
+    {label:'Crítico (0-3)', val:r=>r.datos_extra?.critico ?? '—'}, {label:'Regular (3-5)', val:r=>r.datos_extra?.regular ?? '—'},
+    {label:'Bueno (5-7)', val:r=>r.datos_extra?.bueno ?? '—'}, {label:'Exceso (>7)', val:r=>r.datos_extra?.exceso ?? '—'},
+    {label:'Has por tender', val:r=>r.datos_extra?.has_por_tender ?? '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
     COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
   ],
@@ -2389,6 +2582,18 @@ function showDetail(id){
         <table class="pp-table">
           <thead><tr><th>Parcela</th><th>Ha</th><th>Estado</th><th>Tipo</th><th>Líneas tendidas</th><th>N°</th><th>Largo (m)</th><th>Distanc. (m)</th><th>Ha tendida</th></tr></thead>
           <tbody>${detalle.map(p => `<tr><td class="pp-parcela">${p.parcela}</td><td>${p.ha}</td><td>${p.estado_manguera||'—'}</td><td>${p.tipo_manguera||'—'}</td><td>${fmtRangos(p)}</td><td>${p.lineas_tendidas}</td><td>${p.largo_lineas}</td><td>${p.distanciamiento_surcos}</td><td class="pp-total">${p.ha_tendida}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  if (r.labor === 'caudal' && Array.isArray(detalle) && detalle.length){
+    html += `<div style="margin-top:10px;">
+      <strong style="font-size:0.62rem;text-transform:uppercase;letter-spacing:.5px;color:var(--texto-suave);">Detalle por parcela</strong>
+      <div class="pp-table-scroll" style="margin-top:6px;">
+        <table class="pp-table">
+          <thead><tr><th>Parcela</th><th>Ha</th><th>Crítico</th><th>Regular</th><th>Bueno</th><th>Exceso</th><th>Condición</th><th>Longitud (m)</th><th>Distanc. (m)</th><th>Has por tender</th></tr></thead>
+          <tbody>${detalle.map(p => `<tr><td class="pp-parcela">${p.parcela}</td><td>${p.ha}</td><td>${p.critico}</td><td>${p.regular}</td><td>${p.bueno}</td><td>${p.exceso}</td><td>${(p.condicion_tendido||[]).join(', ')||'—'}</td><td>${p.longitud_manguera}</td><td>${p.distanciamiento_surco}</td><td class="pp-total">${p.has_por_tender ?? '—'}</td></tr>`).join('')}</tbody>
         </table>
       </div>
     </div>`;
