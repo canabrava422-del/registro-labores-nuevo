@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.3.1"/>
+<meta name="app-version" content="4.4.0"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -291,14 +291,41 @@
       <button onclick="cargarHistorial()" style="background:var(--verde-menta);border:1px solid var(--verde-claro);color:var(--verde);padding:7px 12px;border-radius:8px;font-weight:700;font-size:0.74rem;">↻ Actualizar</button>
     </div>
 
-    <div class="form-grid" style="margin-bottom:14px;">
+    <div class="form-grid" style="margin-bottom:10px;">
       <select id="filter-labor" onchange="applyFiltersHistorial()">
         <option value="">Todas las labores</option>
       </select>
       <select id="filter-fundo" onchange="applyFiltersHistorial()">
         <option value="">Todos los fundos</option>
-        <option>Huaca</option><option>Lobo 1</option><option>Lobo 2</option>
+        <option>Huaca</option><option>Lobo 1</option><option>Lobo 2</option><option>Buenaventura</option>
       </select>
+    </div>
+
+    <div style="text-align:right;margin-bottom:10px;">
+      <span onclick="toggleMasFiltrosHistorial()" style="font-size:0.74rem;font-weight:700;color:var(--azul);cursor:pointer;">🔍 Más filtros ▾</span>
+    </div>
+    <div id="mas-filtros-historial" class="hidden form-card" style="margin-bottom:14px;">
+      <div class="form-grid">
+        <div class="form-field">
+          <label>EQ-TR</label>
+          <input type="text" id="filter-eqtr" placeholder="Ej. EQ09-TR01" oninput="applyFiltersHistorial()"/>
+        </div>
+        <div class="form-field">
+          <label>Controlador</label>
+          <select id="filter-controlador" onchange="applyFiltersHistorial()">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Insumo</label>
+          <select id="filter-insumo" onchange="applyFiltersHistorial()">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <div class="form-field"><label>Desde</label><input type="date" id="filter-fecha-desde" onchange="applyFiltersHistorial()"/></div>
+        <div class="form-field full"><label>Hasta</label><input type="date" id="filter-fecha-hasta" onchange="applyFiltersHistorial()"/></div>
+      </div>
+      <button class="btn secundario" onclick="limpiarFiltrosHistorial()" style="margin-top:10px;">✕ Limpiar filtros</button>
     </div>
 
     <div id="pending-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px;"></div>
@@ -411,7 +438,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.3.1';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.4.0';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -956,7 +983,7 @@ function buildTendidoMiniMapa(parcela, largo, ancho, dist, desde, hasta){
       <div class="verify-empty" style="padding:10px;">Completa Ancho, Largo y Distanciamiento de esta parcela para ver el mapa</div>
     </div>`;
   }
-  const totalLineas = Math.max(1, Math.round(ancho / dist));
+  const totalLineas = Math.max(1, Math.round(largo / dist));
   desde = Math.max(1, parseInt(desde) || 1);
   hasta = Math.min(totalLineas, parseInt(hasta) || totalLineas);
 
@@ -974,7 +1001,7 @@ function buildTendidoMiniMapa(parcela, largo, ancho, dist, desde, hasta){
       <svg width="100%" height="${vbH+12}" viewBox="0 0 ${vbW} ${vbH}" style="background:#F0F8FB;border-radius:8px;">${lineas}</svg>
     </div>
     <div style="font-size:0.66rem;color:var(--texto-suave);margin-top:5px;">
-      Total de líneas: ${totalLineas} (ancho ${ancho} m ÷ ${dist} m) · Líneas resaltadas: ${hasta-desde+1} · Numeración de derecha a izquierda
+      Total de líneas: ${totalLineas} (largo ${largo} m ÷ ${dist} m) · Líneas resaltadas: ${hasta-desde+1} · Numeración de derecha a izquierda
     </div>
   </div>`;
 }
@@ -1051,6 +1078,10 @@ function initMapaFundoTendido(){
           </div>
         </div>
       </div>
+      <div class="mapa-leyenda">
+        <span><i style="background:#1B7FAE;"></i>Tendida</span>
+        <span><i style="background:#D6E9F0;"></i>Pendiente</span>
+      </div>
       <div id="mapa-fundo-contenido"><div class="empty-state">Cargando mapa...</div></div>
     </div>`;
   cargarMapaFundoTendido();
@@ -1062,40 +1093,49 @@ async function cargarMapaFundoTendido(){
   if (!cont || !fundo) return;
   cont.innerHTML = '<div class="empty-state">Cargando mapa...</div>';
   try{
-    const res = await sbFetch(`labores_campo?labor=eq.tendido&fundo=eq.${encodeURIComponent(fundo)}&select=equipo,datos_extra,fecha&order=fecha.asc&limit=500`);
+    const res = await sbFetch(`labores_campo?labor=eq.tendido&fundo=eq.${encodeURIComponent(fundo)}&select=equipo,datos_extra&limit=1000`);
     if (!res.ok) throw new Error();
     const registros = await res.json();
 
-    const porEqTr = {};
+    // Set de parcelas con AL MENOS un tramo tendido (cruce con lo ejecutado)
+    const tendidas = new Set();
     registros.forEach(r => {
       const detalle = (r.datos_extra && r.datos_extra.detalle_parcelas) || [];
       detalle.forEach(d => {
-        if (!d.linea_desde || !d.linea_hasta) return;
-        const grupo = porEqTr[r.equipo] = porEqTr[r.equipo] || {};
-        const p = grupo[d.parcela] = grupo[d.parcela] || { rangos: [], ancho: d.ancho_parcela, largo: d.largo_lineas, dist: d.distanciamiento_surcos };
-        p.rangos.push([d.linea_desde, d.linea_hasta]);
-        if (d.ancho_parcela) p.ancho = d.ancho_parcela;
-        if (d.largo_lineas) p.largo = d.largo_lineas;
-        if (d.distanciamiento_surcos) p.dist = d.distanciamiento_surcos;
+        if (d.linea_desde && d.linea_hasta) tendidas.add(`${r.equipo}-${d.parcela}`);
       });
     });
 
-    const eqTrKeys = Object.keys(porEqTr).sort();
+    const mapaFundo = getParcelasMap(fundo);
+    const eqTrKeys = Object.keys(mapaFundo).sort();
     if (!eqTrKeys.length){
-      cont.innerHTML = `<div class="empty-state">Sin parcelas tendidas registradas todavía en ${fundo}</div>`;
+      cont.innerHTML = `<div class="empty-state">Sin datos de parcelas registradas para ${fundo}</div>`;
       return;
     }
 
-    cont.innerHTML = eqTrKeys.map(eqtr => {
-      const parcelas = porEqTr[eqtr];
-      const mapas = Object.keys(parcelas).sort().map(p =>
-        buildTendidoMiniMapaMulti(p, parcelas[p].largo, parcelas[p].ancho, parcelas[p].dist, parcelas[p].rangos)
-      ).join('');
-      return `<div style="margin-bottom:6px;">
-        <div style="font-weight:700;color:var(--azul-oscuro);font-size:0.82rem;margin:10px 0 6px;">${eqtr}</div>
-        ${mapas}
-      </div>`;
+    let totalParcelas = 0, totalTendidasGlobal = 0;
+    const tarjetas = eqTrKeys.map(eqtr => {
+      const parcelas = mapaFundo[eqtr];
+      totalParcelas += parcelas.length;
+      const celdas = parcelas.map(p => {
+        const ok = tendidas.has(`${eqtr}-${p}`);
+        if (ok) totalTendidasGlobal++;
+        return `<div class="mapa-celda ${ok ? 'tendida' : ''}" title="${eqtr}-${p}">${p}</div>`;
+      }).join('');
+      const totalTendidasEqTr = parcelas.filter(p => tendidas.has(`${eqtr}-${p}`)).length;
+      return `
+        <div class="mapa-eqtr-card">
+          <div class="mapa-eqtr-titulo">${eqtr} · ${totalTendidasEqTr}/${parcelas.length} parcelas tendidas</div>
+          <div class="mapa-parcelas-grid">${celdas}</div>
+        </div>`;
     }).join('');
+
+    cont.innerHTML = `
+      <div style="font-size:0.78rem;font-weight:700;color:var(--azul-oscuro);margin-bottom:10px;">
+        📊 Cobertura del fundo: ${totalTendidasGlobal}/${totalParcelas} parcelas tendidas
+        (${totalParcelas ? Math.round(totalTendidasGlobal/totalParcelas*100) : 0}%)
+      </div>
+      ${tarjetas}`;
   }catch(e){
     cont.innerHTML = '<div class="empty-state">Error al cargar el mapa del fundo</div>';
   }
@@ -1111,7 +1151,7 @@ function buildTendidoMiniMapaMulti(parcela, largo, ancho, dist, rangos){
       <div class="verify-empty" style="padding:10px;">Faltan dimensiones para dibujar esta parcela</div>
     </div>`;
   }
-  const totalLineas = Math.max(1, Math.round(ancho / dist));
+  const totalLineas = Math.max(1, Math.round(largo / dist));
   const activas = new Set();
   rangos.forEach(([d,h]) => {
     const desde = Math.max(1, parseInt(d) || 1);
@@ -1132,7 +1172,7 @@ function buildTendidoMiniMapaMulti(parcela, largo, ancho, dist, rangos){
     <div style="overflow-x:auto;">
       <svg width="100%" height="${vbH+12}" viewBox="0 0 ${vbW} ${vbH}" style="background:#F0F8FB;border-radius:8px;">${lineas}</svg>
     </div>
-    <div style="font-size:0.66rem;color:var(--texto-suave);margin-top:5px;">Numeración de derecha a izquierda · Ancho ${ancho} m ÷ ${dist} m</div>
+    <div style="font-size:0.66rem;color:var(--texto-suave);margin-top:5px;">Numeración de derecha a izquierda · Largo ${largo} m ÷ ${dist} m</div>
   </div>`;
 }
 
@@ -1951,6 +1991,34 @@ function poblarFiltroLabor(){
     LABORES.map(l => `<option value="${l.id}" ${filtroLaborLista===l.id?'selected':''}>${l.emoji} ${l.nombre}</option>`).join('');
 }
 
+function poblarFiltrosAvanzadosHistorial(){
+  const selCtrl = document.getElementById('filter-controlador');
+  const selIns = document.getElementById('filter-insumo');
+  if (selCtrl){
+    const controladores = [...new Set(allRecords.map(r => r.controlador).filter(Boolean))].sort();
+    const actual = selCtrl.value;
+    selCtrl.innerHTML = '<option value="">Todos</option>' + controladores.map(c => `<option value="${c}">${c}</option>`).join('');
+    selCtrl.value = actual;
+  }
+  if (selIns){
+    const insumos = [...new Set(allRecords.map(r => r.insumo).filter(Boolean))].sort();
+    const actual = selIns.value;
+    selIns.innerHTML = '<option value="">Todos</option>' + insumos.map(i => `<option value="${i}">${i}</option>`).join('');
+    selIns.value = actual;
+  }
+}
+
+function toggleMasFiltrosHistorial(){
+  document.getElementById('mas-filtros-historial').classList.toggle('hidden');
+}
+
+function limpiarFiltrosHistorial(){
+  ['filter-eqtr'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['filter-controlador','filter-insumo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['filter-fecha-desde','filter-fecha-hasta'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  applyFiltersHistorial();
+}
+
 async function cargarHistorial(){
   const listEl = document.getElementById('records-list');
   listEl.innerHTML = '<div class="empty-state">Cargando...</div>';
@@ -1959,6 +2027,7 @@ async function cargarHistorial(){
     const res = await sbFetch('labores_campo?order=created_at.desc&limit=200');
     if (!res.ok) throw new Error();
     allRecords = await res.json();
+    poblarFiltrosAvanzadosHistorial();
     applyFiltersHistorial();
     updateHistorialCounters();
   }catch(err){
@@ -2012,9 +2081,21 @@ function renderPendingQueue(){
 function applyFiltersHistorial(){
   const filterLabor = val('filter-labor') || filtroLaborLista || '';
   const filterFundo = val('filter-fundo') || '';
+  const filterEqTr = (val('filter-eqtr') || '').trim().toUpperCase();
+  const filterControlador = val('filter-controlador') || '';
+  const filterInsumo = val('filter-insumo') || '';
+  const filterDesde = val('filter-fecha-desde') || '';
+  const filterHasta = val('filter-fecha-hasta') || '';
+
   let filtered = allRecords;
   if (filterLabor) filtered = filtered.filter(r => r.labor === filterLabor);
   if (filterFundo) filtered = filtered.filter(r => r.fundo === filterFundo);
+  if (filterEqTr) filtered = filtered.filter(r => (r.equipo || '').toUpperCase().includes(filterEqTr));
+  if (filterControlador) filtered = filtered.filter(r => r.controlador === filterControlador);
+  if (filterInsumo) filtered = filtered.filter(r => r.insumo === filterInsumo);
+  if (filterDesde) filtered = filtered.filter(r => r.fecha >= filterDesde);
+  if (filterHasta) filtered = filtered.filter(r => r.fecha <= filterHasta);
+
   renderRecordsHistorial(filtered);
 }
 
