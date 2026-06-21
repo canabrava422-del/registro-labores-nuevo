@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.9.0"/>
+<meta name="app-version" content="4.10.0"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -438,7 +438,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.9.0';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.10.0';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -1138,14 +1138,15 @@ function buildCaudalParcelasTable(){
     };
   });
   const rows = parcelas.map(p => {
-    const dim = getDimParcela(fundo, eq, tr, p);
+    const dim = getDimParcela(fundo, eq, tr, p); // dim.ancho = largo de la manguera
     const v = prev[p] || {
       ha: getHaParcela(fundo, eq, tr, p) ?? '',
       critico:'', regular:'', bueno:'', exceso:'', cond:[],
-      longitud: dim ? dim.largo : '',
+      longitud: dim ? dim.ancho : '',
       dist: ''
     };
     const condCheck = (val) => v.cond.includes(val) ? 'checked' : '';
+    const condResumen = v.cond.length ? v.cond.join(', ') : 'Elegir';
     return `
       <tr class="cd-row" data-parcela="${p}">
         <td class="pp-parcela">${p}</td>
@@ -1154,12 +1155,15 @@ function buildCaudalParcelasTable(){
         <td><input type="number" class="pp-input cd-regular" value="${v.regular}" placeholder="0" step="1" min="0" oninput="onCaudalTableInput()" title="Mangueras 3-5 L/min"/></td>
         <td><input type="number" class="pp-input cd-bueno" value="${v.bueno}" placeholder="0" step="1" min="0" oninput="onCaudalTableInput()" title="Mangueras 5-7 L/min"/></td>
         <td><input type="number" class="pp-input cd-exceso" value="${v.exceso}" placeholder="0" step="1" min="0" oninput="onCaudalTableInput()" title="Mangueras >7 L/min"/></td>
-        <td style="white-space:nowrap;text-align:left;">
-          <label style="display:flex;align-items:center;gap:3px;font-size:0.62rem;font-weight:400;text-transform:none;"><input type="checkbox" class="cd-cond" value="Crítico" ${condCheck('Crítico')} onchange="onCaudalTableInput()"/>Crítico</label>
-          <label style="display:flex;align-items:center;gap:3px;font-size:0.62rem;font-weight:400;text-transform:none;"><input type="checkbox" class="cd-cond" value="Regular" ${condCheck('Regular')} onchange="onCaudalTableInput()"/>Regular</label>
-          <label style="display:flex;align-items:center;gap:3px;font-size:0.62rem;font-weight:400;text-transform:none;"><input type="checkbox" class="cd-cond" value="Bueno" ${condCheck('Bueno')} onchange="onCaudalTableInput()"/>Bueno</label>
+        <td style="position:relative;">
+          <button type="button" class="cd-cond-btn" onclick="toggleCondPanel(event,this)" style="width:90px;padding:6px 4px;font-size:0.66rem;border:1px solid var(--borde);border-radius:6px;background:#fff;color:var(--texto);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${condResumen} ▾</button>
+          <div class="cd-cond-panel hidden" style="position:absolute;top:100%;left:0;z-index:60;background:#fff;border:1px solid var(--borde);border-radius:8px;padding:8px;box-shadow:0 6px 16px rgba(0,0,0,.18);min-width:110px;">
+            <label style="display:flex;align-items:center;gap:5px;font-size:0.68rem;font-weight:400;text-transform:none;padding:3px 0;"><input type="checkbox" class="cd-cond" value="Crítico" ${condCheck('Crítico')} onchange="onCondPanelChange(this)"/>Crítico</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:0.68rem;font-weight:400;text-transform:none;padding:3px 0;"><input type="checkbox" class="cd-cond" value="Regular" ${condCheck('Regular')} onchange="onCondPanelChange(this)"/>Regular</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:0.68rem;font-weight:400;text-transform:none;padding:3px 0;"><input type="checkbox" class="cd-cond" value="Bueno" ${condCheck('Bueno')} onchange="onCondPanelChange(this)"/>Bueno</label>
+          </div>
         </td>
-        <td><input type="number" class="pp-input cd-longitud" value="${v.longitud}" placeholder="0.0" step="0.1" min="0" oninput="onCaudalTableInput()" title="Longitud de manguera (m)"/></td>
+        <td><input type="number" class="pp-input cd-longitud" value="${v.longitud}" placeholder="0.0" step="0.1" min="0" oninput="onCaudalTableInput()" title="Longitud de manguera (m) = ancho de la parcela"/></td>
         <td><input type="number" class="pp-input cd-dist" value="${v.dist}" placeholder="0.0" step="0.1" min="0" oninput="onCaudalTableInput()" title="Distanciamiento entre surcos (m)"/></td>
         <td class="pp-total" id="cd-haspend-${p}">—</td>
       </tr>`;
@@ -1172,9 +1176,31 @@ function buildCaudalParcelasTable(){
         <tfoot><tr><td>Total</td><td id="cd-total-ha">0.00</td><td id="cd-total-critico">0</td><td id="cd-total-regular">0</td><td id="cd-total-bueno">0</td><td id="cd-total-exceso">0</td><td>—</td><td>—</td><td>—</td><td id="cd-total-haspend">0.00</td></tr></tfoot>
       </table>
     </div>
-    <p style="font-size:0.66rem;color:var(--texto-suave);margin-top:8px;">"Has por tender" = suma de mangueras de las condiciones marcadas ÷ divisor según distanciamiento (1.8 m → 37 · 1.6 m → 42).</p>`;
+    <p style="font-size:0.66rem;color:var(--texto-suave);margin-top:8px;">"Has por tender" = (suma de mangueras de las condiciones marcadas × longitud de manguera ÷ 150) ÷ divisor según distanciamiento (1.8 m → 37 · 1.6 m → 42).</p>`;
   onCaudalTableInput();
 }
+
+// Abre/cierra el panel desplegable de "Condición de tendido" de una fila,
+// cerrando cualquier otro panel que estuviera abierto.
+function toggleCondPanel(event, btn){
+  event.stopPropagation();
+  const panel = btn.nextElementSibling;
+  const yaAbierto = !panel.classList.contains('hidden');
+  document.querySelectorAll('.cd-cond-panel').forEach(p => p.classList.add('hidden'));
+  if (!yaAbierto) panel.classList.remove('hidden');
+}
+function onCondPanelChange(chk){
+  const panel = chk.closest('.cd-cond-panel');
+  const btn = panel.previousElementSibling;
+  const seleccionadas = [...panel.querySelectorAll('.cd-cond:checked')].map(c => c.value);
+  btn.textContent = (seleccionadas.length ? seleccionadas.join(', ') : 'Elegir') + ' ▾';
+  onCaudalTableInput();
+}
+document.addEventListener('click', function(e){
+  if (!e.target.closest('.cd-cond-panel') && !e.target.closest('.cd-cond-btn')){
+    document.querySelectorAll('.cd-cond-panel').forEach(p => p.classList.add('hidden'));
+  }
+});
 
 function onCaudalTableInput(){
   let totalHa=0, totalCritico=0, totalRegular=0, totalBueno=0, totalExceso=0, totalHasPend=0;
@@ -1185,6 +1211,7 @@ function onCaudalTableInput(){
     const bueno = parseInt(row.querySelector('.cd-bueno')?.value) || 0;
     const exceso = parseInt(row.querySelector('.cd-exceso')?.value) || 0;
     const dist = row.querySelector('.cd-dist')?.value || '';
+    const longitud = parseFloat(row.querySelector('.cd-longitud')?.value) || 0;
     const condSeleccionadas = [...row.querySelectorAll('.cd-cond:checked')].map(c => c.value);
 
     const valoresPorCondicion = { 'Crítico': critico, 'Regular': regular, 'Bueno': bueno };
@@ -1192,12 +1219,12 @@ function onCaudalTableInput(){
     const divisor = getDivisorHasPorTender(dist);
     const cell = row.querySelector('.pp-total');
     let hasPend = null;
-    if (condSeleccionadas.length && divisor){
-      hasPend = sumaSeleccionada / divisor;
+    if (condSeleccionadas.length && divisor && longitud){
+      hasPend = ((sumaSeleccionada * longitud) / 150) / divisor;
       if (cell) cell.textContent = hasPend.toFixed(2);
       totalHasPend += hasPend;
     } else {
-      if (cell) cell.textContent = condSeleccionadas.length ? 'Sin divisor' : '—';
+      if (cell) cell.textContent = condSeleccionadas.length ? (longitud ? 'Sin divisor' : 'Falta longitud') : '—';
     }
     totalHa += ha; totalCritico += critico; totalRegular += regular; totalBueno += bueno; totalExceso += exceso;
   });
@@ -1227,7 +1254,8 @@ function getCaudalParcelasData(){
     const valoresPorCondicion = { 'Crítico': critico, 'Regular': regular, 'Bueno': bueno };
     const sumaSeleccionada = condicionTendido.reduce((s,c) => s + (valoresPorCondicion[c]||0), 0);
     const divisor = getDivisorHasPorTender(dist);
-    const hasPorTender = (condicionTendido.length && divisor) ? parseFloat((sumaSeleccionada/divisor).toFixed(2)) : null;
+    const hasPorTender = (condicionTendido.length && divisor && longitud)
+      ? parseFloat((((sumaSeleccionada*longitud)/150)/divisor).toFixed(2)) : null;
     rows.push({
       parcela, ha, critico, regular, bueno, exceso,
       condicion_tendido: condicionTendido, longitud_manguera: longitud,
@@ -2046,6 +2074,8 @@ function precargarFormulario(r){
         row.querySelector('.cd-dist').value = d.distanciamiento_surco ?? '';
         const condicion = Array.isArray(d.condicion_tendido) ? d.condicion_tendido : [];
         row.querySelectorAll('.cd-cond').forEach(chk => { chk.checked = condicion.includes(chk.value); });
+        const btn = row.querySelector('.cd-cond-btn');
+        if (btn) btn.textContent = (condicion.length ? condicion.join(', ') : 'Elegir') + ' ▾';
       });
       if (detalle.length) onCaudalTableInput();
     }
