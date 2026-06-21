@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.7.0"/>
+<meta name="app-version" content="4.8.0"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -438,7 +438,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.7.0';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.8.0';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -972,7 +972,7 @@ function buildTendidoParcelasTable(){
   wrap.innerHTML = `
     <div class="pp-table-scroll">
       <table class="pp-table">
-        <thead><tr><th>Parcela</th><th>Ha</th><th>Ancho parc. (m)</th><th>Estado de manguera</th><th>Tipo de manguera</th><th>Líneas tendidas</th><th>Largo líneas (m)</th><th>Distanc. surcos (m)</th><th>Ha tendida</th></tr></thead>
+        <thead><tr><th>Parcela</th><th>Ha</th><th>Ancho parc. (m)</th><th>Estado de manguera</th><th>Tipo de manguera</th><th>Líneas tendidas</th><th>Largo de parcela (m)</th><th>Distanc. surcos (m)</th><th>Ha tendida</th></tr></thead>
         <tbody>${rows}</tbody>
         <tfoot><tr><td>Total</td><td id="td-total-ha">0.00</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td id="td-total-hatendida">0.00</td></tr></tfoot>
       </table>
@@ -1121,11 +1121,83 @@ let _mapaFundoZoom = 1;
 let _mapaFundoVB = null;
 function zoomMapaFundo(delta){
   if (!_mapaFundoVB) return;
-  _mapaFundoZoom = delta === 0 ? 1 : Math.max(0.5, Math.min(5, _mapaFundoZoom + delta));
+  _mapaFundoZoom = delta === 0 ? 1 : Math.max(0.5, Math.min(6, _mapaFundoZoom + delta));
+  aplicarZoomMapaFundo();
+}
+function aplicarZoomMapaFundo(){
   const svg = document.getElementById('mapa-fundo-svg');
-  if (!svg) return;
+  if (!svg || !_mapaFundoVB) return;
   svg.setAttribute('width', Math.round(_mapaFundoVB.w * _mapaFundoZoom));
   svg.setAttribute('height', Math.round(_mapaFundoVB.h * _mapaFundoZoom));
+}
+
+function distanciaToques(touches){
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.hypot(dx, dy);
+}
+
+let _pinchDistInicial = null;
+let _pinchZoomInicial = 1;
+function attachPinchZoomMapaFundo(){
+  const scroll = document.getElementById('mapa-fundo-scroll');
+  if (!scroll) return;
+  scroll.ontouchstart = (e) => {
+    if (e.touches.length === 2){
+      _pinchDistInicial = distanciaToques(e.touches);
+      _pinchZoomInicial = _mapaFundoZoom;
+    }
+  };
+  scroll.ontouchmove = (e) => {
+    if (e.touches.length === 2 && _pinchDistInicial){
+      e.preventDefault();
+      const nueva = distanciaToques(e.touches);
+      const factor = nueva / _pinchDistInicial;
+      _mapaFundoZoom = Math.max(0.5, Math.min(6, _pinchZoomInicial * factor));
+      aplicarZoomMapaFundo();
+    }
+  };
+  scroll.ontouchend = (e) => {
+    if (e.touches.length < 2) _pinchDistInicial = null;
+  };
+}
+
+let _clipIdCounter = 0;
+function buildParcelaConRayas(key, pts, info, TIPO_COLOR){
+  const safeId = 'clip' + (_clipIdCounter++);
+  const puntos = pts.split(' ').map(s => s.split(',').map(Number));
+  const xs = puntos.map(p => p[0]), ys = puntos.map(p => p[1]);
+  const minx = Math.min(...xs), maxx = Math.max(...xs);
+  const miny = Math.min(...ys), maxy = Math.max(...ys);
+
+  if (!info){
+    return `<polygon points="${pts}" fill="#E5EEF2" stroke="#9DB8C2" stroke-width="0.8"><title>${key} — Pendiente</title></polygon>`;
+  }
+
+  const totalLineas = info.largo && info.dist ? Math.max(1, Math.round(info.largo / info.dist)) : 0;
+  const color = TIPO_COLOR[info.tipo] || '#5A7A89';
+  const titulo = `${key} — Tendida${info.tipo ? ' ('+info.tipo+')' : ''}`;
+
+  if (!totalLineas || !info.rangos.length){
+    // Sin datos suficientes para calcular líneas individuales: relleno sólido como respaldo
+    return `<polygon points="${pts}" fill="${color}" stroke="#9DB8C2" stroke-width="0.8"><title>${titulo}</title></polygon>`;
+  }
+
+  // Rayas: numeradas de derecha a izquierda dentro del ancho real de la parcela,
+  // recortadas (clip-path) a la forma exacta del polígono.
+  let lineas = '';
+  info.rangos.forEach(([a, b]) => {
+    for (let i = Math.max(1,a); i <= Math.min(totalLineas,b); i++){
+      const x = maxx - ((i - 0.5) / totalLineas) * (maxx - minx);
+      lineas += `<line x1="${x.toFixed(1)}" y1="${miny.toFixed(1)}" x2="${x.toFixed(1)}" y2="${maxy.toFixed(1)}" stroke="${color}" stroke-width="${Math.max(0.6,(maxx-minx)/totalLineas*0.55).toFixed(2)}"/>`;
+    }
+  });
+
+  return `
+    <defs><clipPath id="${safeId}"><polygon points="${pts}"/></clipPath></defs>
+    <polygon points="${pts}" fill="#F7FAFB" stroke="#9DB8C2" stroke-width="0.8"><title>${titulo}</title></polygon>
+    <g clip-path="url(#${safeId})">${lineas}</g>
+    <polygon points="${pts}" fill="transparent" stroke="#9DB8C2" stroke-width="0.8"><title>${titulo}</title></polygon>`;
 }
 
 async function cargarMapaFundoTendido(){
@@ -1138,14 +1210,23 @@ async function cargarMapaFundoTendido(){
     if (!res.ok) throw new Error();
     const registros = await res.json();
 
-    // Para cada parcela tendida, guardamos su tipo de manguera (espaciamiento)
+    // Para cada parcela tendida, guardamos su tipo de manguera y el detalle
+    // necesario para dibujar las líneas reales (largo, distanciamiento, rangos)
     const TIPO_COLOR = { '0.40 m':'#1B7FAE', '0.53 m':'#E67E22', '0.57 m':'#5FA642' };
-    const tendidas = new Map(); // key "EQTR-parcela" -> tipo_manguera
+    const tendidas = new Map(); // key "EQTR-parcela" -> {tipo, largo, dist, rangos}
     registros.forEach(r => {
       const detalle = (r.datos_extra && r.datos_extra.detalle_parcelas) || [];
       detalle.forEach(d => {
-        const tieneRangos = (Array.isArray(d.rangos_lineas) && d.rangos_lineas.length) || (d.linea_desde && d.linea_hasta);
-        if (tieneRangos) tendidas.set(`${r.equipo}-${d.parcela}`, d.tipo_manguera || '');
+        let rangos = Array.isArray(d.rangos_lineas) ? d.rangos_lineas : [];
+        if (!rangos.length && d.linea_desde && d.linea_hasta) rangos = [[d.linea_desde, d.linea_hasta]];
+        if (rangos.length){
+          tendidas.set(`${r.equipo}-${d.parcela}`, {
+            tipo: d.tipo_manguera || '',
+            largo: parseFloat(d.largo_lineas) || 0,
+            dist: parseFloat(d.distanciamiento_surcos) || 0,
+            rangos
+          });
+        }
       });
     });
 
@@ -1186,11 +1267,8 @@ async function cargarMapaFundoTendido(){
           const key = `${eqtr}-${p}`;
           const pts = poligonosFundo[key];
           if (!pts) return;
-          const tipo = tendidas.get(key);
-          const ok = tendidas.has(key);
-          const color = ok ? (TIPO_COLOR[tipo] || '#9CA8AD') : '#E5EEF2';
-          const titulo = ok ? `${key} — Tendida${tipo ? ' ('+tipo+')' : ''}` : `${key} — Pendiente`;
-          shapes += `<polygon points="${pts}" fill="${color}" stroke="#9DB8C2" stroke-width="0.8"><title>${titulo}</title></polygon>`;
+          const info = tendidas.get(key);
+          shapes += buildParcelaConRayas(key, pts, info, TIPO_COLOR);
         });
       });
       _mapaFundoZoom = 1;
@@ -1208,6 +1286,7 @@ async function cargarMapaFundoTendido(){
           </svg>
         </div>
         <div style="font-size:0.62rem;color:var(--texto-suave);margin-top:6px;">Toca/mantén presionada una parcela para ver su código y tipo de manguera</div>`;
+      attachPinchZoomMapaFundo();
     } else {
       // ---- Sin polígonos disponibles todavía: cuadrícula simple ----
       const tarjetas = eqTrKeys.map(eqtr => {
