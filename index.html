@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.11.0"/>
+<meta name="app-version" content="4.13.1"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -57,8 +57,6 @@
   .timeline-circle.done{background:var(--azul-oscuro);border-color:var(--azul-oscuro);color:#fff;}
   .timeline-step-label{font-size:0.52rem;color:var(--texto-suave);margin-top:5px;text-align:center;width:72px;line-height:1.3;}
   .timeline-step-label.done{color:var(--azul-oscuro);font-weight:700;}
-  .timeline-num{font-size:0.66rem;font-weight:700;color:var(--texto-suave);margin-bottom:3px;}
-  .timeline-num.done{color:var(--azul-oscuro);}
   .timeline-line{height:2.5px;flex:1;min-width:10px;background:var(--borde);}
   .timeline-line.done{background:var(--azul-oscuro);}
   .app-tab{flex:1;text-align:center;padding:11px;border-radius:var(--radio-sm);background:#fff;border:1.5px solid var(--borde);font-weight:700;font-size:0.82rem;color:var(--texto-suave);cursor:pointer;}
@@ -467,7 +465,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.11.0';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.13.1';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -793,6 +791,8 @@ function onEqTrChange(){
       edadInput.dataset.raw = '';
     }
   }
+  // Si no hay parcelas-box (ej. Calibración), no hacer nada más
+  if (!box) return;
   if (!fundo || !eq || !tr){
     box.innerHTML = '<span style="grid-column:1/-1;font-size:0.72rem;color:var(--texto-suave);">Selecciona fundo, EQ y TR primero</span>';
     if (document.getElementById('parcelas-resumen')) document.getElementById('parcelas-resumen').value = '';
@@ -1833,12 +1833,6 @@ const FORMULARIOS = {
         <div class="form-field"><label>Fecha de calibración</label>
           <input type="date" id="f-fecha" value="${new Date().toISOString().slice(0,10)}"/>
         </div>
-        <div class="form-field full"><label>Caudal nominal (L/min)</label>
-          <input type="number" id="f-caudal-nom" step="0.01" min="0" placeholder="7.10"/>
-        </div>
-        <div class="form-field full"><label>Presión de operación (M.C.A)</label>
-          <input type="number" id="f-presion" step="0.1" min="0"/>
-        </div>
         <div class="form-field full">
           <label>📷 Foto de calibración</label>
           <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
@@ -1869,7 +1863,7 @@ const CAMPOS_EXTRA = {
   flushing:   ['f-flushing-util','f-flushing-pend'],
   caudal:     [],
   entable:    [],
-  calibracion:['f-caudal-nom','f-presion'],
+  calibracion:[],
 };
 
 // ============================================================
@@ -1997,14 +1991,32 @@ async function irPartidaInicio(){
   updateSyncBar();
   document.getElementById('partida-global-lista').innerHTML = '<div class="empty-state">Cargando...</div>';
   try{
-    const res = await sbFetch('labores_campo?select=labor,equipo,fundo,insumo,fecha&order=fecha.desc&limit=2000');
-    if (!res.ok) throw new Error();
-    _partidaData = await res.json();
+    // Solo EQ-TR cuya fecha de cultivo fue actualizada en los últimos 30 días
+    const hace30dias = new Date(Date.now() - 30*24*60*60*1000).toISOString();
+    const [resLabores, resFcultivo] = await Promise.all([
+      sbFetch('labores_campo?select=labor,equipo,fundo,insumo,fecha&order=fecha.desc&limit=2000'),
+      sbFetch(`fcultivo_overrides?select=eq_tr,fecha_cultivo,updated_at&updated_at=gte.${hace30dias}&limit=500`)
+    ]);
+    if (!resLabores.ok) throw new Error();
+    _partidaData = await resLabores.json();
+
+    // Construir un Set de "fundo|EQ-TR" que tienen fecha de cultivo asignada
+    _partidaEqTrConFcultivo = new Set();
+    if (resFcultivo.ok){
+      const fcRows = await resFcultivo.json();
+      fcRows.forEach(row => {
+        // La clave viene como "Lobo 1|EQ01-TR01" o simplemente "EQ01-TR01" según versión
+        _partidaEqTrConFcultivo.add(row.eq_tr);
+      });
+    }
+
     renderPartidaLista();
   }catch(e){
     document.getElementById('partida-global-lista').innerHTML = '<div class="empty-state">Error al cargar los datos</div>';
   }
 }
+
+let _partidaEqTrConFcultivo = new Set();
 
 function renderPartidaLista(){
   const lista = document.getElementById('partida-global-lista');
@@ -2020,13 +2032,32 @@ function renderPartidaLista(){
     grupos[key].registros.push(r);
   });
 
-  let items = Object.values(grupos);
+  // También incluir EQ-TR que tienen fecha de cultivo pero aún no tienen labores ejecutadas
+  _partidaEqTrConFcultivo.forEach(fcKey => {
+    // fcKey puede ser "Lobo 1|EQ01-TR01" o simplemente "EQ01-TR01"
+    const parts = fcKey.includes('|') ? fcKey.split('|') : [null, fcKey];
+    const fundo = parts[0] || '—';
+    const eqtr = parts[1] || fcKey;
+    const key = `${fundo}||${eqtr}`;
+    if (!grupos[key]) grupos[key] = { fundo, eqtr, registros: [] };
+  });
+
+  // FILTRAR: solo mostrar los EQ-TR que tienen fecha de cultivo asignada
+  let items = Object.values(grupos).filter(g => {
+    return [..._partidaEqTrConFcultivo].some(k => {
+      const parts = k.includes('|') ? k.split('|') : [null, k];
+      const fundo = parts[0] || '—';
+      const eqtr = parts[1] || k;
+      return g.eqtr === eqtr && (fundo === '—' || g.fundo === fundo || g.fundo === '—');
+    });
+  });
+
   if (filtroFundo) items = items.filter(g => g.fundo === filtroFundo);
   if (filtroEqTr) items = items.filter(g => g.eqtr.toUpperCase().includes(filtroEqTr));
   items.sort((a,b) => a.eqtr.localeCompare(b.eqtr));
 
   if (!items.length){
-    lista.innerHTML = '<div class="empty-state">Sin registros para los filtros seleccionados</div>';
+    lista.innerHTML = '<div class="empty-state">Sin EQ-TR con fecha de cultivo actualizada en los últimos 30 días</div>';
     return;
   }
 
@@ -2041,7 +2072,6 @@ function renderPartidaLista(){
       if (idx > 0) timelineHtml += `<div class="timeline-line ${lineaDone ? 'done' : ''}"></div>`;
       timelineHtml += `
         <div class="timeline-step">
-          <div class="timeline-num ${done ? 'done' : ''}">${paso.num}</div>
           <div class="timeline-circle ${done ? 'done' : ''}">${done ? '✓' : paso.num}</div>
           <div class="timeline-step-label ${done ? 'done' : ''}">${paso.label}</div>
         </div>`;
@@ -2396,7 +2426,8 @@ async function guardarLabor(){
   if (!eq || !tr){ showToast('Selecciona EQ y TR', 'error'); return; }
   if (!fundo){ showToast('Selecciona un fundo', 'error'); return; }
 
-  const parcelas = getParcelasSeleccionadas();
+  // Calibración no requiere parcelas
+  const parcelas = laborActual === 'calibracion' ? [] : getParcelasSeleccionadas();
   const edadRaw = document.getElementById('f-edad')?.dataset?.raw;
   const datosExtra = {
     jornales: num('f-jornales'),
@@ -2936,6 +2967,27 @@ function showDetail(id){
           <thead><tr><th>Parcela</th><th>Ha</th><th>Crítico</th><th>Regular</th><th>Bueno</th><th>Exceso</th><th>Condición</th><th>Longitud (m)</th><th>Distanc. (m)</th><th>Has por tender</th></tr></thead>
           <tbody>${detalle.map(p => `<tr><td class="pp-parcela">${p.parcela}</td><td>${p.ha}</td><td>${p.critico}</td><td>${p.regular}</td><td>${p.bueno}</td><td>${p.exceso}</td><td>${(p.condicion_tendido||[]).join(', ')||'—'}</td><td>${p.longitud_manguera}</td><td>${p.distanciamiento_surco}</td><td class="pp-total">${p.has_por_tender ?? '—'}</td></tr>`).join('')}</tbody>
         </table>
+      </div>
+    </div>`;
+  }
+
+  if (r.labor === 'entable' && Array.isArray(detalle) && detalle.length){
+    html += `<div style="margin-top:10px;">
+      <strong style="font-size:0.62rem;text-transform:uppercase;letter-spacing:.5px;color:var(--texto-suave);">Detalle por parcela</strong>
+      <div class="pp-table-scroll" style="margin-top:6px;">
+        <table class="pp-table">
+          <thead><tr><th>Parcela</th><th>Ha</th><th>Ha avanzadas</th><th>Ha pendientes</th></tr></thead>
+          <tbody>${detalle.map(p => `<tr><td class="pp-parcela">${p.parcela}</td><td>${p.ha}</td><td class="pp-total">${p.ha_avanzada}</td><td>${p.ha_pendiente}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  if (r.labor === 'calibracion' && r.datos_extra?.foto_url){
+    html += `<div style="margin-top:10px;">
+      <strong style="font-size:0.62rem;text-transform:uppercase;letter-spacing:.5px;color:var(--texto-suave);">Foto de calibración</strong>
+      <div style="margin-top:8px;">
+        <img src="${r.datos_extra.foto_url}" style="max-width:100%;border-radius:10px;border:2px solid var(--verde-claro);"/>
       </div>
     </div>`;
   }
