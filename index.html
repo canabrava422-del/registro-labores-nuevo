@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.14.0"/>
+<meta name="app-version" content="4.14.1"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -465,7 +465,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.14.0';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.14.1';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -965,7 +965,9 @@ function getEntableParcelasData(){
 // ============================================================
 // FOTO — Calibración
 // ============================================================
-let _fotoBase64 = null;
+let _fotoFile = null;   // File object original
+let _fotoPreviewUrl = null; // URL local para previsualización (no se guarda)
+
 function abrirCamara(){
   document.getElementById('f-camara-input').click();
 }
@@ -975,19 +977,48 @@ function abrirGaleria(){
 function onFotoSeleccionada(input){
   const file = input.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    _fotoBase64 = e.target.result;
-    document.getElementById('f-foto-img').src = _fotoBase64;
-    document.getElementById('f-foto-preview').style.display = 'block';
-  };
-  reader.readAsDataURL(file);
+  _fotoFile = file;
+  _fotoPreviewUrl = URL.createObjectURL(file);
+  document.getElementById('f-foto-img').src = _fotoPreviewUrl;
+  document.getElementById('f-foto-preview').style.display = 'block';
 }
 function quitarFoto(){
-  _fotoBase64 = null;
+  if (_fotoPreviewUrl) URL.revokeObjectURL(_fotoPreviewUrl);
+  _fotoFile = null;
+  _fotoPreviewUrl = null;
   document.getElementById('f-foto-preview').style.display = 'none';
   document.getElementById('f-foto-input').value = '';
   document.getElementById('f-camara-input').value = '';
+}
+
+// Sube la foto al bucket "calibraciones" de Supabase Storage.
+// Devuelve la URL pública permanente, o null si falla.
+async function subirFotoStorage(file, fundo, eq, tr, fecha){
+  try{
+    const ext = file.name.split('.').pop() || 'jpg';
+    const ts = Date.now();
+    const nombre = `${fundo}_${eq}_${tr}_${fecha}_${ts}.${ext}`.replace(/\s+/g,'_');
+    const uploadUrl = `${SUPABASE_URL}/storage/v1/object/calibraciones/${encodeURIComponent(nombre)}`;
+    const res = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Content-Type': file.type || 'image/jpeg',
+        'x-upsert': 'true'
+      },
+      body: file
+    });
+    if (!res.ok){
+      const err = await res.text();
+      console.error('Error al subir foto:', err);
+      return null;
+    }
+    return `${SUPABASE_URL}/storage/v1/object/public/calibraciones/${encodeURIComponent(nombre)}`;
+  }catch(e){
+    console.error('Error al subir foto:', e);
+    return null;
+  }
 }
 
 function buildPurgaParcelasTable(){
@@ -2329,7 +2360,7 @@ function abrirFormulario(laborId, registroExistente){
   document.getElementById('view-home').classList.add('hidden');
   document.getElementById('view-form').classList.remove('hidden');
   attachVerifyListeners();
-  if (!registroExistente && laborId === 'calibracion') _fotoBase64 = null;
+  if (!registroExistente && laborId === 'calibracion'){ _fotoFile = null; _fotoPreviewUrl = null; }
   if (registroExistente) precargarFormulario(registroExistente);
   refreshVerifyTable();
   cargarRegistrosAnterioresForm(laborId);
@@ -2422,9 +2453,12 @@ function precargarFormulario(r){
       });
       if (detalle.length) onEntableTableInput();
     } else if (laborActual === 'calibracion'){
-      _fotoBase64 = r.datos_extra?.foto_url || null;
-      if (_fotoBase64){
-        document.getElementById('f-foto-img').src = _fotoBase64;
+      // Al editar, la foto ya está en Storage — solo mostramos la URL como previsualización
+      const fotoUrl = r.datos_extra?.foto_url || null;
+      _fotoFile = null;
+      _fotoPreviewUrl = fotoUrl;
+      if (fotoUrl){
+        document.getElementById('f-foto-img').src = fotoUrl;
         document.getElementById('f-foto-preview').style.display = 'block';
       }
     }
@@ -2514,7 +2548,16 @@ async function guardarLabor(){
     datosExtra.avance_ha = parseFloat(totalAvanzada.toFixed(2));
     datosExtra.detalle_parcelas = tableData;
   } else if (laborActual === 'calibracion'){
-    if (_fotoBase64) datosExtra.foto_url = _fotoBase64;
+    if (_fotoFile){
+      showToast('📷 Subiendo foto...');
+      const fotoUrl = await subirFotoStorage(_fotoFile, fundo, eq, tr, val('f-fecha') || '');
+      if (fotoUrl){
+        datosExtra.foto_url = fotoUrl;
+      } else {
+        showToast('⚠️ No se pudo subir la foto. Verifica que el bucket "calibraciones" exista en Supabase Storage.', 'error');
+        // Continúa guardando el registro sin foto en vez de bloquear
+      }
+    }
   }
 
   (CAMPOS_EXTRA[laborActual] || []).forEach(id => {
