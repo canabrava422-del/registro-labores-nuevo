@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.13.1"/>
+<meta name="app-version" content="4.13.2"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -465,7 +465,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.13.1';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.13.2';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -572,6 +572,15 @@ const USERS = [
   { user: 'jmedina',   pass: 'jm4zqb8nt6',    role: 'controller', displayName: 'Javier Medina' },
   { user: 'hchulle',   pass: 'hc6ntp2yw8',    role: 'controller', displayName: 'Henry Chulle' },
   { user: 'ctrl1',     pass: 'c18vrj5qs3',    role: 'controller', displayName: 'Controlador 1' },
+  { user: 'frondoy',   pass: 'fr5kn2vx8q',    role: 'controller', displayName: 'Flor Rondoy' },
+  { user: 'lherrera',  pass: 'lh9mt4bw3j',    role: 'controller', displayName: 'Leopoldo Herrera' },
+  { user: 'knavarro',  pass: 'kn7rp6cs1z',    role: 'controller', displayName: 'Kevin Navarro' },
+  { user: 'greyes',    pass: 'gr2wx8dq5n',    role: 'controller', displayName: 'Gonzalo Reyes' },
+  { user: 'clupu',     pass: 'cl4jv9kt7m',    role: 'controller', displayName: 'Cesar Lupuche' },
+  { user: 'agulden',   pass: 'ag6nh3ys2p',    role: 'controller', displayName: 'Amelia Gulden' },
+  { user: 'cmanayay',  pass: 'cm8qb5fw4r',    role: 'controller', displayName: 'Carlos Manayay' },
+  { user: 'vsanchez',  pass: 'vs3tl7mx6k',    role: 'controller', displayName: 'Veronica Sanchez' },
+  { user: 'jflores',   pass: 'jf1yk4nz9v',    role: 'controller', displayName: 'Jorge Flores' },
 ];
 
 // ============================================================
