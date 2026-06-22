@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.13.2"/>
+<meta name="app-version" content="4.13.4"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -465,7 +465,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.13.2';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.13.4';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -1176,9 +1176,9 @@ function buildTendidoMiniMapa(parcela, largo, ancho, dist, rangosStr){
 
   const vbW = 320, vbH = Math.max(70, Math.min(220, Math.round(320 * (largo / ancho))));
   let lineas = '';
-  // Numeración de DERECHA a IZQUIERDA: la línea N°1 va en el borde derecho.
+  // Numeración de IZQUIERDA a DERECHA: la línea N°1 va en el borde izquierdo.
   for (let i = 1; i <= totalLineas; i++){
-    const x = vbW - ((i - 0.5) / totalLineas) * vbW;
+    const x = ((i - 0.5) / totalLineas) * vbW;
     const activa = activasSet.has(i);
     lineas += `<line x1="${x.toFixed(1)}" y1="6" x2="${x.toFixed(1)}" y2="${(vbH-6).toFixed(1)}" stroke="${activa ? '#1B7FAE' : '#D6E9F0'}" stroke-width="${activa ? 2.2 : 1}"/>`;
   }
@@ -1189,7 +1189,7 @@ function buildTendidoMiniMapa(parcela, largo, ancho, dist, rangosStr){
       <svg width="100%" height="${vbH+12}" viewBox="0 0 ${vbW} ${vbH}" style="background:#F0F8FB;border-radius:8px;">${lineas}</svg>
     </div>
     <div style="font-size:0.66rem;color:var(--texto-suave);margin-top:5px;">
-      Total de líneas: ${totalLineas} (largo ${largo} m ÷ ${dist} m) · Líneas resaltadas: ${activasSet.size} · Numeración de derecha a izquierda
+      Total de líneas: ${totalLineas} (largo ${largo} m ÷ ${dist} m) · Líneas resaltadas: ${activasSet.size} · Numeración de izquierda a derecha
     </div>
   </div>`;
 }
@@ -1515,12 +1515,12 @@ function buildParcelaConRayas(key, pts, info, TIPO_COLOR){
     return `<polygon points="${pts}" fill="${color}" stroke="#9DB8C2" stroke-width="0.8"><title>${titulo}</title></polygon>`;
   }
 
-  // Rayas: numeradas de derecha a izquierda dentro del ancho real de la parcela,
+  // Rayas: numeradas de izquierda a derecha dentro del ancho real de la parcela,
   // recortadas (clip-path) a la forma exacta del polígono.
   let lineas = '';
   info.rangos.forEach(([a, b]) => {
     for (let i = Math.max(1,a); i <= Math.min(totalLineas,b); i++){
-      const x = maxx - ((i - 0.5) / totalLineas) * (maxx - minx);
+      const x = minx + ((i - 0.5) / totalLineas) * (maxx - minx);
       lineas += `<line x1="${x.toFixed(1)}" y1="${miny.toFixed(1)}" x2="${x.toFixed(1)}" y2="${maxy.toFixed(1)}" stroke="${color}" stroke-width="${Math.max(0.6,(maxx-minx)/totalLineas*0.55).toFixed(2)}"/>`;
     }
   });
@@ -1666,7 +1666,7 @@ function buildTendidoMiniMapaMulti(parcela, largo, ancho, dist, rangos){
   const vbW = 320, vbH = Math.max(70, Math.min(220, Math.round(320 * (largo / ancho))));
   let lineas = '';
   for (let i = 1; i <= totalLineas; i++){
-    const x = vbW - ((i - 0.5) / totalLineas) * vbW;
+    const x = ((i - 0.5) / totalLineas) * vbW;
     const activa = activas.has(i);
     lineas += `<line x1="${x.toFixed(1)}" y1="6" x2="${x.toFixed(1)}" y2="${(vbH-6).toFixed(1)}" stroke="${activa ? '#1B7FAE' : '#D6E9F0'}" stroke-width="${activa ? 2.2 : 1}"/>`;
   }
@@ -1676,7 +1676,7 @@ function buildTendidoMiniMapaMulti(parcela, largo, ancho, dist, rangos){
     <div style="overflow-x:auto;">
       <svg width="100%" height="${vbH+12}" viewBox="0 0 ${vbW} ${vbH}" style="background:#F0F8FB;border-radius:8px;">${lineas}</svg>
     </div>
-    <div style="font-size:0.66rem;color:var(--texto-suave);margin-top:5px;">Numeración de derecha a izquierda · Largo ${largo} m ÷ ${dist} m</div>
+    <div style="font-size:0.66rem;color:var(--texto-suave);margin-top:5px;">Numeración de izquierda a derecha · Largo ${largo} m ÷ ${dist} m</div>
   </div>`;
 }
 

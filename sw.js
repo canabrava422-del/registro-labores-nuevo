@@ -1,4 +1,4 @@
-const CACHE = 'regcampo-4.13.2';
+const CACHE = 'regcampo-4.13.4';
 const SHELL = [
   '/registro-labores-nuevo/index.html',
   '/registro-labores-nuevo/manifest.json',
