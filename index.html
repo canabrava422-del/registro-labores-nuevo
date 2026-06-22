@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.10.0"/>
+<meta name="app-version" content="4.11.0"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -48,6 +48,19 @@
   .form-field label{font-size:0.72rem;font-weight:700;color:var(--texto-suave);text-transform:uppercase;letter-spacing:0.02em;}
   .topbar-form{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
   .app-tabs{display:flex;gap:8px;margin-bottom:14px;}
+  /* ---- TIMELINE Partida de inicio ---- */
+  .partida-card{background:#fff;border-radius:var(--radio);padding:14px;margin-bottom:12px;border:1px solid var(--borde);}
+  .partida-eqtr{font-weight:700;color:var(--azul-oscuro);font-size:0.82rem;margin-bottom:12px;}
+  .timeline-wrap{display:flex;align-items:center;overflow-x:auto;padding-bottom:4px;}
+  .timeline-step{display:flex;flex-direction:column;align-items:center;flex:0 0 auto;width:72px;}
+  .timeline-circle{width:44px;height:44px;border-radius:50%;border:2.5px solid var(--borde);background:#fff;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:700;text-align:center;color:var(--texto-suave);transition:all .25s;line-height:1.2;padding:4px;}
+  .timeline-circle.done{background:var(--azul-oscuro);border-color:var(--azul-oscuro);color:#fff;}
+  .timeline-step-label{font-size:0.52rem;color:var(--texto-suave);margin-top:5px;text-align:center;width:72px;line-height:1.3;}
+  .timeline-step-label.done{color:var(--azul-oscuro);font-weight:700;}
+  .timeline-num{font-size:0.66rem;font-weight:700;color:var(--texto-suave);margin-bottom:3px;}
+  .timeline-num.done{color:var(--azul-oscuro);}
+  .timeline-line{height:2.5px;flex:1;min-width:10px;background:var(--borde);}
+  .timeline-line.done{background:var(--azul-oscuro);}
   .app-tab{flex:1;text-align:center;padding:11px;border-radius:var(--radio-sm);background:#fff;border:1.5px solid var(--borde);font-weight:700;font-size:0.82rem;color:var(--texto-suave);cursor:pointer;}
   .app-tab.active{background:var(--azul-oscuro);color:#fff;border-color:var(--azul-oscuro);}
   .back-btn{background:#fff;border:1.5px solid var(--borde);border-radius:var(--radio-sm);padding:9px 13px;font-weight:700;color:var(--azul-oscuro);}
@@ -332,6 +345,21 @@
     <div id="records-list" style="display:flex;flex-direction:column;gap:10px;"></div>
   </section>
 
+  <section id="view-partida" class="hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <span style="font-weight:700;color:var(--azul-oscuro);font-size:0.9rem;">🚀 Partida de inicio</span>
+      <button onclick="irPartidaInicio()" style="background:var(--verde-menta);border:1px solid var(--verde-claro);color:var(--verde);padding:7px 12px;border-radius:8px;font-weight:700;font-size:0.74rem;">↻ Actualizar</button>
+    </div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <select id="partida-filter-fundo" onchange="renderPartidaLista()">
+        <option value="">Todos los fundos</option>
+        <option>Huaca</option><option>Lobo 1</option><option>Lobo 2</option><option>Buenaventura</option>
+      </select>
+      <input type="text" id="partida-filter-eqtr" placeholder="Filtrar EQ-TR..." oninput="renderPartidaLista()"/>
+    </div>
+    <div id="partida-global-lista"><div class="empty-state">Cargando...</div></div>
+  </section>
+
   <section id="view-programado" class="hidden">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
       <span style="font-weight:700;color:var(--azul-oscuro);font-size:0.9rem;">📅 Programado · todas las labores</span>
@@ -415,6 +443,7 @@
 
 <nav class="bottom-nav hidden" id="bottom-nav">
   <button class="active" id="nav-home" onclick="irHome()"><span class="nav-emoji">📝</span>Registrar</button>
+  <button id="nav-partida" onclick="irPartidaInicio()"><span class="nav-emoji">🚀</span>Partida</button>
   <button id="nav-programado" onclick="irProgramadoGlobal()"><span class="nav-emoji">📅</span>Programado</button>
   <button id="nav-lista" onclick="filtroLaborLista=null;irLista()"><span class="nav-emoji">📋</span>Historial</button>
   <button id="nav-kpis" onclick="irKpis()"><span class="nav-emoji">📊</span>KPIs</button>
@@ -438,7 +467,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.10.0';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.11.0';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -645,6 +674,7 @@ const ICONO_ESPONJAS_PIG = `<svg width="1em" height="1em" viewBox="0 0 24 24" st
 const ICONO_CAUDALIMETRO = `<svg width="1em" height="1em" viewBox="0 0 24 24" style="vertical-align:-0.2em;"><line x1="1" y1="12" x2="6.5" y2="12" stroke="#A8E063" stroke-width="1.8" stroke-linecap="round"/><line x1="17.5" y1="12" x2="23" y2="12" stroke="#A8E063" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="#A8E063" stroke-width="1.6"/><path d="M12 8.5v4l3 1.8" fill="none" stroke="#A8E063" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="1" fill="#A8E063"/></svg>`;
 
 const LABORES = [
+  { id:'entable',    emoji:'🌱', nombre:'Entable' },
   { id:'aplicacion', emoji:'🧪', nombre:'Aplicación' },
   { id:'limpieza',   emoji:'🍸', icon:ICONO_CONO_IMHOFF, nombre:'Limpieza de laterales' },
   { id:'plancero',   emoji:'⏱️', nombre:'Plan cero fuga' },
@@ -653,6 +683,7 @@ const LABORES = [
   { id:'tendido',    emoji:'🌀', nombre:'Tendido de manguera' },
   { id:'flushing',   emoji:'🔩', nombre:'Instalación de flushing' },
   { id:'caudal',     emoji:'🌊', icon:ICONO_CAUDALIMETRO, nombre:'Medición de caudal' },
+  { id:'calibracion',emoji:'📐', nombre:'Calibración' },
 ];
 function iconoLabor(l){ return l.icon || l.emoji; }
 
@@ -819,6 +850,7 @@ function actualizarTablasParcela(){
   if (laborActual === 'purga') buildPurgaParcelasTable();
   if (laborActual === 'tendido') buildTendidoParcelasTable();
   if (laborActual === 'caudal') buildCaudalParcelasTable();
+  if (laborActual === 'entable') buildEntableParcelasTable();
   if (laborActual === 'aplicacion') actualizarAvanceAplicacion();
 }
 
@@ -846,6 +878,108 @@ function getParcelasSeleccionadas(){
 // ============================================================
 // TABLA DINÁMICA POR PARCELA — Purga con pig
 // ============================================================
+// ============================================================
+// TABLA POR PARCELA — Entable
+// ============================================================
+function buildEntableParcelasTable(){
+  const wrap = document.getElementById('entable-parcelas-table-wrap');
+  if (!wrap) return;
+  const fundo = val('f-fundo'), eq = val('f-eq'), tr = val('f-tr');
+  const parcelas = getParcelasSeleccionadas();
+  if (!fundo || !eq || !tr || !parcelas.length){
+    wrap.innerHTML = '<div class="verify-empty">Selecciona fundo, EQ, TR y parcelas primero</div>';
+    return;
+  }
+  const prev = {};
+  wrap.querySelectorAll('.et-row').forEach(row => {
+    const p = row.dataset.parcela;
+    prev[p] = {
+      ha: row.querySelector('.et-ha')?.value || '',
+      haAvanzada: row.querySelector('.et-ha-avanzada')?.value || '',
+    };
+  });
+  const rows = parcelas.map(p => {
+    const haBase = getHaParcela(fundo, eq, tr, p) ?? '';
+    const v = prev[p] || { ha: haBase, haAvanzada: '' };
+    const haPend = v.ha && v.haAvanzada ? Math.max(0, parseFloat(v.ha) - parseFloat(v.haAvanzada)).toFixed(2) : '—';
+    return `
+      <tr class="et-row" data-parcela="${p}">
+        <td class="pp-parcela">${p}</td>
+        <td><input type="number" class="pp-input et-ha" value="${v.ha}" placeholder="0.00" step="0.01" min="0" oninput="onEntableTableInput()"/></td>
+        <td><input type="number" class="pp-input et-ha-avanzada" value="${v.haAvanzada}" placeholder="0.00" step="0.01" min="0" oninput="onEntableTableInput()"/></td>
+        <td class="pp-total" id="et-hapend-${p}">${haPend}</td>
+      </tr>`;
+  }).join('');
+  wrap.innerHTML = `
+    <div class="pp-table-scroll">
+      <table class="pp-table">
+        <thead><tr><th>Parcela</th><th>Ha</th><th>Ha avanzadas</th><th>Ha pendientes</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr><td>Total</td><td id="et-total-ha">0.00</td><td id="et-total-avanzada">0.00</td><td id="et-total-pend">0.00</td></tr></tfoot>
+      </table>
+    </div>`;
+  onEntableTableInput();
+}
+
+function onEntableTableInput(){
+  let totalHa=0, totalAvanzada=0, totalPend=0;
+  document.querySelectorAll('.et-row').forEach(row => {
+    const p = row.dataset.parcela;
+    const ha = parseFloat(row.querySelector('.et-ha')?.value) || 0;
+    const avanzada = parseFloat(row.querySelector('.et-ha-avanzada')?.value) || 0;
+    const pend = Math.max(0, ha - avanzada);
+    const cell = row.querySelector('.pp-total');
+    if (cell) cell.textContent = ha || avanzada ? pend.toFixed(2) : '—';
+    totalHa += ha; totalAvanzada += avanzada; totalPend += pend;
+  });
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('et-total-ha', totalHa.toFixed(2));
+  set('et-total-avanzada', totalAvanzada.toFixed(2));
+  set('et-total-pend', totalPend.toFixed(2));
+  setAvanceHaOculto(totalAvanzada);
+  refreshVerifyTable();
+}
+
+function getEntableParcelasData(){
+  const rows = [];
+  document.querySelectorAll('.et-row').forEach(row => {
+    const parcela = row.dataset.parcela;
+    const ha = parseFloat(row.querySelector('.et-ha')?.value) || 0;
+    const haAvanzada = parseFloat(row.querySelector('.et-ha-avanzada')?.value) || 0;
+    const haPendiente = parseFloat(Math.max(0, ha - haAvanzada).toFixed(2));
+    rows.push({ parcela, ha, ha_avanzada: haAvanzada, ha_pendiente: haPendiente });
+  });
+  return rows;
+}
+
+// ============================================================
+// FOTO — Calibración
+// ============================================================
+let _fotoBase64 = null;
+function abrirCamara(){
+  document.getElementById('f-camara-input').click();
+}
+function abrirGaleria(){
+  document.getElementById('f-foto-input').click();
+}
+function onFotoSeleccionada(input){
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    _fotoBase64 = e.target.result;
+    document.getElementById('f-foto-img').src = _fotoBase64;
+    document.getElementById('f-foto-preview').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+function quitarFoto(){
+  _fotoBase64 = null;
+  document.getElementById('f-foto-preview').style.display = 'none';
+  document.getElementById('f-foto-input').value = '';
+  document.getElementById('f-camara-input').value = '';
+}
+
 function buildPurgaParcelasTable(){
   const wrap = document.getElementById('purga-parcelas-table-wrap');
   if (!wrap) return;
@@ -1673,6 +1807,56 @@ const FORMULARIOS = {
         <div class="verify-empty">Selecciona fundo, EQ, TR y parcelas primero</div>
       </div>
     </div>` + jornalesField() + obsField('Condiciones de medición...'),
+
+  entable: () => baseBlock('📍 Ubicación y equipo') + `
+    <div class="form-card">
+      <div class="section-title">🌱 Detalle por parcela</div>
+      <p style="font-size:0.72rem;color:var(--texto-suave);margin-bottom:10px;">Selecciona las parcelas arriba para que aparezcan aquí.</p>
+      <div id="entable-parcelas-table-wrap">
+        <div class="verify-empty">Selecciona fundo, EQ, TR y parcelas primero</div>
+      </div>
+    </div>` + jornalesField() + obsField('Observaciones del entable...'),
+
+  calibracion: () => `
+    <div class="form-card">
+      <div class="section-title">📐 Datos de calibración</div>
+      <div class="form-grid">
+        <div class="form-field"><label>Fundo</label>
+          <select id="f-fundo" onchange="onFundoChange()">${fundoOpts}</select>
+        </div>
+        <div class="form-field"><label>EQ</label>
+          <select id="f-eq" onchange="onEqTrChange()"><option value="">— Elige fundo primero —</option></select>
+        </div>
+        <div class="form-field"><label>TR</label>
+          <select id="f-tr" onchange="onEqTrChange()">${optsTR()}</select>
+        </div>
+        <div class="form-field"><label>Fecha de calibración</label>
+          <input type="date" id="f-fecha" value="${new Date().toISOString().slice(0,10)}"/>
+        </div>
+        <div class="form-field full"><label>Caudal nominal (L/min)</label>
+          <input type="number" id="f-caudal-nom" step="0.01" min="0" placeholder="7.10"/>
+        </div>
+        <div class="form-field full"><label>Presión de operación (M.C.A)</label>
+          <input type="number" id="f-presion" step="0.1" min="0"/>
+        </div>
+        <div class="form-field full">
+          <label>📷 Foto de calibración</label>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+            <div style="display:flex;gap:8px;">
+              <button type="button" onclick="abrirCamara()" class="btn secundario" style="flex:1;font-size:0.76rem;">📷 Tomar foto</button>
+              <button type="button" onclick="abrirGaleria()" class="btn secundario" style="flex:1;font-size:0.76rem;">🖼️ Elegir de galería</button>
+            </div>
+            <input type="file" id="f-foto-input" accept="image/*" style="display:none" onchange="onFotoSeleccionada(this)"/>
+            <input type="file" id="f-camara-input" accept="image/*" capture="environment" style="display:none" onchange="onFotoSeleccionada(this)"/>
+            <div id="f-foto-preview" style="display:none;margin-top:8px;">
+              <img id="f-foto-img" style="max-width:100%;border-radius:10px;border:2px solid var(--verde-claro);"/>
+              <button type="button" onclick="quitarFoto()" style="margin-top:6px;padding:5px 12px;font-size:0.72rem;border:1px solid var(--rojo);border-radius:6px;background:#fff;color:var(--rojo);">✕ Quitar foto</button>
+            </div>
+            <p style="font-size:0.66rem;color:var(--texto-suave);">La foto se guarda como referencia de la calibración realizada.</p>
+          </div>
+        </div>
+      </div>
+    </div>` + obsField('Observaciones de calibración...'),
 };
 
 const CAMPOS_EXTRA = {
@@ -1684,6 +1868,8 @@ const CAMPOS_EXTRA = {
   tendido:    [],
   flushing:   ['f-flushing-util','f-flushing-pend'],
   caudal:     [],
+  entable:    [],
+  calibracion:['f-caudal-nom','f-presion'],
 };
 
 // ============================================================
@@ -1772,8 +1958,8 @@ function verSoloLectura(laborId){
 let filtroLaborLista = null;
 
 function ocultarTodasLasVistas(){
-  ['view-home','view-form','view-lista','view-programado','view-kpis','view-admin'].forEach(id => document.getElementById(id).classList.add('hidden'));
-  ['nav-home','nav-lista','nav-programado','nav-kpis','nav-admin'].forEach(id => document.getElementById(id).classList.remove('active'));
+  ['view-home','view-form','view-lista','view-partida','view-programado','view-kpis','view-admin'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  ['nav-home','nav-lista','nav-partida','nav-programado','nav-kpis','nav-admin'].forEach(id => document.getElementById(id).classList.remove('active'));
 }
 
 function irHome(){
@@ -1788,6 +1974,92 @@ function irKpis(){
   document.getElementById('nav-kpis').classList.add('active');
   cargarKpis();
   updateSyncBar();
+}
+
+// ============================================================
+// PARTIDA DE INICIO — secuencia de 5 labores por EQ-TR
+// ============================================================
+// Las 5 etapas fijas del protocolo de partida de inicio
+const PASOS_PARTIDA = [
+  { num:1, label:'Entable', laborId:'entable', check: r => r.labor === 'entable' },
+  { num:2, label:'Purga con pig', laborId:'purga', check: r => r.labor === 'purga' },
+  { num:3, label:'Calibración', laborId:'calibracion', check: r => r.labor === 'calibracion' },
+  { num:4, label:'Aplicación Aquazix', laborId:'aplicacion', check: r => r.labor === 'aplicacion' && r.insumo === 'Aquazix' },
+  { num:5, label:'Aplicación Ac. sulfúrico', laborId:'aplicacion', check: r => r.labor === 'aplicacion' && r.insumo === 'Ac. Sulfúrico' },
+];
+
+let _partidaData = []; // historial completo cargado una vez
+
+async function irPartidaInicio(){
+  ocultarTodasLasVistas();
+  document.getElementById('view-partida').classList.remove('hidden');
+  document.getElementById('nav-partida').classList.add('active');
+  updateSyncBar();
+  document.getElementById('partida-global-lista').innerHTML = '<div class="empty-state">Cargando...</div>';
+  try{
+    const res = await sbFetch('labores_campo?select=labor,equipo,fundo,insumo,fecha&order=fecha.desc&limit=2000');
+    if (!res.ok) throw new Error();
+    _partidaData = await res.json();
+    renderPartidaLista();
+  }catch(e){
+    document.getElementById('partida-global-lista').innerHTML = '<div class="empty-state">Error al cargar los datos</div>';
+  }
+}
+
+function renderPartidaLista(){
+  const lista = document.getElementById('partida-global-lista');
+  const filtroFundo = val('partida-filter-fundo') || '';
+  const filtroEqTr = (val('partida-filter-eqtr') || '').trim().toUpperCase();
+
+  // Agrupar todos los registros por fundo+equipo
+  const grupos = {};
+  _partidaData.forEach(r => {
+    if (!r.equipo) return;
+    const key = `${r.fundo||'—'}||${r.equipo}`;
+    if (!grupos[key]) grupos[key] = { fundo: r.fundo || '—', eqtr: r.equipo, registros: [] };
+    grupos[key].registros.push(r);
+  });
+
+  let items = Object.values(grupos);
+  if (filtroFundo) items = items.filter(g => g.fundo === filtroFundo);
+  if (filtroEqTr) items = items.filter(g => g.eqtr.toUpperCase().includes(filtroEqTr));
+  items.sort((a,b) => a.eqtr.localeCompare(b.eqtr));
+
+  if (!items.length){
+    lista.innerHTML = '<div class="empty-state">Sin registros para los filtros seleccionados</div>';
+    return;
+  }
+
+  lista.innerHTML = items.map(g => {
+    const pasosDone = PASOS_PARTIDA.map(paso => g.registros.some(r => paso.check(r)));
+    const completos = pasosDone.filter(Boolean).length;
+
+    let timelineHtml = '';
+    PASOS_PARTIDA.forEach((paso, idx) => {
+      const done = pasosDone[idx];
+      const lineaDone = idx > 0 && pasosDone[idx-1];
+      if (idx > 0) timelineHtml += `<div class="timeline-line ${lineaDone ? 'done' : ''}"></div>`;
+      timelineHtml += `
+        <div class="timeline-step">
+          <div class="timeline-num ${done ? 'done' : ''}">${paso.num}</div>
+          <div class="timeline-circle ${done ? 'done' : ''}">${done ? '✓' : paso.num}</div>
+          <div class="timeline-step-label ${done ? 'done' : ''}">${paso.label}</div>
+        </div>`;
+    });
+
+    const pct = Math.round(completos / PASOS_PARTIDA.length * 100);
+    const barColor = pct === 100 ? '#27AE60' : pct >= 60 ? '#E67E22' : 'var(--azul)';
+    return `
+      <div class="partida-card">
+        <div class="partida-eqtr">${g.eqtr} <span style="font-weight:400;color:var(--texto-suave);font-size:0.74rem;">· ${g.fundo}</span>
+          <span style="float:right;font-size:0.74rem;font-weight:700;color:${barColor};">${completos}/${PASOS_PARTIDA.length}</span>
+        </div>
+        <div class="timeline-wrap">${timelineHtml}</div>
+        <div style="margin-top:10px;background:var(--fondo);border-radius:6px;height:6px;overflow:hidden;">
+          <div style="height:6px;background:${barColor};width:${pct}%;border-radius:6px;transition:width .4s;"></div>
+        </div>
+      </div>`;
+  }).join('');
 }
 function irAdmin(){
   ocultarTodasLasVistas();
@@ -1995,6 +2267,7 @@ function abrirFormulario(laborId, registroExistente){
   document.getElementById('view-home').classList.add('hidden');
   document.getElementById('view-form').classList.remove('hidden');
   attachVerifyListeners();
+  if (!registroExistente && laborId === 'calibracion') _fotoBase64 = null;
   if (registroExistente) precargarFormulario(registroExistente);
   refreshVerifyTable();
   cargarRegistrosAnterioresForm(laborId);
@@ -2078,6 +2351,20 @@ function precargarFormulario(r){
         if (btn) btn.textContent = (condicion.length ? condicion.join(', ') : 'Elegir') + ' ▾';
       });
       if (detalle.length) onCaudalTableInput();
+    } else if (laborActual === 'entable'){
+      detalle.forEach(d => {
+        const row = document.querySelector(`.et-row[data-parcela="${d.parcela}"]`);
+        if (!row) return;
+        row.querySelector('.et-ha').value = d.ha ?? '';
+        row.querySelector('.et-ha-avanzada').value = d.ha_avanzada ?? '';
+      });
+      if (detalle.length) onEntableTableInput();
+    } else if (laborActual === 'calibracion'){
+      _fotoBase64 = r.datos_extra?.foto_url || null;
+      if (_fotoBase64){
+        document.getElementById('f-foto-img').src = _fotoBase64;
+        document.getElementById('f-foto-preview').style.display = 'block';
+      }
     }
     refreshVerifyTable();
     const boxEl = document.getElementById('parcelas-box');
@@ -2156,6 +2443,15 @@ async function guardarLabor(){
     datosExtra.has_por_tender = parseFloat(totalHasPorTender.toFixed(2));
     datosExtra.avance_ha = parseFloat(totalHa.toFixed(2));
     datosExtra.detalle_parcelas = tableData;
+  } else if (laborActual === 'entable'){
+    const tableData = getEntableParcelasData();
+    if (!tableData.length){ showToast('Completa el cuadro de parcelas', 'error'); return; }
+    const totalAvanzada = tableData.reduce((s,r)=>s+r.ha_avanzada,0);
+    datosExtra.ha_avanzadas = parseFloat(totalAvanzada.toFixed(2));
+    datosExtra.avance_ha = parseFloat(totalAvanzada.toFixed(2));
+    datosExtra.detalle_parcelas = tableData;
+  } else if (laborActual === 'calibracion'){
+    if (_fotoBase64) datosExtra.foto_url = _fotoBase64;
   }
 
   (CAMPOS_EXTRA[laborActual] || []).forEach(id => {
@@ -2317,6 +2613,21 @@ const COLUMNAS_LABOR = {
     {label:'Has por tender', val:r=>r.datos_extra?.has_por_tender ?? '—'},
     {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
     COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
+  ],
+  entable: [
+    {label:'Fecha', val:r=>formatDate(r.fecha)}, {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
+    {label:'Ha avanzadas', val:r=>r.datos_extra?.ha_avanzadas ?? '—'},
+    {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
+    COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
+  ],
+  calibracion: [
+    {label:'Fecha', val:r=>formatDate(r.fecha)}, {label:'Hora', val:r=>formatHora(r.created_at)},
+    {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Fundo', val:r=>r.fundo||'—'},
+    {label:'Caudal nominal', val:r=>r.datos_extra?.caudal_nom ?? '—'},
+    {label:'Presión (MCA)', val:r=>r.datos_extra?.presion ?? '—'},
+    {label:'Foto', val:r=>r.datos_extra?.foto_url ? '✅ Sí' : '—'},
+    COL_CONTROLADOR,
   ],
 };
 
@@ -2681,8 +2992,9 @@ function destroyChart(id){
   if (chartInstances[id]){ chartInstances[id].destroy(); delete chartInstances[id]; }
 }
 const LABOR_COLORS = {
-  aplicacion:'#135381', limpieza:'#2195C4', plancero:'#E67E22',
-  manguera:'#9B59B6', purga:'#E74C3C', tendido:'#F39C12', flushing:'#1ABC9C', caudal:'#A8E063'
+  entable:'#27AE60', aplicacion:'#135381', limpieza:'#2195C4', plancero:'#E67E22',
+  manguera:'#9B59B6', purga:'#E74C3C', tendido:'#F39C12', flushing:'#1ABC9C', caudal:'#A8E063',
+  calibracion:'#8E44AD'
 };
 const FUNDO_COLORS = ['#135381','#2E86C1','#8AD6F0'];
 
