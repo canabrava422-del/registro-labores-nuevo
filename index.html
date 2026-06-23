@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.14.1"/>
+<meta name="app-version" content="4.14.3"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -465,7 +465,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.14.1';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.14.3';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -995,30 +995,56 @@ function quitarFoto(){
 // Devuelve la URL pública permanente, o null si falla.
 async function subirFotoStorage(file, fundo, eq, tr, fecha){
   try{
-    const ext = file.name.split('.').pop() || 'jpg';
+    // Comprimir la imagen antes de subir (máx 1200px de ancho, calidad 0.82)
+    const comprimido = await comprimirImagen(file, 1200, 0.82);
+    const ext = 'jpg';
     const ts = Date.now();
-    const nombre = `${fundo}_${eq}_${tr}_${fecha}_${ts}.${ext}`.replace(/\s+/g,'_');
-    const uploadUrl = `${SUPABASE_URL}/storage/v1/object/calibraciones/${encodeURIComponent(nombre)}`;
+    // Nombre simple sin caracteres especiales ni espacios
+    const nombre = `${fundo}_${eq}_${tr}_${(fecha||'').replace(/-/g,'')}_${ts}.${ext}`
+      .replace(/[^a-zA-Z0-9_.\-]/g, '_');
+    // Supabase Storage usa PUT para subida directa
+    const uploadUrl = `${SUPABASE_URL}/storage/v1/object/calibraciones/${nombre}`;
     const res = await fetch(uploadUrl, {
-      method: 'POST',
+      method: 'PUT',
       headers: {
         'apikey': SUPABASE_KEY,
         'Authorization': 'Bearer ' + SUPABASE_KEY,
-        'Content-Type': file.type || 'image/jpeg',
-        'x-upsert': 'true'
+        'Content-Type': 'image/jpeg',
+        'x-upsert': 'true',
+        'cache-control': '3600'
       },
-      body: file
+      body: comprimido
     });
     if (!res.ok){
       const err = await res.text();
-      console.error('Error al subir foto:', err);
+      console.error('Error Supabase Storage:', res.status, err);
       return null;
     }
-    return `${SUPABASE_URL}/storage/v1/object/public/calibraciones/${encodeURIComponent(nombre)}`;
+    // URL pública directa
+    return `${SUPABASE_URL}/storage/v1/object/public/calibraciones/${nombre}`;
   }catch(e){
     console.error('Error al subir foto:', e);
     return null;
   }
+}
+
+// Redimensiona y comprime la imagen a JPEG usando un canvas
+function comprimirImagen(file, maxW, calidad){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.width, h = img.height;
+      if (w > maxW){ h = Math.round(h * maxW / w); w = maxW; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('toBlob falló')), 'image/jpeg', calidad);
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
 }
 
 function buildPurgaParcelasTable(){
@@ -1837,6 +1863,23 @@ const FORMULARIOS = {
 
   purga: () => baseBlock('📍 Purga con pig') + `
     <div class="form-card">
+      <div class="section-title">💧 Caudal antes y después</div>
+      <div class="form-grid">
+        <div class="form-field">
+          <label>Caudal inicial (L/min)</label>
+          <input type="number" id="f-caudal-inicial" step="0.01" min="0" placeholder="Ej: 3.20"/>
+        </div>
+        <div class="form-field">
+          <label>Caudal final (L/min)</label>
+          <input type="number" id="f-caudal-final" step="0.01" min="0" placeholder="Ej: 5.80"/>
+        </div>
+        <div class="form-field full" id="f-mejoria-wrap" style="display:none;">
+          <label>Variación de caudal <span style="font-weight:400;text-transform:none;color:var(--verde);">(auto)</span></label>
+          <input type="text" id="f-mejoria" readonly style="pointer-events:none;background:var(--verde-menta);font-weight:700;color:var(--azul-oscuro);"/>
+        </div>
+      </div>
+    </div>
+    <div class="form-card">
       <div class="section-title">💨 Detalle por parcela</div>
       <p style="font-size:0.72rem;color:var(--texto-suave);margin-bottom:10px;">Selecciona las parcelas arriba para que aparezcan aquí.</p>
       <div id="purga-parcelas-table-wrap">
@@ -1921,7 +1964,7 @@ const CAMPOS_EXTRA = {
   limpieza:   ['f-imof','f-frecuencia','f-mang-no-riegan','f-mang-rep','f-mang-pend'],
   plancero:   ['f-fugas','f-mang-rep','f-mang-pend','f-ha-pend'],
   manguera:   ['f-mang-rev','f-mang-rep','f-mang-pend','f-ha-pend','f-estado'],
-  purga:      [],
+  purga:      ['f-caudal-inicial','f-caudal-final'],
   tendido:    [],
   flushing:   ['f-flushing-util','f-flushing-pend'],
   caudal:     [],
@@ -2178,9 +2221,18 @@ async function irProgramadoGlobal(){
     if (!res.ok) throw new Error();
     const items = await res.json();
     _programaGlobalData = await calcularEstadoPrograma(items);
+    rcCacheSet('programado', _programaGlobalData);
     renderProgramaGlobalLista();
   }catch(e){
-    lista.innerHTML = '<div class="empty-state">Error al cargar el programa</div>';
+    // Sin conexión — intentar mostrar datos cacheados
+    const cached = rcCacheGet('programado');
+    if (cached){
+      _programaGlobalData = cached.data;
+      lista.innerHTML = bannerOffline(rcCacheAgeText(cached.ts));
+      renderProgramaGlobalLista();
+    } else {
+      lista.innerHTML = '<div class="empty-state">📴 Sin conexión y sin datos guardados. Conéctate una vez para que queden disponibles offline.</div>';
+    }
   }
 }
 
@@ -2305,6 +2357,26 @@ function buildVerifyTable(){
   </div>`;
 }
 
+// Calcula la variación de caudal en Purga con pig en tiempo real
+function calcularMejoriaCaudal(){
+  const ini = parseFloat(document.getElementById('f-caudal-inicial')?.value);
+  const fin = parseFloat(document.getElementById('f-caudal-final')?.value);
+  const wrap = document.getElementById('f-mejoria-wrap');
+  const input = document.getElementById('f-mejoria');
+  if (!wrap || !input) return;
+  if (!isNaN(ini) && !isNaN(fin) && ini > 0){
+    const diff = fin - ini;
+    const pct = ((diff / ini) * 100).toFixed(1);
+    const signo = diff >= 0 ? '+' : '';
+    const emoji = diff > 0 ? '📈' : diff < 0 ? '📉' : '➡️';
+    input.value = `${emoji} ${signo}${diff.toFixed(2)} L/min (${signo}${pct}%)`;
+    input.style.color = diff > 0 ? '#1e7a3a' : diff < 0 ? 'var(--rojo)' : 'var(--azul-oscuro)';
+    wrap.style.display = '';
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
 function attachVerifyListeners(){
   const cont = document.getElementById('form-container');
   if (!cont) return;
@@ -2365,6 +2437,13 @@ function abrirFormulario(laborId, registroExistente){
   refreshVerifyTable();
   cargarRegistrosAnterioresForm(laborId);
   switchAppTab('ejecutado');
+  // Conectar listeners de mejoria de caudal si es purga
+  if (laborId === 'purga'){
+    ['f-caudal-inicial','f-caudal-final'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', calcularMejoriaCaudal);
+    });
+  }
   if (laborId === 'tendido'){
     initMapaFundoTendido();
   } else {
@@ -2553,9 +2632,9 @@ async function guardarLabor(){
       const fotoUrl = await subirFotoStorage(_fotoFile, fundo, eq, tr, val('f-fecha') || '');
       if (fotoUrl){
         datosExtra.foto_url = fotoUrl;
+        showToast('📷 Foto subida correctamente');
       } else {
-        showToast('⚠️ No se pudo subir la foto. Verifica que el bucket "calibraciones" exista en Supabase Storage.', 'error');
-        // Continúa guardando el registro sin foto en vez de bloquear
+        showToast('⚠️ Error al subir la foto. Revisa: 1) bucket "calibraciones" existe en Supabase Storage, 2) está marcado como Public, 3) hay conexión a internet. El registro se guardó sin foto.', 'error');
       }
     }
   }
@@ -2692,6 +2771,8 @@ const COLUMNAS_LABOR = {
   purga: [
     {label:'Fecha', val:r=>formatDate(r.fecha)}, {label:'Hora', val:r=>formatHora(r.created_at)},
     {label:'EQ/TR', val:r=>r.equipo||'—'}, {label:'Parcelas', val:r=>r.parcelas||'—'}, {label:'Fundo', val:r=>r.fundo||'—'}, COL_EDAD,
+    {label:'Caudal inicial (L/min)', val:r=>r.datos_extra?.caudal_inicial ?? '—'},
+    {label:'Caudal final (L/min)', val:r=>r.datos_extra?.caudal_final ?? '—'},
     {label:'No estranguladas', val:r=>r.datos_extra?.mang_no_estr ?? '—'}, {label:'Estr. reparadas', val:r=>r.datos_extra?.mang_estr_rep ?? '—'},
     {label:'Estr. pendientes', val:r=>r.datos_extra?.mang_estr_pend ?? '—'}, {label:'Avance (ha)', val:r=>r.datos_extra?.avance_ha ?? '—'},
     COL_JORNALES, COL_RATIO, COL_CONTROLADOR,
@@ -2846,11 +2927,22 @@ async function cargarHistorial(){
     const res = await sbFetch('labores_campo?order=created_at.desc&limit=200');
     if (!res.ok) throw new Error();
     allRecords = await res.json();
+    rcCacheSet('historial', allRecords);
     poblarFiltrosAvanzadosHistorial();
     applyFiltersHistorial();
     updateHistorialCounters();
   }catch(err){
-    listEl.innerHTML = '<div class="empty-state">Error de conexión</div>';
+    // Sin conexión — intentar mostrar datos cacheados
+    const cached = rcCacheGet('historial');
+    if (cached){
+      allRecords = cached.data;
+      poblarFiltrosAvanzadosHistorial();
+      const listWrap = document.getElementById('records-list');
+      if (listWrap) listWrap.insertAdjacentHTML('afterbegin', bannerOffline(rcCacheAgeText(cached.ts)));
+      applyFiltersHistorial();
+    } else {
+      listEl.innerHTML = '<div class="empty-state">📴 Sin conexión y sin datos guardados. Conéctate una vez para que queden disponibles offline.</div>';
+    }
     updateHistorialCounters();
   }
 }
@@ -2931,7 +3023,7 @@ function renderRecordsHistorial(records){
     if (r.equipo) tags.push(`<span class="hist-tag hist-tag-equipo">${r.equipo}</span>`);
     if (r.insumo) tags.push(`<span class="hist-tag hist-tag-insumo">${r.insumo}</span>`);
     const hora = formatHora(r.created_at);
-    const puedeEditar = currentUser && currentUser.role === 'admin';
+    const puedeEditar = puedEditarRegistro(r);
     return `<div class="hist-card labor-${r.labor}" onclick="showDetail(${r.id})">
       <div class="hist-top">
         <div class="hist-labor">${labor ? iconoLabor(labor)+' '+labor.nombre : r.labor}</div>
@@ -3076,6 +3168,9 @@ function showDetail(id){
   if (currentUser && currentUser.role === 'admin'){
     html += `<button class="btn-danger" onclick="closeDetailModal();eliminarRegistro(${r.id})">🗑 Eliminar registro</button>`;
   }
+  if (puedEditarRegistro(r)){
+    html += `<button class="btn secundario" style="margin-top:8px;" onclick="closeDetailModal();editarRegistro(${JSON.stringify(r).replace(/'/g,'&#39;').replace(/"/g,'&quot;')})">✏️ Editar registro</button>`;
+  }
 
   document.getElementById('modal-body').innerHTML = html;
   document.getElementById('detail-modal').classList.add('open');
@@ -3085,9 +3180,24 @@ function closeDetailModal(){
   document.getElementById('detail-modal').classList.remove('open');
 }
 
+// Regla de edición:
+// - Admin: puede editar cualquier registro de cualquier usuario, siempre.
+// - Controlador: solo puede editar sus propios registros, y solo hasta las 23:59 del mismo día en que los subió.
+function puedEditarRegistro(r){
+  if (!currentUser) return false;
+  if (currentUser.role === 'admin') return true;
+  // Verificar que es el mismo usuario
+  if (r.controlador !== currentUser.nombre && r.user !== currentUser.user) return false;
+  // Verificar que fue creado hoy (comparando fecha local)
+  if (!r.created_at) return false;
+  const creadoEnLocal = new Date(r.created_at);
+  const ahora = new Date();
+  return creadoEnLocal.toLocaleDateString() === ahora.toLocaleDateString();
+}
+
 function editarRegistro(registro){
-  if (!currentUser || currentUser.role !== 'admin'){
-    showToast('Solo un administrador puede editar registros anteriores', 'error');
+  if (!puedEditarRegistro(registro)){
+    showToast('Solo puedes editar tus registros del mismo día hasta las 23:59', 'error');
     return;
   }
   document.getElementById('view-lista').classList.add('hidden');
@@ -3927,6 +4037,47 @@ async function cargarProgramaTab(){
   }catch(e){
     cont.innerHTML = '<div class="empty-state">Error al cargar el programa</div>';
   }
+}
+
+// ============================================================
+// CACHÉ OFFLINE — guarda datos de Supabase en localStorage
+// para que sean visibles aunque no haya internet.
+// Estrategia: "network first, cache fallback"
+// ============================================================
+const RC_CACHE_PREFIX = 'rc_cache_';
+const RC_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 días
+
+function rcCacheSet(key, data){
+  try{
+    localStorage.setItem(RC_CACHE_PREFIX + key, JSON.stringify({
+      ts: Date.now(), data
+    }));
+  }catch(e){ /* localStorage lleno — ignorar */ }
+}
+
+function rcCacheGet(key){
+  try{
+    const raw = localStorage.getItem(RC_CACHE_PREFIX + key);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (Date.now() - obj.ts > RC_CACHE_TTL_MS){ localStorage.removeItem(RC_CACHE_PREFIX + key); return null; }
+    return { data: obj.data, ts: obj.ts };
+  }catch(e){ return null; }
+}
+
+function rcCacheAgeText(ts){
+  const mins = Math.round((Date.now()-ts)/60000);
+  if (mins < 2) return 'hace un momento';
+  if (mins < 60) return `hace ${mins} min`;
+  const hrs = Math.round(mins/60);
+  if (hrs < 24) return `hace ${hrs} h`;
+  return `hace ${Math.round(hrs/24)} días`;
+}
+
+function bannerOffline(agoText){
+  return `<div style="background:#FFF3CD;border:1px solid #FFD966;border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:0.72rem;color:#7d5a00;">
+    📴 Sin conexión — mostrando datos guardados ${agoText}
+  </div>`;
 }
 
 // ============================================================
