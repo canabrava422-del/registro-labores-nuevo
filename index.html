@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.14.5"/>
+<meta name="app-version" content="4.15.0"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -464,7 +464,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.14.5';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.15.0';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -1141,27 +1141,24 @@ function buildTendidoParcelasTable(){
     prev[p] = {
       ha: row.querySelector('.td-ha')?.value || '',
       ancho: row.querySelector('.td-ancho')?.value || '',
+      nlineas: row.querySelector('.td-nlineas')?.value || '',
       estado: row.querySelector('.td-estado')?.value || '',
       tipo: row.querySelector('.td-tipo')?.value || '',
       rangos: row.querySelector('.td-rangos')?.value || '',
-      largo: row.querySelector('.td-largo')?.value || '',
       dist: row.querySelector('.td-dist')?.value || ''
     };
   });
   const rows = parcelas.map(p => {
-    const dim = getDimParcela(fundo, eq, tr, p); // {largo, ancho} si viene del KMZ (por ahora solo Huaca)
     const v = prev[p] || {
       ha: getHaParcela(fundo, eq, tr, p) ?? '',
-      ancho: dim ? dim.ancho : '',
-      estado: '', tipo: '', rangos: '',
-      largo: dim ? dim.largo : '',
-      dist: ''
+      ancho: '', nlineas: '', estado: '', tipo: '', rangos: '', dist: ''
     };
     return `
       <tr class="td-row" data-parcela="${p}">
         <td class="pp-parcela">${p}</td>
         <td><input type="number" class="pp-input td-ha" value="${v.ha}" placeholder="0.00" step="0.01" min="0" oninput="onTendidoTableInput()"/></td>
-        <td><input type="number" class="pp-input td-ancho" value="${v.ancho}" placeholder="0.0" step="0.1" min="0" oninput="onTendidoTableInput()" title="Ancho de la parcela = largo de la manguera (m)"/></td>
+        <td><input type="number" class="pp-input td-ancho" value="${v.ancho}" placeholder="0.0" step="0.1" min="0" oninput="onTendidoTableInput()" title="Longitud de cada manguera en metros"/></td>
+        <td><input type="number" class="pp-input td-nlineas" value="${v.nlineas}" placeholder="0" step="1" min="0" oninput="onTendidoTableInput()" title="Número total de líneas tendidas"/></td>
         <td>
           <select class="pp-input td-estado" onchange="onTendidoTableInput()">
             <option value="" ${!v.estado?'selected':''}>—</option>
@@ -1177,8 +1174,7 @@ function buildTendidoParcelasTable(){
             <option value="0.57 m" ${v.tipo==='0.57 m'?'selected':''}>0.57 m</option>
           </select>
         </td>
-        <td><input type="text" class="pp-input td-rangos" value="${v.rangos}" placeholder="Ej: 2-15,20,25-30" style="width:130px;" oninput="onTendidoTableInput()" title="Líneas tendidas (pueden ser no consecutivas)"/></td>
-        <td><input type="number" class="pp-input td-largo" value="${v.largo}" placeholder="0.0" step="0.1" min="0" oninput="onTendidoTableInput()" title="Largo de la parcela, perpendicular a las mangueras"/></td>
+        <td><input type="text" class="pp-input td-rangos" value="${v.rangos}" placeholder="Ej: 2-15,20,25-30" style="width:120px;" oninput="onTendidoTableInput()" title="Líneas tendidas (pueden ser no consecutivas)"/></td>
         <td><input type="number" class="pp-input td-dist" value="${v.dist}" placeholder="0.0" step="0.1" min="0" oninput="onTendidoTableInput()"/></td>
         <td class="pp-total" id="td-hatendida-${p}">0.00</td>
       </tr>`;
@@ -1186,7 +1182,7 @@ function buildTendidoParcelasTable(){
   wrap.innerHTML = `
     <div class="pp-table-scroll">
       <table class="pp-table">
-        <thead><tr><th>Parcela</th><th>Ha</th><th>Ancho parc. (m)</th><th>Estado de manguera</th><th>Tipo de manguera</th><th>Líneas tendidas</th><th>Largo de parcela (m)</th><th>Distanc. surcos (m)</th><th>Ha tendida</th></tr></thead>
+        <thead><tr><th>Parcela</th><th>Ha</th><th>Longitud de manguera (m)</th><th>N° de Líneas</th><th>Estado de manguera</th><th>Tipo de manguera</th><th>Líneas tendidas</th><th>Distanc. surcos (m)</th><th>Ha tendida</th></tr></thead>
         <tbody>${rows}</tbody>
         <tfoot><tr><td>Total</td><td id="td-total-ha">0.00</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td id="td-total-hatendida">0.00</td></tr></tfoot>
       </table>
@@ -1216,22 +1212,21 @@ function contarLineasEnRangos(rangos){
 // Mapa visual: rectángulo de la parcela con una línea por manguera,
 // numerada de DERECHA a IZQUIERDA, resaltando los tramos tendidos
 // (pueden ser varios rangos no consecutivos).
-function buildTendidoMiniMapa(parcela, largo, ancho, dist, rangosStr){
-  largo = parseFloat(largo) || 0;
+function buildTendidoMiniMapa(parcela, largo, ancho, dist, rangosStr, nlineas){
   ancho = parseFloat(ancho) || 0;
-  dist = parseFloat(dist) || 0;
-  if (!largo || !ancho || !dist){
+  nlineas = parseInt(nlineas) || 0;
+  if (!ancho || !nlineas){
     return `<div class="form-card" style="padding:12px;">
       <div style="font-size:0.72rem;font-weight:700;color:var(--azul-oscuro);margin-bottom:6px;">📍 Parcela ${parcela}</div>
-      <div class="verify-empty" style="padding:10px;">Completa Ancho, Largo y Distanciamiento de esta parcela para ver el mapa</div>
+      <div class="verify-empty" style="padding:10px;">Completa Longitud de manguera y N° de Líneas para ver el mapa</div>
     </div>`;
   }
-  const totalLineas = Math.max(1, Math.round(largo / dist));
+  const totalLineas = nlineas;
   const rangos = parseRangosLineas(rangosStr).map(([a,b]) => [Math.max(1,a), Math.min(totalLineas,b)]);
   const activasSet = new Set();
   rangos.forEach(([a,b]) => { for (let i=a; i<=b; i++) activasSet.add(i); });
 
-  const vbW = 320, vbH = Math.max(70, Math.min(220, Math.round(320 * (largo / ancho))));
+  const vbW = 320, vbH = 120;
   let lineas = '';
   // Numeración de IZQUIERDA a DERECHA: la línea N°1 va en el borde izquierdo.
   for (let i = 1; i <= totalLineas; i++){
@@ -1246,7 +1241,7 @@ function buildTendidoMiniMapa(parcela, largo, ancho, dist, rangosStr){
       <svg width="100%" height="${vbH+12}" viewBox="0 0 ${vbW} ${vbH}" style="background:#F0F8FB;border-radius:8px;">${lineas}</svg>
     </div>
     <div style="font-size:0.66rem;color:var(--texto-suave);margin-top:5px;">
-      Total de líneas: ${totalLineas} (largo ${largo} m ÷ ${dist} m) · Líneas resaltadas: ${activasSet.size} · Numeración de izquierda a derecha
+      Total de líneas: ${totalLineas} · Líneas resaltadas: ${activasSet.size} · Numeración de izquierda a derecha
     </div>
   </div>`;
 }
@@ -1258,18 +1253,19 @@ function onTendidoTableInput(){
   document.querySelectorAll('.td-row').forEach(row => {
     const parcela = row.dataset.parcela;
     const ha = parseFloat(row.querySelector('.td-ha')?.value) || 0;
-    const ancho = row.querySelector('.td-ancho')?.value || '';
+    const ancho = parseFloat(row.querySelector('.td-ancho')?.value) || 0;   // longitud de manguera
+    const nlineas = parseInt(row.querySelector('.td-nlineas')?.value) || 0; // N° de líneas manual
     const rangosStr = row.querySelector('.td-rangos')?.value || '';
-    const largo = row.querySelector('.td-largo')?.value || '';
     const dist = row.querySelector('.td-dist')?.value || '';
-    const numLineas = contarLineasEnRangos(parseRangosLineas(rangosStr));
-    // El ANCHO de la parcela equivale al largo de cada manguera; el área
-    // tendida usa esa longitud, no el "largo" (que es perpendicular).
-    const haTendida = numLineas > 0 ? (numLineas * (parseFloat(ancho)||0)) / 5550 : 0;
+    // Fórmula: (longitud × N°líneas) / 150 / divisor
+    const divisor = getDivisorHasPorTender(dist); // 37 si 1.8m, 42 si 1.6m
+    const haTendida = (ancho > 0 && nlineas > 0 && divisor)
+      ? (ancho * nlineas) / 150 / divisor : 0;
     const cell = row.querySelector('.pp-total');
     if (cell) cell.textContent = haTendida.toFixed(2);
     totalHa += ha; totalHaTendida += haTendida;
-    mapasHtml += buildTendidoMiniMapa(parcela, largo, ancho, dist, rangosStr);
+    // Mini-mapa sigue usando los rangos de líneas para visualizar cuáles están pintadas
+    mapasHtml += buildTendidoMiniMapa(parcela, 0, ancho, parseFloat(dist)||0, rangosStr, nlineas);
   });
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('td-total-ha', totalHa.toFixed(2));
@@ -1284,20 +1280,21 @@ function getTendidoParcelasData(){
   document.querySelectorAll('.td-row').forEach(row => {
     const parcela = row.dataset.parcela;
     const ha = parseFloat(row.querySelector('.td-ha')?.value) || 0;
-    const ancho = parseFloat(row.querySelector('.td-ancho')?.value) || 0;
+    const ancho = parseFloat(row.querySelector('.td-ancho')?.value) || 0;   // longitud de manguera
+    const nlineas = parseInt(row.querySelector('.td-nlineas')?.value) || 0; // N° de líneas manual
     const estado = row.querySelector('.td-estado')?.value || '';
     const tipo = row.querySelector('.td-tipo')?.value || '';
     const rangosStr = row.querySelector('.td-rangos')?.value || '';
-    const largo = parseFloat(row.querySelector('.td-largo')?.value) || 0;
     const dist = parseFloat(row.querySelector('.td-dist')?.value) || 0;
     const rangos = parseRangosLineas(rangosStr);
-    const numLineas = contarLineasEnRangos(rangos);
-    // El ANCHO de la parcela = largo de cada manguera (se usa para el área tendida)
-    const haTendida = parseFloat(((numLineas*ancho)/5550).toFixed(2));
+    const divisor = getDivisorHasPorTender(dist) ?? null;
+    const haTendida = (ancho > 0 && nlineas > 0 && divisor)
+      ? parseFloat(((ancho * nlineas) / 150 / divisor).toFixed(2)) : 0;
     rows.push({
-      parcela, ha, ancho_parcela: ancho, estado_manguera: estado, tipo_manguera: tipo,
-      rangos_lineas: rangos, lineas_tendidas: numLineas,
-      largo_lineas: largo, distanciamiento_surcos: dist, ha_tendida: haTendida
+      parcela, ha, longitud_manguera: ancho, n_lineas: nlineas,
+      estado_manguera: estado, tipo_manguera: tipo,
+      rangos_lineas: rangos, lineas_tendidas: contarLineasEnRangos(rangos),
+      distanciamiento_surcos: dist, ha_tendida: haTendida
     });
   });
   return rows;
@@ -2326,7 +2323,14 @@ function buildTabsShell(laborId, ejecutadoHtml){
     <div id="tab-ejecutado">${ejecutadoHtml}</div>
     <div id="tab-registros" class="hidden">
       <div id="tab-registros-avance"></div>
-      <div id="form-registros-anteriores" style="margin-top:10px;"></div>
+      <div class="form-grid" style="margin:10px 0 8px;" id="tab-registros-filtros">
+        <select id="reg-filter-fundo" onchange="aplicarFiltrosRegistrosTab()" style="font-size:0.74rem;">
+          <option value="">Todos los fundos</option>
+          <option>Huaca</option><option>Lobo 1</option><option>Lobo 2</option><option>Buenaventura</option>
+        </select>
+        <input type="text" id="reg-filter-eqtr" placeholder="Filtrar EQ-TR..." oninput="aplicarFiltrosRegistrosTab()" style="font-size:0.74rem;"/>
+      </div>
+      <div id="form-registros-anteriores" style="margin-top:4px;"></div>
     </div>
     <div id="tab-programado" class="hidden">
       <div class="form-card" id="programar-toggle-wrap">
@@ -2495,7 +2499,11 @@ function precargarFormulario(r){
         const row = document.querySelector(`.td-row[data-parcela="${d.parcela}"]`);
         if (!row) return;
         row.querySelector('.td-ha').value = d.ha ?? '';
-        row.querySelector('.td-ancho').value = d.ancho_parcela ?? '';
+        // Compatibilidad: campo renombrado de ancho_parcela/longitud_manguera
+        row.querySelector('.td-ancho').value = d.longitud_manguera ?? d.ancho_parcela ?? '';
+        // Campo nuevo N° de líneas
+        const nlineasEl = row.querySelector('.td-nlineas');
+        if (nlineasEl) nlineasEl.value = d.n_lineas ?? '';
         row.querySelector('.td-estado').value = d.estado_manguera ?? '';
         row.querySelector('.td-tipo').value = d.tipo_manguera ?? '';
         // Compatibilidad con registros viejos que solo tenían un rango (linea_desde/linea_hasta)
@@ -2506,7 +2514,6 @@ function precargarFormulario(r){
           rangosTexto = d.linea_desde === d.linea_hasta ? `${d.linea_desde}` : `${d.linea_desde}-${d.linea_hasta}`;
         }
         row.querySelector('.td-rangos').value = rangosTexto;
-        row.querySelector('.td-largo').value = d.largo_lineas ?? '';
         row.querySelector('.td-dist').value = d.distanciamiento_surcos ?? '';
       });
       if (detalle.length) onTendidoTableInput();
@@ -2822,37 +2829,46 @@ const COLUMNAS_LABOR = {
   ],
 };
 
+let _regTabData = []; // todos los registros del tab Registros
+let _regTabLaborId = '';
+
 async function cargarRegistrosAnterioresForm(laborId){
   const cont = document.getElementById('form-registros-anteriores');
   const avanceCont = document.getElementById('tab-registros-avance');
   if (!cont) return;
   cont.innerHTML = '<div class="empty-state">Cargando registros...</div>';
   if (avanceCont) avanceCont.innerHTML = '';
+  _regTabLaborId = laborId;
 
   const fundo = val('f-fundo'), eq = val('f-eq'), tr = val('f-tr');
   const eqtr = (eq && tr) ? `${eq}-${tr}` : null;
 
   try{
-    // Cargar todos los registros de esta labor, filtrando por EQ-TR si ya está seleccionado
-    let url = `labores_campo?labor=eq.${laborId}&order=created_at.desc&limit=200`;
-    if (eqtr) url += `&equipo=eq.${eqtr}`;
-    if (fundo) url += `&fundo=eq.${encodeURIComponent(fundo)}`;
-    const res = await sbFetch(url);
+    // Traer todos los registros de esta labor, orden más reciente primero
+    const res = await sbFetch(`labores_campo?labor=eq.${laborId}&order=created_at.desc&limit=500`);
     if (!res.ok) throw new Error();
-    const data = await res.json();
-    cont.innerHTML = renderTablaLabor(laborId, data.slice(0,10), true);
+    _regTabData = await res.json();
 
-    // --- AVANCE ACUMULADO ---
-    if (avanceCont && eqtr && fundo && data.length){
-      // Sumar avance_ha de todos los registros de esta labor en este EQ-TR
-      const totalAvance = data.reduce((s, r) => s + (r.datos_extra?.avance_ha || 0), 0);
-      // Total de hectáreas del turno (sumando todas las parcelas del EQ-TR en el fundo)
+    // Poblar los filtros con los valores reales que hay en los datos
+    const filtroFundo = document.getElementById('reg-filter-fundo');
+    const filtroEqTr = document.getElementById('reg-filter-eqtr');
+    if (filtroFundo){
+      const fundos = [...new Set(_regTabData.map(r=>r.fundo).filter(Boolean))].sort();
+      const actualF = filtroFundo.value;
+      filtroFundo.innerHTML = '<option value="">Todos los fundos</option>' + fundos.map(f=>`<option${f===actualF?' selected':''}>${f}</option>`).join('');
+    }
+
+    aplicarFiltrosRegistrosTab();
+
+    // --- AVANCE ACUMULADO (usa EQ-TR seleccionado en Ejecutado) ---
+    if (avanceCont && eqtr && fundo){
+      const dataEqTr = _regTabData.filter(r => r.equipo === eqtr && r.fundo === fundo);
+      const totalAvance = dataEqTr.reduce((s, r) => s + (r.datos_extra?.avance_ha || 0), 0);
       const parcelas = getParcelasMap(fundo)[eqtr] || [];
       const totalHaTurno = parcelas.reduce((s, p) => s + (getHaParcela(fundo, eq, tr, p) || 0), 0);
       const pct = totalHaTurno > 0 ? Math.min(100, (totalAvance / totalHaTurno) * 100) : null;
       const terminado = pct !== null && pct >= 100;
       const barColor = terminado ? '#27AE60' : pct >= 70 ? '#E67E22' : 'var(--azul)';
-
       avanceCont.innerHTML = `
         <div class="form-card" style="padding:14px;">
           <div class="section-title" style="margin-bottom:10px;">📊 Avance acumulado en ${eqtr} · ${fundo}</div>
@@ -2867,16 +2883,32 @@ async function cargarRegistrosAnterioresForm(laborId){
             ${terminado ? `<div style="font-size:0.78rem;font-weight:700;color:#27AE60;text-align:center;">✅ ¡Labor completada en este turno!</div>` :
               `<div style="font-size:0.72rem;color:var(--texto-suave);">Faltan ${(totalHaTurno - totalAvance).toFixed(2)} ha para completar la labor en este turno.</div>`}
           ` : `
-            <div style="font-size:0.72rem;color:var(--texto-suave);">Sin datos de hectáreas para calcular el avance. Asegúrate de tener parcelas registradas en el KMZ para este EQ-TR.</div>
+            <div style="font-size:0.72rem;color:var(--texto-suave);">Sin datos de hectáreas para calcular el avance.</div>
           `}
-          <div style="font-size:0.66rem;color:var(--texto-suave);margin-top:6px;">Basado en ${data.length} registro${data.length!==1?'s':''} de esta labor en este turno.</div>
+          <div style="font-size:0.66rem;color:var(--texto-suave);margin-top:6px;">Basado en ${dataEqTr.length} registro${dataEqTr.length!==1?'s':''} de esta labor en este turno.</div>
         </div>`;
     } else if (avanceCont && !eqtr){
-      avanceCont.innerHTML = `<div class="form-card" style="padding:14px;"><div style="font-size:0.72rem;color:var(--texto-suave);">Selecciona Fundo, EQ y TR en la pestaña "Ejecutado" para ver el avance acumulado de ese turno.</div></div>`;
+      avanceCont.innerHTML = `<div class="form-card" style="padding:14px;"><div style="font-size:0.72rem;color:var(--texto-suave);">Selecciona Fundo, EQ y TR en "Ejecutado" para ver el avance acumulado de ese turno.</div></div>`;
     }
   }catch(err){
     cont.innerHTML = '<div class="empty-state">No se pudieron cargar los registros</div>';
   }
+}
+
+function aplicarFiltrosRegistrosTab(){
+  const cont = document.getElementById('form-registros-anteriores');
+  if (!cont || !_regTabData.length) return;
+  const filtroFundo = (val('reg-filter-fundo') || '').trim();
+  const filtroEqTr  = (val('reg-filter-eqtr')  || '').trim().toUpperCase();
+  let filtered = _regTabData;
+  if (filtroFundo) filtered = filtered.filter(r => r.fundo === filtroFundo);
+  if (filtroEqTr)  filtered = filtered.filter(r => (r.equipo||'').toUpperCase().includes(filtroEqTr));
+  // Ya vienen ordenados por created_at desc desde Supabase (más reciente primero)
+  cont.innerHTML = renderTablaLabor(_regTabLaborId, filtered.slice(0,50), true);
+  const n = document.createElement('div');
+  n.style.cssText = 'font-size:0.65rem;color:var(--texto-suave);margin-top:6px;text-align:right;';
+  n.textContent = `Mostrando ${Math.min(50,filtered.length)} de ${filtered.length} registros (más reciente primero)`;
+  cont.appendChild(n);
 }
 function renderTablaLabor(laborId, registros, soloLectura){
   const labor = LABORES.find(l => l.id === laborId);
