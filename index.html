@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.15.0"/>
+<meta name="app-version" content="4.15.2"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -55,6 +55,7 @@
   .timeline-step{display:flex;flex-direction:column;align-items:center;flex:0 0 auto;width:72px;}
   .timeline-circle{width:44px;height:44px;border-radius:50%;border:2.5px solid var(--borde);background:#fff;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:700;text-align:center;color:var(--texto-suave);transition:all .25s;line-height:1.2;padding:4px;}
   .timeline-circle.done{background:var(--azul-oscuro);border-color:var(--azul-oscuro);color:#fff;}
+  .timeline-circle.en-progreso{background:#E67E22;border-color:#E67E22;color:#fff;}
   .timeline-step-label{font-size:0.52rem;color:var(--texto-suave);margin-top:5px;text-align:center;width:72px;line-height:1.3;}
   .timeline-step-label.done{color:var(--azul-oscuro);font-weight:700;}
   .timeline-line{height:2.5px;flex:1;min-width:10px;background:var(--borde);}
@@ -272,7 +273,6 @@
     </div>
     <div id="form-container"></div>
     <button class="btn" id="btn-guardar-registro" onclick="guardarLabor()">💾 Guardar registro</button>
-    <div id="form-mapa-fundo-tendido" style="margin-top:14px;"></div>
   </section>
 
   <section id="view-lista" class="hidden">
@@ -464,7 +464,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.15.0';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.15.2';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -2077,11 +2077,11 @@ function irKpis(){
 // ============================================================
 // Las 5 etapas fijas del protocolo de partida de inicio
 const PASOS_PARTIDA = [
-  { num:1, label:'Entable', laborId:'entable', check: r => r.labor === 'entable' },
-  { num:2, label:'Purga con pig', laborId:'purga', check: r => r.labor === 'purga' },
-  { num:3, label:'Calibración', laborId:'calibracion', check: r => r.labor === 'calibracion' },
-  { num:4, label:'Aplicación Aquazix', laborId:'aplicacion', check: r => r.labor === 'aplicacion' && r.insumo === 'Aquazix' },
-  { num:5, label:'Aplicación Ac. sulfúrico', laborId:'aplicacion', check: r => r.labor === 'aplicacion' && r.insumo === 'Ac. Sulfúrico' },
+  { num:1, label:'Entable',             laborId:'entable',    tipo:'progreso', check: r => r.labor === 'entable' },
+  { num:2, label:'Purga con pig',       laborId:'purga',      tipo:'progreso', check: r => r.labor === 'purga' },
+  { num:3, label:'Calibración',         laborId:'calibracion',tipo:'simple',   check: r => r.labor === 'calibracion' },
+  { num:4, label:'Aplicación Aquazix',  laborId:'aplicacion', tipo:'simple',   check: r => r.labor === 'aplicacion' && r.insumo === 'Aquazix' },
+  { num:5, label:'Aplicación Ac. sulfúrico', laborId:'aplicacion', tipo:'simple', check: r => r.labor === 'aplicacion' && r.insumo === 'Ac. Sulfúrico' },
 ];
 
 let _partidaData = []; // historial completo cargado una vez
@@ -2096,7 +2096,7 @@ async function irPartidaInicio(){
     // Solo EQ-TR cuya fecha de cultivo fue actualizada en los últimos 30 días
     const hace30dias = new Date(Date.now() - 30*24*60*60*1000).toISOString();
     const [resLabores, resFcultivo] = await Promise.all([
-      sbFetch('labores_campo?select=labor,equipo,fundo,insumo,fecha&order=fecha.desc&limit=2000'),
+      sbFetch('labores_campo?select=labor,equipo,fundo,insumo,fecha,datos_extra&order=fecha.desc&limit=2000'),
       sbFetch(`fcultivo_overrides?select=eq_tr,fecha_cultivo,updated_at&updated_at=gte.${hace30dias}&limit=500`)
     ]);
     if (!resLabores.ok) throw new Error();
@@ -2164,23 +2164,43 @@ function renderPartidaLista(){
   }
 
   lista.innerHTML = items.map(g => {
-    const pasosDone = PASOS_PARTIDA.map(paso => g.registros.some(r => paso.check(r)));
-    const completos = pasosDone.filter(Boolean).length;
+    // Para cada paso calcular si está completo y qué mostrar en el círculo
+    const pasosInfo = PASOS_PARTIDA.map(paso => {
+      const registrosPaso = g.registros.filter(r => paso.check(r));
+      if (paso.tipo === 'progreso'){
+        // Sumar avance_ha y comparar con total del turno
+        const totalAvance = registrosPaso.reduce((s,r) => s + (r.datos_extra?.avance_ha || 0), 0);
+        const [eq, tr] = g.eqtr.split('-');
+        const parcelas = getParcelasMap(g.fundo)[g.eqtr] || [];
+        const totalHa = parcelas.reduce((s,p) => s + (getHaParcela(g.fundo, eq, tr, p) || 0), 0);
+        const pct = totalHa > 0 ? Math.min(100, (totalAvance / totalHa) * 100) : (registrosPaso.length > 0 ? 100 : 0);
+        const done = pct >= 100;
+        const texto = done ? '✓' : (pct > 0 ? Math.round(pct) + '%' : paso.num);
+        return { done, pct: Math.round(pct), texto };
+      } else {
+        // Simple: basta con que exista un registro
+        const done = registrosPaso.length > 0;
+        return { done, pct: done ? 100 : 0, texto: done ? '✓' : paso.num };
+      }
+    });
 
+    const completos = pasosInfo.filter(p => p.done).length;
     let timelineHtml = '';
     PASOS_PARTIDA.forEach((paso, idx) => {
-      const done = pasosDone[idx];
-      const lineaDone = idx > 0 && pasosDone[idx-1];
+      const info = pasosInfo[idx];
+      const lineaDone = idx > 0 && pasosInfo[idx-1].done;
       if (idx > 0) timelineHtml += `<div class="timeline-line ${lineaDone ? 'done' : ''}"></div>`;
+      // Color del círculo: azul oscuro si done, naranja si en progreso, borde solo si no iniciado
+      const circleCls = info.done ? 'done' : (info.pct > 0 ? 'en-progreso' : '');
       timelineHtml += `
         <div class="timeline-step">
-          <div class="timeline-circle ${done ? 'done' : ''}">${done ? '✓' : paso.num}</div>
-          <div class="timeline-step-label ${done ? 'done' : ''}">${paso.label}</div>
+          <div class="timeline-circle ${circleCls}">${info.texto}</div>
+          <div class="timeline-step-label ${info.done ? 'done' : ''}">${paso.label}</div>
         </div>`;
     });
 
-    const pct = Math.round(completos / PASOS_PARTIDA.length * 100);
-    const barColor = pct === 100 ? '#27AE60' : pct >= 60 ? '#E67E22' : 'var(--azul)';
+    const pctGeneral = Math.round(completos / PASOS_PARTIDA.length * 100);
+    const barColor = pctGeneral === 100 ? '#27AE60' : pctGeneral >= 60 ? '#E67E22' : 'var(--azul)';
     return `
       <div class="partida-card">
         <div class="partida-eqtr">${g.eqtr} <span style="font-weight:400;color:var(--texto-suave);font-size:0.74rem;">· ${g.fundo}</span>
@@ -2188,7 +2208,7 @@ function renderPartidaLista(){
         </div>
         <div class="timeline-wrap">${timelineHtml}</div>
         <div style="margin-top:10px;background:var(--fondo);border-radius:6px;height:6px;overflow:hidden;">
-          <div style="height:6px;background:${barColor};width:${pct}%;border-radius:6px;transition:width .4s;"></div>
+          <div style="height:6px;background:${barColor};width:${pctGeneral}%;border-radius:6px;transition:width .4s;"></div>
         </div>
       </div>`;
   }).join('');
@@ -2328,9 +2348,12 @@ function buildTabsShell(laborId, ejecutadoHtml){
           <option value="">Todos los fundos</option>
           <option>Huaca</option><option>Lobo 1</option><option>Lobo 2</option><option>Buenaventura</option>
         </select>
-        <input type="text" id="reg-filter-eqtr" placeholder="Filtrar EQ-TR..." oninput="aplicarFiltrosRegistrosTab()" style="font-size:0.74rem;"/>
+        <select id="reg-filter-eqtr" onchange="aplicarFiltrosRegistrosTab()" style="font-size:0.74rem;">
+          <option value="">Todos los EQ-TR</option>
+        </select>
       </div>
       <div id="form-registros-anteriores" style="margin-top:4px;"></div>
+      ${laborId === 'tendido' ? '<div id="form-mapa-fundo-tendido" style="margin-top:14px;"></div>' : ''}
     </div>
     <div id="tab-programado" class="hidden">
       <div class="form-card" id="programar-toggle-wrap">
@@ -2452,11 +2475,9 @@ function abrirFormulario(laborId, registroExistente){
       if (el) el.addEventListener('input', calcularMejoriaCaudal);
     });
   }
-  if (laborId === 'tendido'){
-    initMapaFundoTendido();
-  } else {
-    document.getElementById('form-mapa-fundo-tendido').innerHTML = '';
-  }
+  // El mapa del fundo para Tendido se carga en el tab "Registros", no aquí
+  const mapaDiv = document.getElementById('form-mapa-fundo-tendido');
+  if (mapaDiv) mapaDiv.innerHTML = '';
 }
 
 function precargarFormulario(r){
@@ -2849,47 +2870,21 @@ async function cargarRegistrosAnterioresForm(laborId){
     if (!res.ok) throw new Error();
     _regTabData = await res.json();
 
-    // Poblar los filtros con los valores reales que hay en los datos
+    // Poblar filtros con los valores reales de los datos
     const filtroFundo = document.getElementById('reg-filter-fundo');
-    const filtroEqTr = document.getElementById('reg-filter-eqtr');
+    const filtroEqTr  = document.getElementById('reg-filter-eqtr');
     if (filtroFundo){
       const fundos = [...new Set(_regTabData.map(r=>r.fundo).filter(Boolean))].sort();
       const actualF = filtroFundo.value;
       filtroFundo.innerHTML = '<option value="">Todos los fundos</option>' + fundos.map(f=>`<option${f===actualF?' selected':''}>${f}</option>`).join('');
     }
-
-    aplicarFiltrosRegistrosTab();
-
-    // --- AVANCE ACUMULADO (usa EQ-TR seleccionado en Ejecutado) ---
-    if (avanceCont && eqtr && fundo){
-      const dataEqTr = _regTabData.filter(r => r.equipo === eqtr && r.fundo === fundo);
-      const totalAvance = dataEqTr.reduce((s, r) => s + (r.datos_extra?.avance_ha || 0), 0);
-      const parcelas = getParcelasMap(fundo)[eqtr] || [];
-      const totalHaTurno = parcelas.reduce((s, p) => s + (getHaParcela(fundo, eq, tr, p) || 0), 0);
-      const pct = totalHaTurno > 0 ? Math.min(100, (totalAvance / totalHaTurno) * 100) : null;
-      const terminado = pct !== null && pct >= 100;
-      const barColor = terminado ? '#27AE60' : pct >= 70 ? '#E67E22' : 'var(--azul)';
-      avanceCont.innerHTML = `
-        <div class="form-card" style="padding:14px;">
-          <div class="section-title" style="margin-bottom:10px;">📊 Avance acumulado en ${eqtr} · ${fundo}</div>
-          ${pct !== null ? `
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-              <span style="font-size:0.78rem;color:var(--texto-suave);">${totalAvance.toFixed(2)} ha avanzadas de ${totalHaTurno.toFixed(2)} ha totales</span>
-              <span style="font-size:1.1rem;font-weight:700;color:${barColor};">${pct.toFixed(1)}%</span>
-            </div>
-            <div style="background:var(--fondo);border-radius:8px;height:14px;overflow:hidden;margin-bottom:8px;">
-              <div style="height:14px;background:${barColor};width:${pct.toFixed(1)}%;border-radius:8px;transition:width .4s;"></div>
-            </div>
-            ${terminado ? `<div style="font-size:0.78rem;font-weight:700;color:#27AE60;text-align:center;">✅ ¡Labor completada en este turno!</div>` :
-              `<div style="font-size:0.72rem;color:var(--texto-suave);">Faltan ${(totalHaTurno - totalAvance).toFixed(2)} ha para completar la labor en este turno.</div>`}
-          ` : `
-            <div style="font-size:0.72rem;color:var(--texto-suave);">Sin datos de hectáreas para calcular el avance.</div>
-          `}
-          <div style="font-size:0.66rem;color:var(--texto-suave);margin-top:6px;">Basado en ${dataEqTr.length} registro${dataEqTr.length!==1?'s':''} de esta labor en este turno.</div>
-        </div>`;
-    } else if (avanceCont && !eqtr){
-      avanceCont.innerHTML = `<div class="form-card" style="padding:14px;"><div style="font-size:0.72rem;color:var(--texto-suave);">Selecciona Fundo, EQ y TR en "Ejecutado" para ver el avance acumulado de ese turno.</div></div>`;
+    if (filtroEqTr){
+      const eqtrs = [...new Set(_regTabData.map(r=>r.equipo).filter(Boolean))].sort();
+      const actualE = filtroEqTr.value;
+      filtroEqTr.innerHTML = '<option value="">Todos los EQ-TR</option>' + eqtrs.map(e=>`<option${e===actualE?' selected':''}>${e}</option>`).join('');
     }
+
+    aplicarFiltrosRegistrosTab();  // renderiza tabla y avance
   }catch(err){
     cont.innerHTML = '<div class="empty-state">No se pudieron cargar los registros</div>';
   }
@@ -2897,18 +2892,62 @@ async function cargarRegistrosAnterioresForm(laborId){
 
 function aplicarFiltrosRegistrosTab(){
   const cont = document.getElementById('form-registros-anteriores');
+  const avanceCont = document.getElementById('tab-registros-avance');
   if (!cont || !_regTabData.length) return;
   const filtroFundo = (val('reg-filter-fundo') || '').trim();
-  const filtroEqTr  = (val('reg-filter-eqtr')  || '').trim().toUpperCase();
+  const filtroEqTr  = (val('reg-filter-eqtr')  || '').trim();
+
+  // Actualizar opciones de EQ-TR según el fundo seleccionado
+  const selectEqTr = document.getElementById('reg-filter-eqtr');
+  if (selectEqTr){
+    const base = filtroFundo
+      ? _regTabData.filter(r => r.fundo === filtroFundo)
+      : _regTabData;
+    const eqtrs = [...new Set(base.map(r=>r.equipo).filter(Boolean))].sort();
+    const actualE = filtroEqTr;
+    selectEqTr.innerHTML = '<option value="">Todos los EQ-TR</option>' + eqtrs.map(e=>`<option${e===actualE?' selected':''}>${e}</option>`).join('');
+    if (actualE && !eqtrs.includes(actualE)) selectEqTr.value = '';
+  }
+
   let filtered = _regTabData;
   if (filtroFundo) filtered = filtered.filter(r => r.fundo === filtroFundo);
-  if (filtroEqTr)  filtered = filtered.filter(r => (r.equipo||'').toUpperCase().includes(filtroEqTr));
+  if (filtroEqTr)  filtered = filtered.filter(r => r.equipo === filtroEqTr);
   // Ya vienen ordenados por created_at desc desde Supabase (más reciente primero)
   cont.innerHTML = renderTablaLabor(_regTabLaborId, filtered.slice(0,50), true);
   const n = document.createElement('div');
   n.style.cssText = 'font-size:0.65rem;color:var(--texto-suave);margin-top:6px;text-align:right;';
   n.textContent = `Mostrando ${Math.min(50,filtered.length)} de ${filtered.length} registros (más reciente primero)`;
   cont.appendChild(n);
+
+  // --- AVANCE ACUMULADO --- responde al filtro del tab, no al formulario Ejecutado
+  if (!avanceCont) return;
+  if (filtroEqTr && filtroFundo){
+    const totalAvance = filtered.reduce((s, r) => s + (r.datos_extra?.avance_ha || 0), 0);
+    const [eq, tr] = filtroEqTr.split('-');
+    const parcelas = getParcelasMap(filtroFundo)[filtroEqTr] || [];
+    const totalHaTurno = parcelas.reduce((s, p) => s + (getHaParcela(filtroFundo, eq, tr, p) || 0), 0);
+    const pct = totalHaTurno > 0 ? Math.min(100, (totalAvance / totalHaTurno) * 100) : null;
+    const terminado = pct !== null && pct >= 100;
+    const barColor = terminado ? '#27AE60' : pct >= 70 ? '#E67E22' : 'var(--azul)';
+    avanceCont.innerHTML = `
+      <div class="form-card" style="padding:14px;">
+        <div class="section-title" style="margin-bottom:10px;">📊 Avance acumulado en ${filtroEqTr} · ${filtroFundo}</div>
+        ${pct !== null ? `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-size:0.78rem;color:var(--texto-suave);">${totalAvance.toFixed(2)} ha avanzadas de ${totalHaTurno.toFixed(2)} ha totales</span>
+            <span style="font-size:1.1rem;font-weight:700;color:${barColor};">${pct.toFixed(1)}%</span>
+          </div>
+          <div style="background:var(--fondo);border-radius:8px;height:14px;overflow:hidden;margin-bottom:8px;">
+            <div style="height:14px;background:${barColor};width:${pct.toFixed(1)}%;border-radius:8px;transition:width .4s;"></div>
+          </div>
+          ${terminado ? `<div style="font-size:0.78rem;font-weight:700;color:#27AE60;text-align:center;">✅ ¡Labor completada en este turno!</div>` :
+            `<div style="font-size:0.72rem;color:var(--texto-suave);">Faltan ${(totalHaTurno - totalAvance).toFixed(2)} ha para completar la labor en este turno.</div>`}
+        ` : `<div style="font-size:0.72rem;color:var(--texto-suave);">Sin datos de hectáreas para calcular el avance.</div>`}
+        <div style="font-size:0.66rem;color:var(--texto-suave);margin-top:6px;">Basado en ${filtered.length} registro${filtered.length!==1?'s':''} de esta labor en este turno.</div>
+      </div>`;
+  } else {
+    avanceCont.innerHTML = `<div class="form-card" style="padding:12px;"><div style="font-size:0.72rem;color:var(--texto-suave);">Selecciona un <strong>Fundo</strong> y un <strong>EQ-TR</strong> para ver el avance acumulado de ese turno.</div></div>`;
+  }
 }
 function renderTablaLabor(laborId, registros, soloLectura){
   const labor = LABORES.find(l => l.id === laborId);
@@ -4062,6 +4101,11 @@ function switchAppTab(tab){
 
   if (tab === 'registros'){
     cargarRegistrosAnterioresForm(laborActual);
+    if (laborActual === 'tendido'){
+      // El mapa vive dentro del tab-registros → inicializar ahí
+      const mapaWrap = document.getElementById('form-mapa-fundo-tendido');
+      if (mapaWrap) initMapaFundoTendido();
+    }
   }
   if (tab === 'programado'){
     poblarProgramaSelects();
