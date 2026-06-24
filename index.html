@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.15.2"/>
+<meta name="app-version" content="4.15.3"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -464,7 +464,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.15.2';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.15.3';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -2961,14 +2961,14 @@ function renderTablaLabor(laborId, registros, soloLectura){
     </div>`;
   }
 
-  const esAdmin = currentUser && currentUser.role === 'admin';
   const filas = registros.map(r => {
     const tds = cols.map(c => `<td>${c.val(r)}</td>`).join('');
-    const acciones = (soloLectura || !esAdmin) ? '' : `
+    const puedeEditar = !soloLectura && puedEditarRegistro(r);
+    const acciones = puedeEditar ? `
       <td class="dt-acciones">
         <button onclick='editarRegistro(${JSON.stringify(r).replace(/'/g,"&#39;")})' style="padding:5px 8px;font-size:0.68rem;border:1px solid var(--borde);border-radius:6px;background:#fff;font-weight:700;color:var(--azul);margin-right:4px;">✏️</button>
-        <button onclick="eliminarRegistro(${r.id})" style="padding:5px 8px;font-size:0.68rem;border:1px solid var(--borde);border-radius:6px;background:#fff;font-weight:700;color:var(--rojo);">🗑️</button>
-      </td>`;
+        <button onclick="eliminarRegistro(${r.id},${JSON.stringify(r).replace(/'/g,"&#39;")})" style="padding:5px 8px;font-size:0.68rem;border:1px solid var(--borde);border-radius:6px;background:#fff;font-weight:700;color:var(--rojo);">🗑️</button>
+      </td>` : '';
     return `<tr>${tds}${acciones}</tr>`;
   }).join('');
 
@@ -3148,7 +3148,7 @@ function renderRecordsHistorial(records){
       ${puedeEditar ? `
       <div style="display:flex;gap:8px;margin-top:8px;">
         <button onclick='event.stopPropagation();editarRegistro(${JSON.stringify(r).replace(/'/g,"&#39;")})' style="flex:1;padding:7px;font-size:0.7rem;border:1px solid var(--borde);border-radius:8px;background:#fff;font-weight:700;color:var(--azul);">✏️ Editar</button>
-        <button onclick="event.stopPropagation();eliminarRegistro(${r.id})" style="flex:1;padding:7px;font-size:0.7rem;border:1px solid var(--borde);border-radius:8px;background:#fff;font-weight:700;color:var(--rojo);">🗑️ Eliminar</button>
+        <button onclick='event.stopPropagation();eliminarRegistro(${r.id},${JSON.stringify(r).replace(/'/g,"&#39;")})' style="flex:1;padding:7px;font-size:0.7rem;border:1px solid var(--borde);border-radius:8px;background:#fff;font-weight:700;color:var(--rojo);">🗑️ Eliminar</button>
       </div>` : ''}
     </div>`;
   }).join('');
@@ -3279,11 +3279,10 @@ function showDetail(id){
     </div>`;
   }
 
-  if (currentUser && currentUser.role === 'admin'){
-    html += `<button class="btn-danger" onclick="closeDetailModal();eliminarRegistro(${r.id})">🗑 Eliminar registro</button>`;
-  }
   if (puedEditarRegistro(r)){
-    html += `<button class="btn secundario" style="margin-top:8px;" onclick="closeDetailModal();editarRegistro(${JSON.stringify(r).replace(/'/g,'&#39;').replace(/"/g,'&quot;')})">✏️ Editar registro</button>`;
+    const rJson = JSON.stringify(r).replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+    html += `<button class="btn secundario" style="margin-top:8px;" onclick="closeDetailModal();editarRegistro(${rJson})">✏️ Editar registro</button>`;
+    html += `<button class="btn-danger" style="margin-top:8px;" onclick="closeDetailModal();eliminarRegistro(${r.id},${rJson})">🗑 Eliminar registro</button>`;
   }
 
   document.getElementById('modal-body').innerHTML = html;
@@ -3318,10 +3317,19 @@ function editarRegistro(registro){
   abrirFormulario(registro.labor, registro);
 }
 
-async function eliminarRegistro(id){
-  if (!currentUser || currentUser.role !== 'admin'){
-    showToast('Solo un administrador puede eliminar registros anteriores', 'error');
-    return;
+async function eliminarRegistro(id, registroObj){
+  // Si se pasa el objeto, verificar con la misma regla de puedEditarRegistro
+  if (registroObj){
+    if (!puedEditarRegistro(registroObj)){
+      showToast('Solo puedes eliminar tus registros del mismo día hasta las 23:59', 'error');
+      return;
+    }
+  } else {
+    // Llamada desde el modal sin objeto (solo admins)
+    if (!currentUser || currentUser.role !== 'admin'){
+      showToast('Solo un administrador puede eliminar este registro', 'error');
+      return;
+    }
   }
   if (!confirm('¿Eliminar este registro? Esta acción no se puede deshacer.')) return;
   try{
@@ -3329,6 +3337,7 @@ async function eliminarRegistro(id){
     if (!res.ok) throw new Error();
     _ejecucionesCache = null;
     showToast('Registro eliminado');
+    closeDetailModal();
     cargarHistorial();
   }catch(err){
     showToast('Error al eliminar', 'error');
