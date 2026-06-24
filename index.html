@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.15.5"/>
+<meta name="app-version" content="4.15.7"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -464,7 +464,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.15.5';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.15.7';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -3304,11 +3304,16 @@ function puedEditarRegistro(r){
     (r.datos_extra?._usuario && r.datos_extra._usuario === currentUser.user) ||
     (r.controlador && r.controlador.toLowerCase() === currentUser.nombre.toLowerCase());
   if (!mismoUsuario) return false;
-  // Verificar que fue creado hoy (comparando fecha local, sin importar la hora)
-  if (!r.created_at) return false;
-  const creadoEnLocal = new Date(r.created_at);
-  const ahora = new Date();
-  return creadoEnLocal.toLocaleDateString() === ahora.toLocaleDateString();
+  // Verificar que fue creado hoy usando el campo 'fecha' (local), tolerante a
+  // ambos formatos: YYYY-MM-DD (ISO) y DD-MM-YYYY (formato Perú).
+  if (!r.fecha) return false;
+  const hoy = new Date();
+  const d = String(hoy.getDate()).padStart(2,'0');
+  const m = String(hoy.getMonth()+1).padStart(2,'0');
+  const y = String(hoy.getFullYear());
+  const hoyISO = `${y}-${m}-${d}`;
+  const hoyPE  = `${d}-${m}-${y}`;
+  return r.fecha === hoyISO || r.fecha === hoyPE;
 }
 
 function editarRegistro(registro){
