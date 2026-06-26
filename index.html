@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.2"/>
+<meta name="app-version" content="4.17.3"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -465,7 +465,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.2';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.3';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -3475,7 +3475,12 @@ async function guardarProgramaDesdeExcel(){
     _ganttSemana = lunes;
     await renderGantt();
   }catch(e){
-    showToast('Error al guardar en Supabase: ' + e.message, 'error');
+    const msg = e.message || '';
+    if (msg.includes('datos_extra') || msg.includes('PGRST204')){
+      showToast('⚠️ Falta la columna datos_extra en Supabase. Ejecuta en SQL Editor:\nALTER TABLE programa_aplicaciones ADD COLUMN IF NOT EXISTS datos_extra JSONB DEFAULT \'{}\';', 'error');
+    } else {
+      showToast('Error al guardar: ' + msg, 'error');
+    }
     console.error(e);
   }
 }
