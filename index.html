@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.3"/>
+<meta name="app-version" content="4.17.4"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -465,7 +465,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.3';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.4';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -3431,12 +3431,10 @@ async function guardarProgramaDesdeExcel(){
   const diasMarcados = [0,1,2,3,4,5].filter(i => document.getElementById(`prog-check-${i}`)?.checked);
   if (!diasMarcados.length){ showToast('Marca al menos un día', 'error'); return; }
 
-  showToast(`⏳ Guardando ${_excelProgData.length * diasMarcados.length} registros...`);
-
-  // Construir todos los registros: un registro por lote × fertilizante × día
+  // Construir todos los registros
   const registros = [];
   _excelProgData.forEach(r => {
-    const sacosXDia = r.sacos_total / diasMarcados.length;
+    const sacosXDia = Math.round((r.sacos_total / diasMarcados.length) * 10) / 10;
     diasMarcados.forEach(i => {
       registros.push({
         labor: 'fertilizacion',
@@ -3447,7 +3445,7 @@ async function guardarProgramaDesdeExcel(){
         notas: r.fertilizante,
         datos_extra: {
           fertilizante: r.fertilizante,
-          bolsas_programadas: Math.round(sacosXDia * 10) / 10,
+          bolsas_programadas: sacosXDia,
           sacos_semana_total: r.sacos_total,
           semana: lunes
         }
@@ -3455,33 +3453,42 @@ async function guardarProgramaDesdeExcel(){
     });
   });
 
-  // Supabase: enviar en lotes de 50 para no sobrecargar
-  const CHUNK = 50;
-  let guardados = 0;
-  try{
-    for (let i=0; i<registros.length; i+=CHUNK){
-      const chunk = registros.slice(i, i+CHUNK);
-      const res = await sbFetch('programa_aplicaciones',{
-        method:'POST',
-        headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
-        body: JSON.stringify(chunk)
+  showToast(`⏳ Guardando ${registros.length} registros...`);
+
+  // Enviar de a 1 para evitar problemas de CORS con arrays grandes
+  let guardados = 0, errores = 0;
+  for (const reg of registros){
+    try{
+      const res = await fetch(SUPABASE_URL + '/rest/v1/programa_aplicaciones', {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=minimal'
+        },
+        body: JSON.stringify(reg)
       });
-      if (!res.ok){ const err=await res.text(); throw new Error(err); }
-      guardados += chunk.length;
+      if (res.ok){ guardados++; }
+      else {
+        const err = await res.text();
+        console.error('Error en registro:', reg.equipo, reg.fecha_programada, err);
+        errores++;
+      }
+    }catch(e){
+      console.error('Fetch error:', e);
+      errores++;
     }
-    showToast(`✅ ${guardados} registros guardados — Semana ${lunes}`);
+  }
+
+  if (guardados > 0){
+    showToast(`✅ ${guardados} registros guardados${errores>0?' ('+errores+' errores, ver consola)':''} — Semana ${lunes}`);
     limpiarExcelFertil();
     document.getElementById('gantt-prog-form').classList.add('hidden');
     _ganttSemana = lunes;
     await renderGantt();
-  }catch(e){
-    const msg = e.message || '';
-    if (msg.includes('datos_extra') || msg.includes('PGRST204')){
-      showToast('⚠️ Falta la columna datos_extra en Supabase. Ejecuta en SQL Editor:\nALTER TABLE programa_aplicaciones ADD COLUMN IF NOT EXISTS datos_extra JSONB DEFAULT \'{}\';', 'error');
-    } else {
-      showToast('Error al guardar: ' + msg, 'error');
-    }
-    console.error(e);
+  } else {
+    showToast(`❌ No se pudo guardar ningún registro. Verifica conexión a internet.`, 'error');
   }
 }
 
