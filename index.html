@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.11"/>
+<meta name="app-version" content="4.17.13"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -60,7 +60,7 @@
   .btn-fullscreen:hover{background:#fff;}
   .mapa-overlay{display:none;position:fixed;inset:0;z-index:200;background:#000;flex-direction:column;}
   .mapa-overlay.active{display:flex;}
-  .mapa-overlay-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#135381;color:#fff;flex-shrink:0;}
+  .mapa-overlay-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top));background:#135381;color:#fff;flex-shrink:0;}
   .mapa-overlay-header span{font-size:0.9rem;font-weight:700;}
   .mapa-overlay-header button{background:rgba(255,255,255,0.18);border:none;border-radius:8px;padding:7px 14px;color:#fff;font-weight:700;font-size:0.8rem;cursor:pointer;}
   .mapa-overlay-body{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:flex-start;}
@@ -261,9 +261,36 @@
 </header>
 
 <!-- Overlay pantalla completa para mapas -->
+<!-- Modal edición observación -->
+<div id="obs-edit-modal" style="display:none;position:fixed;inset:0;z-index:250;background:rgba(0,0,0,0.6);align-items:flex-end;justify-content:center;padding-bottom:env(safe-area-inset-bottom);">
+  <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:600px;padding:20px 18px;padding-top:16px;max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-weight:700;color:var(--azul-oscuro);font-size:0.9rem;">✏️ Editar observación</div>
+      <button onclick="cerrarEditarObs()" style="background:none;border:none;font-size:1.2rem;color:#999;cursor:pointer;">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-field full"><label>Tipo de observación</label>
+        <input type="text" id="obs-edit-tipo" placeholder="Tipo de observación..."/>
+      </div>
+      <div class="form-field full"><label>Descripción</label>
+        <textarea id="obs-edit-desc" rows="3" placeholder="Descripción..."></textarea>
+      </div>
+      <div class="form-field full"><label>👷 Asignado a</label>
+        <select id="obs-edit-asignado">
+          <option value="">— Sin asignar —</option>
+          <option>Pedro Hernandez</option>
+          <option>Ronald Sacramento</option>
+          <option>Cesar Lupuche</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn" onclick="guardarEdicionObs()" style="margin-top:14px;">💾 Guardar cambios</button>
+  </div>
+</div>
+
 <!-- Lightbox fotos observaciones -->
-<div id="obs-foto-lightbox" onclick="cerrarFotoObs()" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.92);align-items:center;justify-content:center;flex-direction:column;">
-  <img id="obs-foto-lightbox-img" style="max-width:95vw;max-height:88vh;border-radius:10px;object-fit:contain;"/>
+<div id="obs-foto-lightbox" onclick="cerrarFotoObs()" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.92);align-items:center;justify-content:center;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);">
+  <img id="obs-foto-lightbox-img" style="max-width:95vw;max-height:82vh;border-radius:10px;object-fit:contain;"/>
   <div style="color:#aaa;font-size:0.72rem;margin-top:10px;">Toca en cualquier lugar para cerrar</div>
 </div>
 
@@ -524,7 +551,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.11';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.13';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -2939,6 +2966,74 @@ async function guardarAnotacion(){
   }catch(e){ showToast('Error al guardar', 'error'); }
 }
 
+// ── EDITAR / BORRAR OBSERVACIONES ─────────────────────────────
+let _obsEditId = null;
+
+function editarObservacion(id){
+  const a = _obsAnotaciones.find(x => x.id === id);
+  if (!a){ showToast('Observación no encontrada', 'error'); return; }
+  if (!puedEditarRegistro(a)){ showToast('No tienes permiso para editar esta observación', 'error'); return; }
+  _obsEditId = id;
+  document.getElementById('obs-edit-tipo').value  = a.datos_extra?.tipo_obs  || '';
+  document.getElementById('obs-edit-desc').value  = a.datos_extra?.descripcion || '';
+  document.getElementById('obs-edit-asignado').value = a.datos_extra?.asignado_a || '';
+  const modal = document.getElementById('obs-edit-modal');
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function cerrarEditarObs(){
+  _obsEditId = null;
+  document.getElementById('obs-edit-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+async function guardarEdicionObs(){
+  if (!_obsEditId) return;
+  const a = _obsAnotaciones.find(x => x.id === _obsEditId);
+  if (!a || !puedEditarRegistro(a)){ showToast('Sin permiso', 'error'); return; }
+
+  const tipo     = document.getElementById('obs-edit-tipo')?.value.trim();
+  const desc     = document.getElementById('obs-edit-desc')?.value.trim();
+  const asignado = document.getElementById('obs-edit-asignado')?.value || null;
+  if (!tipo){ showToast('El tipo no puede estar vacío', 'error'); return; }
+
+  const nuevoExtra = { ...a.datos_extra, tipo_obs: tipo, descripcion: desc, asignado_a: asignado || null };
+  try{
+    const res = await sbFetch(`labores_campo?id=eq.${_obsEditId}`,{
+      method:'PATCH', headers:{'Prefer':'return=minimal','Content-Type':'application/json'},
+      body: JSON.stringify({ observaciones: desc, datos_extra: nuevoExtra })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    showToast('✅ Observación actualizada');
+    cerrarEditarObs();
+    cargarAnotacionesFundo(a.fundo);
+  }catch(e){ showToast('Error al guardar: ' + e.message, 'error'); }
+}
+
+async function borrarObservacion(id, tipo){
+  const a = _obsAnotaciones.find(x => x.id === id);
+  if (!a){ showToast('Observación no encontrada', 'error'); return; }
+  if (!puedEditarRegistro(a)){ showToast('No tienes permiso para borrar esta observación', 'error'); return; }
+
+  const confirmar = confirm(`¿Eliminar la observación "${tipo}"? Esta acción no se puede deshacer.`);
+  if (!confirmar) return;
+
+  try{
+    const res = await sbFetch(`labores_campo?id=eq.${id}`,{
+      method:'DELETE', headers:{'Prefer':'return=minimal'}
+    });
+    if (!res.ok) throw new Error(await res.text());
+    showToast('🗑️ Observación eliminada');
+    cargarAnotacionesFundo(a.fundo);
+  }catch(e){ showToast('Error al eliminar: ' + e.message, 'error'); }
+}
+
+// Cerrar modal de edición al tocar el fondo
+document.getElementById('obs-edit-modal')?.addEventListener('click', function(e){
+  if (e.target === this) cerrarEditarObs();
+});
+
 function verFotoObs(src){
   const lb = document.getElementById('obs-foto-lightbox');
   const img = document.getElementById('obs-foto-lightbox-img');
@@ -3099,6 +3194,12 @@ function renderListaAnotaciones(){
     const cierreInfo = completado ? `<div style="font-size:0.64rem;color:var(--verde);margin-top:3px;">✅ ${a.datos_extra?.cierre_por||'—'} · ${a.datos_extra?.cierre_desc||''}</div>${cierreFotoHtml}` : '';
     const offlineBadge = a._offline ? `<span style="font-size:0.58rem;background:#fff3cd;color:#856404;padding:2px 6px;border-radius:6px;margin-left:4px;">📴 Pendiente sync</span>` : '';
     const btnLevantar = (!completado && !a._offline && currentUser) ? `<button onclick="abrirLevantamiento(${a.id})" style="margin-top:4px;padding:6px 10px;border:1.5px solid var(--verde);border-radius:7px;background:var(--verde-menta);color:var(--verde);font-weight:700;font-size:0.66rem;white-space:nowrap;">✅ Levantar</button>` : '';
+    const puedeEditar = !a._offline && puedEditarRegistro(a);
+    const botonesAdmin = puedeEditar ? `
+      <div style="display:flex;gap:5px;margin-top:5px;">
+        <button onclick="editarObservacion(${a.id})" style="padding:5px 9px;border:1.5px solid var(--azul);border-radius:7px;background:#eaf4fb;color:var(--azul);font-weight:700;font-size:0.64rem;">✏️ Editar</button>
+        <button onclick="borrarObservacion(${a.id},'${(a.datos_extra?.tipo_obs||'').replace(/'/g,'')}')" style="padding:5px 9px;border:1.5px solid var(--rojo);border-radius:7px;background:#fdecea;color:var(--rojo);font-weight:700;font-size:0.64rem;">🗑️ Borrar</button>
+      </div>` : '';
     return `<div class="form-card" style="padding:10px;margin-bottom:6px;border-left:4px solid ${col};">
       <div style="display:flex;gap:8px;align-items:flex-start;">
         <div style="flex:1;min-width:0;">
@@ -3113,6 +3214,7 @@ function renderListaAnotaciones(){
           <div style="font-size:0.6rem;color:var(--texto-suave);margin-top:2px;">${coords}${dir ? ' · '+dir : ''}</div>
           ${cierreInfo}
           ${btnLevantar}
+          ${botonesAdmin}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
           ${fotoHtml}
