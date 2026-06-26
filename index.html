@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.7"/>
+<meta name="app-version" content="4.17.8"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -24,21 +24,34 @@
   /* ── RESPONSIVE DESKTOP ── */
   @media (min-width:768px){
     body{background:#dce8f0;}
-    header{position:sticky;top:0;z-index:30;border-radius:0;}
-    header h1{font-size:1.15rem;}
-    main{max-width:820px;padding:24px 32px;padding-bottom:80px;}
+    body.nav-visible{display:grid;grid-template-columns:80px 1fr;grid-template-rows:auto 1fr;min-height:100vh;}
+    header{grid-column:1/-1;}
+    main{max-width:820px;padding:24px 32px;padding-bottom:40px;grid-column:2;}
+    /* Sidebar vertical */
+    nav.bottom-nav{
+      position:sticky;top:0;bottom:auto;left:0;right:auto;
+      height:calc(100vh - 58px);
+      flex-direction:column;
+      border-top:none;border-right:1px solid var(--borde);
+      padding-bottom:0;width:80px;
+      justify-content:flex-start;padding-top:12px;gap:4px;
+      grid-column:1;grid-row:2;
+    }
+    nav.bottom-nav button{flex:0 0 auto;width:100%;padding:12px 4px;font-size:0.6rem;border-radius:10px;margin:0 4px;width:calc(100% - 8px);}
+    nav.bottom-nav button.active{background:var(--verde-menta);color:var(--verde);}
+    nav.bottom-nav .nav-emoji{font-size:1.3rem;}
     .labor-grid{grid-template-columns:repeat(4,1fr);}
     .form-grid{grid-template-columns:1fr 1fr 1fr;}
     .form-field.full{grid-column:1/-1;}
-    nav.bottom-nav{max-width:820px;left:50%;transform:translateX(-50%);border-radius:14px 14px 0 0;border:1px solid var(--borde);}
     .login-card{max-width:400px;}
     select,input,textarea{font-size:0.9rem;}
     .app-tab{font-size:0.8rem;}
   }
   @media (min-width:1100px){
-    main{max-width:1000px;}
+    body.nav-visible{grid-template-columns:90px 1fr;}
+    main{max-width:960px;}
+    nav.bottom-nav{width:90px;}
     .labor-grid{grid-template-columns:repeat(5,1fr);}
-    nav.bottom-nav{max-width:1000px;}
   }
 
   /* ── MAPA PANTALLA COMPLETA ── */
@@ -505,7 +518,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.7';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.8';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -2192,6 +2205,7 @@ function cerrarSesion(){
   localStorage.removeItem('rc_user');
   document.getElementById('app-main').classList.add('hidden');
   document.getElementById('bottom-nav').classList.add('hidden');
+  document.body.classList.remove('nav-visible');
   document.getElementById('user-pill').classList.add('hidden');
   document.getElementById('notif-bell-btn').classList.add('hidden');
   document.getElementById('notif-panel').classList.add('hidden');
@@ -2203,6 +2217,7 @@ async function entrarApp(){
   document.getElementById('view-login').classList.add('hidden');
   document.getElementById('app-main').classList.remove('hidden');
   document.getElementById('bottom-nav').classList.remove('hidden');
+  document.body.classList.add('nav-visible');
   document.getElementById('user-pill').classList.remove('hidden');
   document.getElementById('notif-bell-btn').classList.remove('hidden');
   document.getElementById('user-pill-name').textContent = currentUser.nombre;
