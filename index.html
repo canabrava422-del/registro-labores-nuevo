@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.22"/>
+<meta name="app-version" content="4.17.24"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -262,34 +262,73 @@
 
 <!-- Overlay pantalla completa para mapas -->
 <!-- Modal edición observación -->
+<!-- Modal preparación diaria (desde Gantt) -->
+<div id="prep-edit-modal" onclick="if(event.target===this)cerrarPrepModal()" style="display:none;position:fixed;inset:0;z-index:260;background:rgba(0,0,0,0.55);align-items:flex-end;justify-content:center;padding-bottom:env(safe-area-inset-bottom);">
+  <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:600px;padding:20px 18px 18px;padding-top:calc(16px + env(safe-area-inset-top));">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+      <div>
+        <div style="font-weight:700;color:var(--azul-oscuro);font-size:0.88rem;">🧪 Preparación de fertilizante</div>
+        <div id="prep-modal-info" style="font-size:0.72rem;color:var(--texto-suave);margin-top:2px;"></div>
+      </div>
+      <button onclick="cerrarPrepModal()" style="background:none;border:none;font-size:1.2rem;color:#999;cursor:pointer;">✕</button>
+    </div>
+    <div style="background:var(--fondo);border-radius:8px;padding:10px 12px;margin-bottom:12px;">
+      <div style="font-size:0.7rem;color:var(--texto-suave);">Programado este día: <strong id="prep-modal-prog">—</strong></div>
+    </div>
+    <div style="font-size:0.74rem;font-weight:700;color:var(--azul-oscuro);margin-bottom:6px;" id="prep-modal-label">📅 Cantidad preparada hoy:</div>
+    <div style="font-size:0.68rem;color:var(--texto-suave);margin-bottom:10px;">Anota solo lo que preparaste este día. Puedes volver a anotar en otros días.</div>
+    <div class="form-field">
+      <label>Sacos / Bidones preparados</label>
+      <input type="number" id="prep-modal-cant" min="0" step="1" placeholder="0" style="font-size:1rem;padding:12px;"/>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="btn" onclick="guardarPrepDiaria()" style="flex:1;">💾 Guardar</button>
+      <button id="prep-btn-borrar" onclick="borrarPrepDiaria()" style="display:none;padding:11px 14px;border:1.5px solid var(--rojo);border-radius:8px;background:#fdecea;color:var(--rojo);font-weight:700;font-size:0.76rem;">🗑️</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal irrigación NPK por EQ-TR -->
 <div id="npk-edit-modal" onclick="if(event.target===this)cerrarNpkModal()" style="display:none;position:fixed;inset:0;z-index:260;background:rgba(0,0,0,0.55);align-items:flex-end;justify-content:center;padding-bottom:env(safe-area-inset-bottom);">
-  <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:600px;padding:20px 18px;padding-top:16px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+  <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:600px;padding:20px 18px 18px;padding-top:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
       <div>
         <div style="font-weight:700;color:var(--azul-oscuro);font-size:0.88rem;">💧 Irrigación por sistema de riego</div>
         <div id="npk-modal-eqtr" style="font-size:0.72rem;color:var(--texto-suave);margin-top:2px;"></div>
       </div>
-      <button onclick="cerrarNpkModal()" style="background:none;border:none;font-size:1.2rem;color:#999;cursor:pointer;">✕</button>
+      <button onclick="cerrarNpkModal()" style="background:none;border:none;font-size:1.2rem;color:#999;cursor:pointer;margin-left:8px;">✕</button>
     </div>
-    <div style="font-size:0.7rem;color:var(--texto-suave);margin-bottom:12px;">Ingresa los kg de cada fertilizante que pasaron por el sistema de riego hoy.</div>
+
+    <!-- Acumulado de la semana -->
+    <div id="npk-modal-acumulado" style="background:var(--fondo);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:0.72rem;">
+      <div style="font-weight:700;color:var(--texto-suave);margin-bottom:6px;">📊 Acumulado semana (todos los días):</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <span>N: <strong id="npk-acum-n" style="color:#3b82f6;">—</strong> kg</span>
+        <span>P: <strong id="npk-acum-p" style="color:#f97316;">—</strong> kg</span>
+        <span>K: <strong id="npk-acum-k" style="color:#a855f7;">—</strong> kg</span>
+      </div>
+    </div>
+
+    <div style="font-size:0.74rem;font-weight:700;color:var(--azul-oscuro);margin-bottom:8px;" id="npk-modal-fecha-label">📅 Anotar para hoy:</div>
+    <div style="font-size:0.68rem;color:var(--texto-suave);margin-bottom:10px;">Puedes anotar parcialmente. Ejemplo: si hay 1200 kg, puedes poner 500 hoy y 700 mañana.</div>
+
     <div class="form-grid">
       <div class="form-field">
-        <label>N — Urea (kg) <span id="npk-n-prog" style="font-weight:400;font-size:0.66rem;color:var(--texto-suave);"></span></label>
+        <label>N — Urea (kg) <span id="npk-n-prog" style="font-weight:400;font-size:0.64rem;color:var(--texto-suave);"></span></label>
         <input type="number" id="npk-n" min="0" step="0.1" placeholder="0"/>
       </div>
       <div class="form-field">
-        <label>P — Ferty Base (kg) <span id="npk-p-prog" style="font-weight:400;font-size:0.66rem;color:var(--texto-suave);"></span></label>
+        <label>P — Ferty Base (kg) <span id="npk-p-prog" style="font-weight:400;font-size:0.64rem;color:var(--texto-suave);"></span></label>
         <input type="number" id="npk-p" min="0" step="0.1" placeholder="0"/>
       </div>
       <div class="form-field">
-        <label>K — KCl (kg) <span id="npk-k-prog" style="font-weight:400;font-size:0.66rem;color:var(--texto-suave);"></span></label>
+        <label>K — KCl (kg) <span id="npk-k-prog" style="font-weight:400;font-size:0.64rem;color:var(--texto-suave);"></span></label>
         <input type="number" id="npk-k" min="0" step="0.1" placeholder="0"/>
       </div>
     </div>
     <div style="display:flex;gap:8px;margin-top:14px;">
-      <button class="btn" onclick="guardarNpkIrrigacion()" style="flex:1;">💾 Guardar</button>
-      <button id="npk-btn-borrar" onclick="borrarNpkIrrigacion()" style="display:none;padding:11px 14px;border:1.5px solid var(--rojo);border-radius:8px;background:#fdecea;color:var(--rojo);font-weight:700;font-size:0.76rem;">🗑️</button>
+      <button class="btn" onclick="guardarNpkIrrigacion()" style="flex:1;" id="npk-btn-guardar">💾 Guardar</button>
+      <button id="npk-btn-borrar" onclick="borrarNpkIrrigacion()" style="display:none;padding:11px 14px;border:1.5px solid var(--rojo);border-radius:8px;background:#fdecea;color:var(--rojo);font-weight:700;font-size:0.76rem;">🗑️ Borrar hoy</button>
     </div>
   </div>
 </div>
@@ -583,7 +622,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.22';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.24';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -3594,13 +3633,23 @@ async function renderGantt(){
           const celdas = dias.map(fecha => {
             const p = progRiego.filter(r=>r.fecha_programada===fecha&&(r.datos_extra?.fertilizante||r.insumo)===f)
                                .reduce((s,r)=>s+(r.datos_extra?.bolsas_programadas||0),0);
-            const e = ejecPrep.filter(r=>r.fecha===fecha&&r.datos_extra?.fertilizante===f&&(r.datos_extra?.fertirriego===riego||(r.equipo||'').includes(riego)))
-                          .reduce((s,r)=>s+(r.datos_extra?.bolsas_ejecutadas||0),0);
+            // Buscar registro de ejecPrep para ese día
+            const regEjec = ejecPrep.filter(r=>r.fecha===fecha&&r.datos_extra?.fertilizante===f&&(r.datos_extra?.fertirriego===riego||(r.equipo||'').includes(riego)));
+            const e = regEjec.reduce((s,r)=>s+(r.datos_extra?.bolsas_ejecutadas||0),0);
+            const regHoy = regEjec.find(r=>r.fecha === new Date().toISOString().slice(0,10));
             totProg+=p; totEjec+=e;
             const esHoy=fecha===hoy;
             const bg=p===0&&e===0?'':e>=p&&p>0?'#d4edda':e>0?'#fff3cd':p>0&&fecha<hoy?'#fdecea':'#f8f8f8';
-            return `<td style="padding:6px 4px;text-align:center;border:1px solid var(--borde);background:${bg};${esHoy?'border-bottom:2px solid #27AE60;':''}">
-              ${p>0||e>0?`<div style="font-size:0.62rem;color:var(--texto-suave);">P:${p}</div><div style="font-size:0.74rem;font-weight:700;color:${e>0?col:'#ccc'};">${e>0?'E:'+e:'—'}</div>`:''}
+            // Celda tapeable: permite anotar preparación
+            const puedeAnotar = p > 0 && (fecha === hoy || currentUser?.role === 'admin');
+            const regId = regEjec.find(r=>r.fecha===fecha)?.id || null;
+            const regFecha = regEjec.find(r=>r.fecha===fecha)?.fecha || null;
+            const fn2 = filtroFundo || resumen[0]?.datos_extra?.fundo || 'Lobo 2';
+            const onclick = puedeAnotar
+              ? `abrirPrepModal('${riego}','${f}','${fecha}',${p},${e},${regId},'${fn2}')`
+              : '';
+            return `<td style="padding:6px 4px;text-align:center;border:1px solid var(--borde);background:${bg};${esHoy?'border-bottom:2px solid #27AE60;':''}${puedeAnotar?'cursor:pointer;':''}" ${onclick?`onclick="${onclick}" title="Toca para anotar preparación"`:''}>
+              ${p>0||e>0?`<div style="font-size:0.62rem;color:var(--texto-suave);">P:${p}</div><div style="font-size:0.74rem;font-weight:700;color:${e>0?col:(p>0&&fecha<=hoy?'#ccc':'#ddd')};">${e>0?'E:'+e:(p>0&&fecha===hoy?'<span style="font-size:0.62rem;color:#bbb;">+ anotar</span>':p>0?'—':'')}</div>`:''}
             </td>`;
           }).join('');
           const pctF=totProg>0?Math.min(100,Math.round(totEjec/totProg*100)):null;
@@ -3654,42 +3703,39 @@ async function renderGantt(){
 
           const irrig = ejecIrrig.filter(e => e.datos_extra?.eqtr_irrigado===r.eqtr);
           const irrig_hoy = irrig.find(e => e.fecha === hoy);
-          const n_aplic = irrig.reduce((s,e)=>s+(e.datos_extra?.urea_kg||0),0);
-          const p_aplic = irrig.reduce((s,e)=>s+(e.datos_extra?.fosforo_kg||0),0);
-          const k_aplic = irrig.reduce((s,e)=>s+(e.datos_extra?.potasio_kg||0),0);
+          // Acumulado semanal (suma de todos los días)
+          const n_acum = irrig.reduce((s,e)=>s+(e.datos_extra?.urea_kg||0),0);
+          const p_acum = irrig.reduce((s,e)=>s+(e.datos_extra?.fosforo_kg||0),0);
+          const k_acum = irrig.reduce((s,e)=>s+(e.datos_extra?.potasio_kg||0),0);
+          // Valores de hoy (para edición)
+          const n_hoy = irrig_hoy?.datos_extra?.urea_kg||0;
+          const p_hoy = irrig_hoy?.datos_extra?.fosforo_kg||0;
+          const k_hoy = irrig_hoy?.datos_extra?.potasio_kg||0;
 
           const n_prog = r.urea_kg||0; const p_prog = r.fosforo_kg||0; const k_prog = r.potasio_kg||0;
-
           const totProg = n_prog+p_prog+k_prog;
-          const totAplic = n_aplic+p_aplic+k_aplic;
+          const totAplic = n_acum+p_acum+k_acum;
           const pct = totProg>0 ? Math.min(100,Math.round(totAplic/totProg*100)) : null;
           const estadoColor = pct===100?'#27AE60':pct>0?'#E67E22':'var(--texto-suave)';
 
-          // Función para hacer celda tapeable
-          const tapArgs = JSON.stringify([r.eqtr, filtroFundo||r.eqtr, n_prog, p_prog, k_prog,
-            irrig_hoy?.id||null, irrig_hoy?.datos_extra?.urea_kg||0,
-            irrig_hoy?.datos_extra?.fosforo_kg||0, irrig_hoy?.datos_extra?.potasio_kg||0,
-            irrig_hoy?.fecha||null]).replace(/"/g,"'");
-
-          const puedeTocar = puedEditarNpk(irrig_hoy?.fecha || new Date().toISOString().slice(0,10)) || !irrig_hoy;
-          const tapStyle = puedeTocar ? 'cursor:pointer;' : '';
-          const tapCall = puedeTocar ? `onclick="abrirNpkModal(...JSON.parse('${JSON.stringify([r.eqtr, filtroFundo||resumen[0]?.fundo||'Lobo 2', n_prog, p_prog, k_prog, irrig_hoy?.id||null, irrig_hoy?.datos_extra?.urea_kg||0, irrig_hoy?.datos_extra?.fosforo_kg||0, irrig_hoy?.datos_extra?.potasio_kg||0, irrig_hoy?.fecha||null])}'.replaceAll(&quot;'&quot;,'&quot;')))"` : '';
-
-          const celTap = (prog, aplic) => {
-            const color = aplic>0?(aplic>=prog&&prog>0?'#27AE60':'#E67E22'):'var(--texto-suave)';
-            const hint = puedeTocar && prog>0 ? ' title="Toca para registrar"' : '';
-            return `<td ${hint} style="padding:7px 5px;text-align:center;border:1px solid var(--borde);${puedeTocar&&prog>0?'cursor:pointer;background:var(--verde-menta);':''}" onclick="${puedeTocar&&prog>0?`abrirNpkModal('${r.eqtr}','${filtroFundo||resumen[0]?.datos_extra?.fundo||'Lobo 2'}',${n_prog},${p_prog},${k_prog},${irrig_hoy?.id||null},${irrig_hoy?.datos_extra?.urea_kg||0},${irrig_hoy?.datos_extra?.fosforo_kg||0},${irrig_hoy?.datos_extra?.potasio_kg||0},'${irrig_hoy?.fecha||''}')`:''}">
-              <div style="font-size:0.66rem;color:var(--texto-suave);">${prog>0?prog:'—'}</div>
-              <div style="font-size:0.76rem;font-weight:700;color:${color};">${aplic>0?aplic:(puedeTocar&&prog>0?'<span style="font-size:0.7rem;color:#aaa;">+ anotar</span>':'—')}</div>
+          const fn2 = filtroFundo||resumen[0]?.datos_extra?.fundo||'Lobo 2';
+          // Celda tapeable: siempre abre modal para el día de hoy
+          const celTap = (prog, acum) => {
+            const color = acum>0?(acum>=prog&&prog>0?'#27AE60':'#E67E22'):'var(--texto-suave)';
+            if (!prog) return `<td style="padding:7px 5px;text-align:center;border:1px solid var(--borde);color:#ccc;">—</td>`;
+            const onclick = `abrirNpkModal('${r.eqtr}','${fn2}',${n_prog},${p_prog},${k_prog},${irrig_hoy?.id||null},${n_hoy},${p_hoy},${k_hoy},'${irrig_hoy?.fecha||''}',${n_acum},${p_acum},${k_acum})`;
+            return `<td onclick="${onclick}" style="padding:7px 5px;text-align:center;border:1px solid var(--borde);cursor:pointer;${acum===0?'background:var(--verde-menta);':''}" title="Toca para anotar de hoy">
+              <div style="font-size:0.62rem;color:var(--texto-suave);">P:${prog}</div>
+              <div style="font-size:0.76rem;font-weight:700;color:${color};">${acum>0?acum:'<span style="font-size:0.66rem;color:#aaa;">+ anotar</span>'}</div>
             </td>`;
           };
 
           npkHtml += `<tr style="border-bottom:1px solid var(--borde);">
             <td style="padding:7px 6px;font-weight:700;border-left:3px solid ${col_r};">${r.eqtr}</td>
             <td style="padding:7px 4px;text-align:center;font-weight:700;font-size:0.68rem;color:${col_r};">${riego}</td>
-            ${celTap(n_prog, n_aplic)}
-            ${celTap(p_prog, p_aplic)}
-            ${celTap(k_prog, k_aplic)}
+            ${celTap(n_prog, n_acum)}
+            ${celTap(p_prog, p_acum)}
+            ${celTap(k_prog, k_acum)}
             <td style="padding:7px 4px;text-align:center;font-weight:700;color:${estadoColor};">
               ${pct===100?'✅':pct!==null?pct+'%':'⏳'}
             </td>
@@ -3738,6 +3784,83 @@ function onProgFertilFundoChange(){}  // placeholder (ya no se usa el form manua
 let _excelTotales   = {}; // { R2: {Urea:142,...}, R3: {Urea:165,...} }
 let _excelDetalle   = []; // [{ eqtr, fertirriego, urea_kg, fosforo_kg, potasio_kg }]
 
+// ── PREPARACIÓN DIARIA (desde Gantt) ─────────────────────────
+let _prepModal = {};
+
+function abrirPrepModal(riego, fertil, fecha, prog, ejec, registroId, fundo){
+  const hoy = new Date().toISOString().slice(0,10);
+  if (registroId && fecha !== hoy && currentUser?.role !== 'admin'){
+    showToast('Solo el administrador puede editar preparaciones de días anteriores', 'error'); return;
+  }
+  _prepModal = { riego, fertil, fecha: fecha||hoy, registroId: registroId||null, fundo };
+
+  const unit = getUnidadFertil(fertil);
+  document.getElementById('prep-modal-info').textContent = `${riego} · ${fertil} · ${new Date((fecha||hoy)+'T12:00:00').toLocaleDateString('es-PE',{weekday:'long',day:'numeric',month:'short'})}`;
+  document.getElementById('prep-modal-prog').textContent = prog > 0 ? `${prog} ${unit}` : 'Sin programar';
+  document.getElementById('prep-modal-label').textContent = registroId ? '✏️ Corregir cantidad:' : `📅 Cantidad preparada ${fecha===hoy?'hoy':fecha}:`;
+  document.getElementById('prep-modal-cant').value = ejec > 0 ? ejec : '';
+  const btnB = document.getElementById('prep-btn-borrar');
+  if (btnB) btnB.style.display = registroId ? '' : 'none';
+
+  document.getElementById('prep-edit-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('prep-modal-cant')?.focus(), 200);
+}
+
+function cerrarPrepModal(){
+  document.getElementById('prep-edit-modal').style.display = 'none';
+  document.body.style.overflow = '';
+  _prepModal = {};
+}
+
+async function guardarPrepDiaria(){
+  const cant = parseFloat(document.getElementById('prep-modal-cant')?.value)||0;
+  if (!cant){ showToast('Ingresa una cantidad mayor a 0', 'error'); return; }
+  const { riego, fertil, fecha, registroId, fundo } = _prepModal;
+
+  const payload = {
+    labor:'fertilizacion', fundo: fundo||'Lobo 2',
+    equipo: `GLOBAL-${riego}`, parcelas:'',
+    fecha, controlador: currentUser.nombre, rol: currentUser.role,
+    datos_extra:{ _usuario: currentUser.user, tipo:'preparacion',
+      fertirriego: riego, fertilizante: fertil,
+      bolsas_ejecutadas: cant, unidad: getUnidadFertil(fertil) }
+  };
+
+  try{
+    let res;
+    if (registroId){
+      res = await sbFetch(`labores_campo?id=eq.${registroId}`,{
+        method:'PATCH', headers:{'Content-Type':'application/json','Prefer':'return=minimal'},
+        body: JSON.stringify({ datos_extra: payload.datos_extra })
+      });
+    } else {
+      res = await sbFetch('labores_campo',{
+        method:'POST', headers:{'Content-Type':'application/json','Prefer':'return=minimal'},
+        body: JSON.stringify(payload)
+      });
+    }
+    if (!res.ok) throw new Error(await res.text());
+    showToast('✅ Preparación guardada');
+    cerrarPrepModal();
+    renderGantt();
+  }catch(e){ showToast('Error: '+e.message,'error'); }
+}
+
+async function borrarPrepDiaria(){
+  const { registroId, fertil, riego } = _prepModal;
+  if (!registroId) return;
+  if (!confirm(`¿Eliminar la preparación de ${fertil} en ${riego}?`)) return;
+  try{
+    const res = await sbFetch(`labores_campo?id=eq.${registroId}`,{
+      method:'DELETE', headers:{'Prefer':'return=minimal'}
+    });
+    if (!res.ok) throw new Error(await res.text());
+    showToast('🗑️ Preparación eliminada');
+    cerrarPrepModal(); renderGantt();
+  }catch(e){ showToast('Error: '+e.message,'error'); }
+}
+
 // ── NPK IRRIGACIÓN INTERACTIVA ────────────────────────────────
 let _npkModalEqtr = null;
 let _npkModalFundo = null;
@@ -3752,11 +3875,10 @@ function puedEditarNpk(fecha){
   return fecha === hoy;
 }
 
-function abrirNpkModal(eqtr, fundo, progN, progP, progK, registroId, n_aplic, p_aplic, k_aplic, fecha_reg){
+function abrirNpkModal(eqtr, fundo, progN, progP, progK, registroId, n_hoy, p_hoy, k_hoy, fecha_reg, n_acum, p_acum, k_acum){
   const hoy = new Date().toISOString().slice(0,10);
-  const puedeEditar = registroId ? puedEditarNpk(fecha_reg) : true;
-
-  if (!puedeEditar){
+  // Si hay registro de otro día y no es admin, no puede editar
+  if (registroId && fecha_reg !== hoy && currentUser?.role !== 'admin'){
     showToast('Solo el administrador puede editar registros de días anteriores', 'error');
     return;
   }
@@ -3765,15 +3887,33 @@ function abrirNpkModal(eqtr, fundo, progN, progP, progK, registroId, n_aplic, p_
   _npkModalFundo = fundo;
   _npkModalRegistroId = registroId || null;
   _npkModalFecha = fecha_reg || hoy;
-  _npkModalProg = { n: progN, p: progP, k: progK };
+
+  const esEdicion = !!registroId && fecha_reg === hoy;
+  const esAdminOtro = !!registroId && fecha_reg !== hoy && currentUser?.role === 'admin';
 
   document.getElementById('npk-modal-eqtr').textContent = `${eqtr} · ${getFertirriego(eqtr)} · ${fundo}`;
   document.getElementById('npk-n-prog').textContent = progN > 0 ? `(Prog: ${progN} kg)` : '';
   document.getElementById('npk-p-prog').textContent = progP > 0 ? `(Prog: ${progP} kg)` : '';
   document.getElementById('npk-k-prog').textContent = progK > 0 ? `(Prog: ${progK} kg)` : '';
-  document.getElementById('npk-n').value = n_aplic > 0 ? n_aplic : '';
-  document.getElementById('npk-p').value = p_aplic > 0 ? p_aplic : '';
-  document.getElementById('npk-k').value = k_aplic > 0 ? k_aplic : '';
+
+  // Acumulado semanal (todos los días)
+  document.getElementById('npk-acum-n').textContent = n_acum > 0 ? n_acum : '0';
+  document.getElementById('npk-acum-p').textContent = p_acum > 0 ? p_acum : '0';
+  document.getElementById('npk-acum-k').textContent = k_acum > 0 ? k_acum : '0';
+
+  // Entrada del día
+  const lblFecha = document.getElementById('npk-modal-fecha-label');
+  if (esEdicion){
+    if(lblFecha) lblFecha.textContent = '✏️ Editando registro de hoy:';
+  } else if (esAdminOtro){
+    if(lblFecha) lblFecha.textContent = `✏️ Admin — editando ${fecha_reg}:`;
+  } else {
+    if(lblFecha) lblFecha.textContent = '📅 Anotar para hoy:';
+  }
+
+  document.getElementById('npk-n').value = n_hoy > 0 ? n_hoy : '';
+  document.getElementById('npk-p').value = p_hoy > 0 ? p_hoy : '';
+  document.getElementById('npk-k').value = k_hoy > 0 ? k_hoy : '';
 
   const btnBorrar = document.getElementById('npk-btn-borrar');
   if (btnBorrar) btnBorrar.style.display = registroId ? '' : 'none';
@@ -4674,6 +4814,13 @@ async function cargarRegistrosAnterioresForm(laborId){
   const cont = document.getElementById('form-registros-anteriores');
   const avanceCont = document.getElementById('tab-registros-avance');
   if (!cont) return;
+
+  // Fertilización no usa el historial de registros — todo está en el Gantt
+  if (laborId === 'fertilizacion'){
+    cont.innerHTML = '';
+    return;
+  }
+
   cont.innerHTML = '<div class="empty-state">Cargando registros...</div>';
   if (avanceCont) avanceCont.innerHTML = '';
   _regTabLaborId = laborId;
