@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.13"/>
+<meta name="app-version" content="4.17.14"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -551,7 +551,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.13';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.14';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -3729,7 +3729,7 @@ async function guardarProgramaDesdeExcel(){
   });
 
   showToast(`⏳ Guardando ${registros.length} registros...`);
-  let guardados = 0, errores = 0;
+  let guardados = 0, errores = 0, primerError = '';
 
   for (const reg of registros){
     try{
@@ -3744,13 +3744,17 @@ async function guardarProgramaDesdeExcel(){
       if (res.ok || res.status === 201){ guardados++; }
       else {
         const txt = await res.text();
+        if (!primerError) primerError = `HTTP ${res.status} — ${txt.slice(0,200)}`;
         console.error(`Error ${res.status} en ${reg.equipo} ${reg.fecha_programada}:`, txt);
         errores++;
       }
     }catch(e){
+      if (!primerError) primerError = `Red: ${e.message}`;
       console.error('Error de red:', e);
       errores++;
     }
+    // Detener tras 3 fallos seguidos sin ningún éxito
+    if (errores >= 3 && guardados === 0) break;
   }
 
   if (guardados > 0){
@@ -3760,8 +3764,8 @@ async function guardarProgramaDesdeExcel(){
     _ganttSemana = lunes;
     await renderGantt();
   } else {
-    // Mostrar diagnóstico
-    showToast(`❌ 0 registros guardados. Verifica en Supabase → tabla programa_aplicaciones → Policies que el rol "anon" tenga permiso de INSERT.`, 'error');
+    showToast(`❌ 0 guardados — ${primerError || 'error desconocido'}`, 'error');
+    console.error('Diagnóstico error Supabase:', primerError);
   }
 }
 
