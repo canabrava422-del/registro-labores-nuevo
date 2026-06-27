@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.15"/>
+<meta name="app-version" content="4.17.16"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -551,7 +551,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.15';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.16';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -3274,41 +3274,41 @@ async function cargarGanttFertilizacion(laborId){
 
   avanceCont.innerHTML = `
     <style>
-      .gantt-dark{background:#1a1d2e;border-radius:14px;padding:16px;color:#fff;margin-bottom:12px;}
+      .gantt-light{background:#fff;border-radius:14px;padding:16px;border:1px solid var(--borde);margin-bottom:12px;}
       .gantt-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
-      .gantt-title{font-size:0.88rem;font-weight:700;color:#4ade80;display:flex;align-items:center;gap:6px;}
-      .gantt-semana-badge{background:#252840;border-radius:8px;padding:6px 10px;font-size:0.7rem;color:#aaa;line-height:1.4;}
+      .gantt-title{font-size:0.88rem;font-weight:700;color:var(--azul-oscuro);display:flex;align-items:center;gap:6px;}
+      .gantt-semana-badge{background:var(--fondo);border:1px solid var(--borde);border-radius:8px;padding:6px 10px;font-size:0.7rem;color:var(--texto-suave);line-height:1.4;}
       .gantt-nav{display:flex;gap:6px;margin-left:auto;}
-      .gantt-nav button{background:#252840;border:none;border-radius:8px;padding:7px 11px;color:#ccc;font-size:0.7rem;cursor:pointer;}
-      .gantt-nav button:hover{background:#333660;}
+      .gantt-nav button{background:var(--fondo);border:1px solid var(--borde);border-radius:8px;padding:7px 11px;color:var(--azul-oscuro);font-size:0.7rem;cursor:pointer;}
+      .gantt-nav button:hover{background:var(--verde-menta);}
       .gantt-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px;}
-      .gantt-kpi{background:#252840;border-radius:12px;padding:12px;position:relative;overflow:hidden;}
-      .gantt-kpi-label{font-size:0.6rem;color:#aaa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+      .gantt-kpi{background:var(--fondo);border:1px solid var(--borde);border-radius:12px;padding:12px;position:relative;overflow:hidden;}
+      .gantt-kpi-label{font-size:0.6rem;color:var(--texto-suave);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
       .gantt-kpi-pct{font-size:1.4rem;font-weight:700;}
-      .gantt-kpi-sub{font-size:0.62rem;color:#888;margin-top:2px;}
+      .gantt-kpi-sub{font-size:0.62rem;color:var(--texto-suave);margin-top:2px;}
       .gantt-kpi-bar{position:absolute;bottom:0;left:0;height:3px;border-radius:0 2px 2px 0;transition:width .5s;}
-      .gantt-legend{background:#252840;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.68rem;color:#aaa;}
+      .gantt-legend{background:var(--fondo);border:1px solid var(--borde);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.68rem;color:var(--texto-suave);}
       .gantt-legend-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;}
       .gantt-leg-item{display:flex;align-items:center;gap:5px;}
       .gantt-leg-sq{width:12px;height:12px;border-radius:3px;}
-      .gantt-leg-prog{width:12px;height:12px;border-radius:3px;border:2px dashed #666;background:transparent;}
-      .gantt-table-wrap{overflow-x:auto;border-radius:10px;}
+      .gantt-leg-prog{width:12px;height:12px;border-radius:3px;border:2px dashed #aaa;background:transparent;}
+      .gantt-table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--borde);}
       .gantt-tbl{border-collapse:collapse;width:100%;min-width:480px;font-size:0.68rem;}
-      .gantt-tbl th{padding:8px 6px;text-align:center;background:#252840;color:#888;font-weight:600;white-space:nowrap;border-bottom:1px solid #333;}
+      .gantt-tbl th{padding:8px 6px;text-align:center;background:var(--azul-oscuro);color:#fff;font-weight:600;white-space:nowrap;border-bottom:1px solid var(--borde);}
       .gantt-tbl th.lote-col{text-align:left;padding-left:10px;}
-      .gantt-tbl td{padding:7px 5px;border-bottom:1px solid #252840;vertical-align:middle;}
-      .gantt-tbl tr:hover td{background:#1f2235;}
-      .gantt-lote-name{font-size:0.74rem;font-weight:700;color:#eee;}
-      .gantt-lote-sub{font-size:0.6rem;color:#666;}
+      .gantt-tbl td{padding:7px 5px;border-bottom:1px solid var(--borde);vertical-align:middle;}
+      .gantt-tbl tr:hover td{background:var(--verde-menta);}
+      .gantt-lote-name{font-size:0.74rem;font-weight:700;color:var(--texto);}
+      .gantt-lote-sub{font-size:0.6rem;color:var(--texto-suave);}
       .gantt-pct-cell{text-align:center;font-weight:700;font-size:0.78rem;}
       .gantt-day-cell{text-align:center;min-width:48px;}
       .gantt-fblock{display:inline-block;border-radius:4px;padding:3px 6px;font-size:0.58rem;font-weight:700;margin:1px;white-space:nowrap;}
-      .gantt-fblock.prog{background:transparent;border:2px dashed #555;color:#666;}
-      .gantt-fblock.no-ejec{background:#3a1515;color:#e74c3c;border-radius:4px;font-size:0.58rem;}
-      .gantt-status{font-size:0.6rem;color:#888;margin-top:3px;text-align:center;}
-      .gantt-today-marker{font-size:0.58rem;color:#4ade80;margin-top:-2px;}
+      .gantt-fblock.prog{background:transparent;border:2px dashed #aaa;color:#888;}
+      .gantt-fblock.no-ejec{background:#fdecea;color:#c0392b;border-radius:4px;font-size:0.58rem;}
+      .gantt-status{font-size:0.6rem;color:var(--texto-suave);margin-top:3px;text-align:center;}
+      .gantt-today-marker{font-size:0.58rem;color:#27AE60;margin-top:-2px;}
     </style>
-    <div class="gantt-dark">
+    <div class="gantt-light">
       <div class="gantt-header">
         <div class="gantt-title">🌿 Fertilización · Fundo Lobo 2</div>
         <div class="gantt-semana-badge" id="gantt-sem-label">—</div>
@@ -3318,11 +3318,11 @@ async function cargarGanttFertilizacion(laborId){
         </div>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-        <select id="gantt-fundo" onchange="renderGantt()" style="background:#252840;border:none;border-radius:8px;padding:7px 10px;color:#ccc;font-size:0.72rem;">
+        <select id="gantt-fundo" onchange="renderGantt()" style="font-size:0.72rem;">
           <option value="">Todos los fundos</option>
           <option>Lobo 2</option><option>Lobo 1</option><option>Huaca</option>
         </select>
-        <input type="date" id="gantt-semana" value="${hoy}" onchange="renderGantt()" style="background:#252840;border:none;border-radius:8px;padding:7px 10px;color:#ccc;font-size:0.72rem;display:none;"/>
+        <input type="date" id="gantt-semana" value="${hoy}" onchange="renderGantt()" style="font-size:0.72rem;display:none;"/>
       </div>
       <div class="gantt-kpis" id="gantt-kpis">
         <div class="gantt-kpi"><div class="gantt-kpi-label">Cargando...</div></div>
@@ -3344,20 +3344,20 @@ async function cargarGanttFertilizacion(laborId){
         </table>
       </div>
       <div style="margin-top:10px;text-align:right;">
-        <button onclick="abrirProgramarFertil()" style="background:#252840;border:1px solid #4ade80;border-radius:8px;padding:8px 14px;color:#4ade80;font-size:0.72rem;font-weight:700;"${currentUser?.role==='admin'?'':' disabled title="Solo admins"'}>📤 Cargar Excel de fertilización</button>
+        <button onclick="abrirProgramarFertil()" style="background:var(--verde-menta);border:1.5px solid var(--azul-oscuro);border-radius:8px;padding:8px 14px;color:var(--azul-oscuro);font-size:0.72rem;font-weight:700;"${currentUser?.role==='admin'?'':' disabled title="Solo admins"'}>📤 Cargar Excel de fertilización</button>
       </div>
     </div>
-    <div class="gantt-dark hidden" id="gantt-prog-form">
+    <div class="gantt-light hidden" id="gantt-prog-form">
       <div style="font-size:0.84rem;font-weight:700;color:#4ade80;margin-bottom:4px;">📤 Cargar Excel de fertilización</div>
       <div style="font-size:0.7rem;color:#888;margin-bottom:14px;">Sube el archivo .xlsm y la app extrae los lotes activos, convierte a sacos y programa la semana automáticamente.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
         <div>
           <div style="font-size:0.66rem;color:#888;margin-bottom:4px;">Semana (selecciona cualquier día)</div>
-          <input type="date" id="prog-excel-semana" value="${new Date().toISOString().slice(0,10)}" style="background:#252840;border:none;border-radius:8px;padding:8px;color:#ccc;width:100%;font-size:0.76rem;"/>
+          <input type="date" id="prog-excel-semana" value="${new Date().toISOString().slice(0,10)}" style="width:100%;font-size:0.76rem;"/>
         </div>
         <div>
           <div style="font-size:0.66rem;color:#888;margin-bottom:4px;">Fundo</div>
-          <select id="prog-excel-fundo" style="background:#252840;border:none;border-radius:8px;padding:8px;color:#ccc;width:100%;font-size:0.76rem;">
+          <select id="prog-excel-fundo" style="width:100%;font-size:0.76rem;">
             <option>Lobo 2</option><option>Lobo 1</option><option>Huaca</option>
           </select>
         </div>
@@ -3370,20 +3370,32 @@ async function cargarGanttFertilizacion(laborId){
       </label>
       <input type="file" id="prog-excel-input" accept=".xlsx,.xlsm,.xls" style="display:none;" onchange="procesarExcelFertil(this)"/>
       <div id="prog-excel-preview" style="display:none;margin-top:14px;">
-        <div style="font-size:0.74rem;color:#4ade80;font-weight:700;margin-bottom:8px;" id="prog-excel-ok-label">✅ Datos extraídos — revisa antes de guardar</div>
-        <div id="prog-excel-resumen" style="max-height:260px;overflow-y:auto;border-radius:8px;"></div>
-        <div style="margin-top:12px;">
-          <div style="font-size:0.66rem;color:#888;margin-bottom:8px;">📅 Días de distribución (los sacos se reparten equitativamente entre los días marcados):</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-            ${['Lun','Mar','Mié','Jue','Vie','Sáb'].map((d,i)=>`
-            <label style="display:flex;align-items:center;gap:5px;background:#252840;border-radius:8px;padding:7px 11px;cursor:pointer;font-size:0.74rem;color:#ccc;">
-              <input type="checkbox" id="prog-check-${i}" checked style="accent-color:#4ade80;width:15px;height:15px;"/> ${d}
-            </label>`).join('')}
-          </div>
+        <div style="font-size:0.74rem;color:var(--azul-oscuro);font-weight:700;margin-bottom:8px;" id="prog-excel-ok-label">✅ Datos extraídos</div>
+        <div id="prog-excel-resumen" style="max-height:180px;overflow-y:auto;border-radius:8px;margin-bottom:12px;"></div>
+        <div style="font-size:0.74rem;font-weight:700;color:var(--azul-oscuro);margin-bottom:4px;">📅 Distribución semanal</div>
+        <div style="font-size:0.68rem;color:var(--texto-suave);margin-bottom:8px;">Ingresa los sacos/bidones por día para cada lote. La columna <b>Rest.</b> muestra lo que falta distribuir.</div>
+        <div style="overflow-x:auto;border-radius:8px;border:1px solid var(--borde);margin-bottom:12px;">
+          <table style="border-collapse:collapse;width:100%;min-width:520px;font-size:0.68rem;" id="prog-distrib-tabla">
+            <thead>
+              <tr style="background:var(--azul-oscuro);color:#fff;">
+                <th style="padding:7px 6px;text-align:left;min-width:100px;">Lote</th>
+                <th style="padding:7px 4px;text-align:left;min-width:80px;">Fertilizante</th>
+                <th style="padding:7px 4px;text-align:center;opacity:0.8;font-size:0.62rem;">Total</th>
+                <th style="padding:7px 4px;text-align:center;">Lun</th>
+                <th style="padding:7px 4px;text-align:center;">Mar</th>
+                <th style="padding:7px 4px;text-align:center;">Mié</th>
+                <th style="padding:7px 4px;text-align:center;">Jue</th>
+                <th style="padding:7px 4px;text-align:center;">Vie</th>
+                <th style="padding:7px 4px;text-align:center;">Sáb</th>
+                <th style="padding:7px 4px;text-align:center;opacity:0.8;font-size:0.62rem;">Rest.</th>
+              </tr>
+            </thead>
+            <tbody id="prog-distrib-body"></tbody>
+          </table>
         </div>
         <div style="display:flex;gap:8px;">
-          <button onclick="guardarProgramaDesdeExcel()" style="flex:1;background:#4ade80;border:none;border-radius:8px;padding:12px;color:#1a1d2e;font-weight:700;font-size:0.8rem;">💾 Guardar programa en la app</button>
-          <button onclick="limpiarExcelFertil()" style="background:#252840;border:none;border-radius:8px;padding:12px 16px;color:#888;font-size:0.8rem;">✕</button>
+          <button onclick="guardarProgramaDesdeExcel()" style="flex:1;background:var(--azul-oscuro);border:none;border-radius:8px;padding:12px;color:#fff;font-weight:700;font-size:0.8rem;">💾 Guardar programa en la app</button>
+          <button onclick="limpiarExcelFertil()" style="background:var(--fondo);border:1px solid var(--borde);border-radius:8px;padding:12px 16px;color:var(--texto-suave);font-size:0.8rem;">✕</button>
         </div>
       </div>
       <div style="margin-top:10px;text-align:right;">
@@ -3532,9 +3544,9 @@ async function renderGantt(){
 
     tblEl.innerHTML = `
       <thead>
-        <tr style="background:#252840;">
-          <th class="lote-col" style="color:#888;">LOTE</th>
-          <th style="color:#888;">%</th>
+        <tr style="background:var(--azul-oscuro);">
+          <th class="lote-col" style="color:#fff;">LOTE</th>
+          <th style="color:#fff;">%</th>
           ${diasCols}
         </tr>
       </thead>
@@ -3588,7 +3600,7 @@ function procesarExcelFertil(input){
         if (m.includes('UREA'))                      return {f:'Urea',       k:50};
         if (m.includes('FERTY BASE') || (m.includes('MAP') && !m.includes('FULVIC'))) return {f:'Fósforo',    k:25};
         if (m.includes('CLORURO'))                   return {f:'Potasio',    k:50};
-        if (m.includes('SULFURICO'))                 return {f:'Ácido sulfúrico', k:null}; // litros
+        if (m.includes('SULFURICO'))                 return {f:'Ácido sulfúrico', k:50}; // bidones 50 kg
         return null;
       }
 
@@ -3603,7 +3615,7 @@ function procesarExcelFertil(input){
         const eqtr = `EQ${eq}-TR${tr}`;
         const mat = mapMat(row[iMat]);
         if (!mat) continue;
-        const sacos = mat.k ? Math.ceil(qty / mat.k) : Math.round(qty * 100)/100;
+        const sacos = Math.ceil(qty / mat.k);
         const key = `${eqtr}||${mat.f}`;
         acum[key] = (acum[key]||0) + sacos;
       }
@@ -3623,67 +3635,62 @@ function procesarExcelFertil(input){
   reader.readAsArrayBuffer(file);
 }
 
+function getUnidadFertil(f){ return f === 'Ácido sulfúrico' ? 'bidones' : 'sacos'; }
+
 function mostrarPreviewExcel(){
   const preview = document.getElementById('prog-excel-preview');
   const resumen = document.getElementById('prog-excel-resumen');
   if (!preview || !resumen) return;
 
-  // Agrupar por fertilizante para mostrar totales
   const totales = {};
   _excelProgData.forEach(r => { totales[r.fertilizante] = (totales[r.fertilizante]||0) + r.sacos_total; });
 
-  // Tabla resumen
-  let html = `
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-      ${Object.entries(totales).map(([f,t])=>{
-        const col = F_COLORS[f]||'#888';
-        const unit = f==='Ácido sulfúrico'?'L':'sacos';
-        return `<div style="background:#252840;border-radius:8px;padding:8px 12px;border-top:3px solid ${col};">
-          <div style="font-size:0.58rem;color:#888;">${f.toUpperCase()}</div>
-          <div style="font-size:0.88rem;font-weight:700;color:${col};">${t} ${unit}</div>
-        </div>`;
-      }).join('')}
-    </div>
-    <table style="width:100%;border-collapse:collapse;font-size:0.68rem;">
-      <thead><tr style="background:#252840;">
-        <th style="padding:6px 8px;text-align:left;color:#888;">Lote</th>
-        <th style="padding:6px 8px;text-align:left;color:#888;">Fertilizante</th>
-        <th style="padding:6px 8px;text-align:right;color:#888;">Total semana</th>
-        <th style="padding:6px 8px;text-align:right;color:#888;">Por día*</th>
-      </tr></thead>
-      <tbody>`;
+  resumen.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;">
+    ${Object.entries(totales).map(([f,t])=>{
+      const col = F_COLORS[f]||'#888';
+      const unit = getUnidadFertil(f);
+      return `<div style="background:var(--fondo);border:1px solid var(--borde);border-radius:8px;padding:8px 12px;border-top:3px solid ${col};">
+        <div style="font-size:0.58rem;color:var(--texto-suave);">${f.toUpperCase()}</div>
+        <div style="font-size:0.88rem;font-weight:700;color:${col};">${t} ${unit}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
 
-  _excelProgData.forEach(r => {
-    const col = F_COLORS[r.fertilizante]||'#888';
-    const unit = r.fertilizante==='Ácido sulfúrico'?'L':'sacs';
-    // Días marcados: los calculamos dinámicamente al guardar, aquí mostramos /6
-    html += `<tr style="border-bottom:1px solid #252840;">
-      <td style="padding:6px 8px;color:#eee;font-weight:700;">${r.eqtr}</td>
-      <td style="padding:6px 8px;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${col};margin-right:4px;"></span><span style="color:#ccc;">${r.fertilizante}</span></td>
-      <td style="padding:6px 8px;text-align:right;color:#fff;font-weight:700;">${r.sacos_total} ${unit}</td>
-      <td style="padding:6px 8px;text-align:right;color:#888;" id="prev-ppd-${r.eqtr.replace('-','_')}_${r.fertilizante.replace(/[^a-z]/gi,'_')}">${(r.sacos_total/6).toFixed(1)}</td>
-    </tr>`;
-  });
-  html += `</tbody></table>
-    <div style="font-size:0.6rem;color:#555;margin-top:6px;">* Por día basado en los días seleccionados abajo (se reparte equitativamente)</div>`;
+  const tbody = document.getElementById('prog-distrib-body');
+  if (tbody){
+    tbody.innerHTML = _excelProgData.map((r, idx) => {
+      const col = F_COLORS[r.fertilizante]||'#888';
+      const unit = getUnidadFertil(r.fertilizante);
+      const inputs = [0,1,2,3,4,5].map(i =>
+        `<td style="padding:3px 2px;border:1px solid var(--borde);"><input type="number" min="0" step="1" id="dist-${idx}-${i}" oninput="actualizarResto(${idx})" style="width:40px;text-align:center;border:none;font-size:0.74rem;padding:4px 2px;" placeholder="0"/></td>`
+      ).join('');
+      return `<tr>
+        <td style="padding:6px;border:1px solid var(--borde);font-weight:700;font-size:0.7rem;">${r.eqtr}</td>
+        <td style="padding:6px 4px;border:1px solid var(--borde);white-space:nowrap;">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${col};margin-right:3px;"></span>
+          <span style="font-size:0.64rem;color:var(--texto);">${r.fertilizante}</span>
+        </td>
+        <td style="padding:6px 4px;border:1px solid var(--borde);text-align:center;font-weight:700;font-size:0.72rem;color:var(--azul-oscuro);">${r.sacos_total}<br/><span style="font-size:0.56rem;color:var(--texto-suave);">${unit}</span></td>
+        ${inputs}
+        <td style="padding:6px 4px;border:1px solid var(--borde);text-align:center;font-weight:700;font-size:0.72rem;" id="resto-${idx}">${r.sacos_total}</td>
+      </tr>`;
+    }).join('');
+  }
 
-  resumen.innerHTML = html;
   preview.style.display = '';
-  document.getElementById('prog-excel-ok-label').textContent = `✅ ${_excelProgData.length} registros extraídos — revisa antes de guardar`;
-
-  // Actualizar "por día" cuando cambian los checkboxes
-  document.querySelectorAll('[id^="prog-check-"]').forEach(cb => {
-    cb.onchange = actualizarPorDiaPreview;
-  });
+  document.getElementById('prog-excel-ok-label').textContent = `✅ ${_excelProgData.length} lotes extraídos — distribuye los sacos/bidones por día`;
 }
 
-function actualizarPorDiaPreview(){
-  const diasMarcados = [0,1,2,3,4,5].filter(i => document.getElementById(`prog-check-${i}`)?.checked).length || 1;
-  _excelProgData.forEach(r => {
-    const key = `prev-ppd-${r.eqtr.replace('-','_')}_${r.fertilizante.replace(/[^a-z]/gi,'_')}`;
-    const el = document.getElementById(key);
-    if (el) el.textContent = (r.sacos_total / diasMarcados).toFixed(1);
-  });
+function actualizarResto(idx){
+  const r = _excelProgData[idx];
+  if (!r) return;
+  const suma = [0,1,2,3,4,5].reduce((s,i) => s + (parseFloat(document.getElementById(`dist-${idx}-${i}`)?.value)||0), 0);
+  const resto = Math.round((r.sacos_total - suma) * 10) / 10;
+  const el = document.getElementById(`resto-${idx}`);
+  if (el){
+    el.textContent = resto;
+    el.style.color = resto < 0 ? '#e74c3c' : resto === 0 ? '#27AE60' : 'var(--azul-oscuro)';
+  }
 }
 
 function limpiarExcelFertil(){
@@ -3704,13 +3711,12 @@ async function guardarProgramaDesdeExcel(){
 
   const lunes = lunesDeSemana(semana);
   const diasSemana = diasDeSemana(lunes).slice(0,6);
-  const diasMarcados = [0,1,2,3,4,5].filter(i => document.getElementById(`prog-check-${i}`)?.checked);
-  if (!diasMarcados.length){ showToast('Marca al menos un día', 'error'); return; }
 
   const registros = [];
-  _excelProgData.forEach(r => {
-    const sacosXDia = Math.round((r.sacos_total / diasMarcados.length) * 10) / 10;
-    diasMarcados.forEach(i => {
+  _excelProgData.forEach((r, idx) => {
+    [0,1,2,3,4,5].forEach(i => {
+      const cant = parseFloat(document.getElementById(`dist-${idx}-${i}`)?.value) || 0;
+      if (cant <= 0) return;
       registros.push({
         labor: 'fertilizacion',
         fundo,
@@ -3720,14 +3726,16 @@ async function guardarProgramaDesdeExcel(){
         insumo: r.fertilizante,
         datos_extra: {
           fertilizante: r.fertilizante,
-          bolsas_programadas: sacosXDia,
+          bolsas_programadas: cant,
           sacos_semana_total: r.sacos_total,
-          semana: lunes
+          semana: lunes,
+          unidad: getUnidadFertil(r.fertilizante)
         }
       });
     });
   });
 
+  if (!registros.length){ showToast('Ingresa al menos un valor en la tabla de distribución', 'error'); return; }
   showToast(`⏳ Guardando ${registros.length} registros...`);
   let guardados = 0, errores = 0, primerError = '';
 
