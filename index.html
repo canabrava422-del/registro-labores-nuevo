@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.14"/>
+<meta name="app-version" content="4.17.15"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -551,7 +551,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.14';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.15';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -3438,12 +3438,12 @@ async function renderGantt(){
     const ejec = rE.ok ? await rE.json() : [];
 
     // Reunir todos los lotes
-    const lotes = [...new Set([...prog.map(r=>r.equipo), ...ejec.map(r=>r.equipo)].filter(Boolean))].sort();
+    const lotes = [...new Set([...prog.map(r=>r.eq_tr||r.equipo), ...ejec.map(r=>r.equipo)].filter(Boolean))].sort();
 
     // KPIs por fertilizante
     const kpiData = {};
     FERTIL_TIPOS.forEach(f => { kpiData[f] = {prog:0, ejec:0}; });
-    prog.forEach(r => { const f=r.datos_extra?.fertilizante||r.notas; if(kpiData[f]) kpiData[f].prog += r.datos_extra?.bolsas_programadas||0; });
+    prog.forEach(r => { const f=r.datos_extra?.fertilizante||r.insumo||r.notas; if(kpiData[f]) kpiData[f].prog += r.datos_extra?.bolsas_programadas||0; });
     ejec.forEach(r => { const f=r.datos_extra?.fertilizante; if(kpiData[f]) kpiData[f].ejec += r.datos_extra?.bolsas_ejecutadas||0; });
 
     const totalProg = Object.values(kpiData).reduce((s,k)=>s+k.prog,0);
@@ -3484,7 +3484,7 @@ async function renderGantt(){
       lotes.forEach(lote => {
         let loteProgTotal=0, loteEjecTotal=0;
         const daysCells = dias.map(fecha => {
-          const dprog = prog.filter(r=>r.equipo===lote&&r.fecha_programada===fecha);
+          const dprog = prog.filter(r=>(r.eq_tr||r.equipo)===lote&&r.fecha_programada===fecha);
           const dejec = ejec.filter(r=>r.equipo===lote&&r.fecha===fecha);
           const esHoy = fecha===hoy;
           if(!dprog.length && !dejec.length) return `<td class="gantt-day-cell" style="${esHoy?'background:#1a2a1a;':''}"></td>`;
@@ -3498,7 +3498,7 @@ async function renderGantt(){
           });
           // Bloques programados sin ejecutar
           dprog.forEach(r => {
-            const f=r.datos_extra?.fertilizante||r.notas;
+            const f=r.datos_extra?.fertilizante||r.insumo||r.notas;
             const yaEjec = dejec.some(e=>e.datos_extra?.fertilizante===f);
             const b=r.datos_extra?.bolsas_programadas||0;
             loteProgTotal+=b;
@@ -3519,7 +3519,7 @@ async function renderGantt(){
         tbody += `<tr>
           <td style="padding:8px 10px;min-width:100px;">
             <div class="gantt-lote-name">${lote}</div>
-            <div class="gantt-lote-sub">${ejec.find(r=>r.equipo===lote)?.fundo||prog.find(r=>r.equipo===lote)?.fundo||''}</div>
+            <div class="gantt-lote-sub">${ejec.find(r=>r.equipo===lote)?.fundo||prog.find(r=>(r.eq_tr||r.equipo)===lote)?.fundo||''}</div>
           </td>
           <td class="gantt-pct-cell" style="color:${pctCol};">
             ${pctLote!==null?pctLote+'%':'—'}
@@ -3714,10 +3714,10 @@ async function guardarProgramaDesdeExcel(){
       registros.push({
         labor: 'fertilizacion',
         fundo,
-        equipo: r.eqtr,
+        eq_tr: r.eqtr,
         fecha_programada: diasSemana[i],
         parcelas: '',
-        notas: r.fertilizante,
+        insumo: r.fertilizante,
         datos_extra: {
           fertilizante: r.fertilizante,
           bolsas_programadas: sacosXDia,
