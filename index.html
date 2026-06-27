@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.29"/>
+<meta name="app-version" content="4.17.30"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -631,7 +631,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.29';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.30';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -2257,73 +2257,60 @@ const FORMULARIOS = {
       <div id="obs-lista-anotaciones"><div class="verify-empty">Selecciona un fundo para ver las anotaciones.</div></div>
     </div>`,
 
-  fertilizacion: () => baseBlock('🌿 Fertilización') + `
+  fertilizacion: () => `
     <div class="form-card">
-      <div class="section-title">🧪 1. Preparación de fertilizante (fertirriego)</div>
-      <div style="font-size:0.7rem;color:var(--texto-suave);margin-bottom:10px;">Registra cuántos sacos/bidones preparaste hoy en cada fertirriego.</div>
-      <div class="form-grid">
+      <div class="section-title">🌿 Fertilización — Ejecutado del día</div>
+      <div style="font-size:0.7rem;color:var(--texto-suave);margin-bottom:12px;">
+        Filtra los lotes que preparaste hoy e ingresa los kg de cada fertilizante.
+        Los datos se sincronizarán con el Gantt y la tabla NPK automáticamente.
+      </div>
+      <!-- Filtros -->
+      <div class="form-grid" style="margin-bottom:10px;">
         <div class="form-field">
-          <label>Fertirriego</label>
-          <select id="f-fertil-riego">
-            <option value="">— Selecciona —</option>
-            <option value="R2">R2 (EQ09–EQ15)</option>
-            <option value="R3">R3 (EQ16–EQ20)</option>
-          </select>
+          <label>Fecha</label>
+          <input type="date" id="fertil-ejec-fecha" value="${new Date().toISOString().slice(0,10)}"/>
         </div>
         <div class="form-field">
-          <label>Fertilizante</label>
-          <select id="f-fertil-tipo" onchange="actualizarUnidadFertil()">
+          <label>Fundo</label>
+          <select id="fertil-ejec-fundo" onchange="onFertilEjecFundoChange()">
             <option value="">— Selecciona —</option>
-            <option>Urea</option>
-            <option>Fósforo</option>
-            <option>Potasio</option>
-            <option>Ácido sulfúrico</option>
+            <option>Lobo 2</option><option>Lobo 1</option><option>Huaca</option>
           </select>
-        </div>
-        <div class="form-field full">
-          <label>Cantidad preparada hoy</label>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <input type="number" id="f-bolsas-ejec" step="1" min="0" placeholder="0" style="flex:1;" oninput="setAvanceHaOculto(parseFloat(this.value)||0)"/>
-            <span id="f-fertil-unidad" style="font-size:0.76rem;color:var(--texto-suave);white-space:nowrap;">sacos / bidones</span>
-          </div>
         </div>
       </div>
-    </div>
-    <div class="form-card" style="background:var(--verde-menta);border:1px solid var(--verde-claro);">
-      <div style="font-size:0.74rem;color:var(--azul-oscuro);font-weight:700;">💧 2. Irrigación por EQ-TR (opcional)</div>
-      <div style="font-size:0.7rem;color:var(--texto-suave);margin:6px 0 10px;">Después de preparar, registra cuántos kg de cada fertilizante pasaron por el sistema de riego en cada lote.</div>
-      <div class="form-grid">
-        <div class="form-field full">
-          <label>EQ-TR</label>
-          <select id="f-fertil-eqtr">
-            <option value="">— Selecciona lote —</option>
-            <optgroup label="R2 (EQ09–EQ15)">
-              <option>EQ09-TR01</option><option>EQ09-TR02</option><option>EQ09-TR03</option>
-              <option>EQ11-TR04</option><option>EQ11-TR05</option>
-              <option>EQ14-TR01</option><option>EQ14-TR03</option>
-            </optgroup>
-            <optgroup label="R3 (EQ16–EQ20)">
-              <option>EQ16-TR01</option><option>EQ16-TR03</option><option>EQ16-TR04</option><option>EQ16-TR05</option>
-              <option>EQ17-TR02</option><option>EQ17-TR04</option>
-              <option>EQ18-TR01</option><option>EQ18-TR04</option>
-              <option>EQ19-TR02</option><option>EQ19-TR04</option>
-            </optgroup>
-          </select>
+      <!-- Multi-select EQ-TR -->
+      <div class="form-field" style="margin-bottom:10px;">
+        <label>EQ-TR <span style="font-weight:400;font-size:0.68rem;">(selección múltiple)</span></label>
+        <div id="fertil-ejec-eqtr-wrap" style="border:1px solid var(--borde);border-radius:8px;padding:8px;max-height:160px;overflow-y:auto;background:#fff;">
+          <div style="font-size:0.72rem;color:var(--texto-suave);">Selecciona un fundo primero</div>
         </div>
-        <div class="form-field">
-          <label>N — Urea (kg)</label>
-          <input type="number" id="f-irrig-n" min="0" step="0.1" placeholder="0"/>
-        </div>
-        <div class="form-field">
-          <label>P — Ferty Base (kg)</label>
-          <input type="number" id="f-irrig-p" min="0" step="0.1" placeholder="0"/>
-        </div>
-        <div class="form-field">
-          <label>K — KCl (kg)</label>
-          <input type="number" id="f-irrig-k" min="0" step="0.1" placeholder="0"/>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <button onclick="selectAllEqTr(true)" class="btn secundario" style="font-size:0.68rem;padding:5px 10px;">Todos</button>
+          <button onclick="selectAllEqTr(false)" class="btn secundario" style="font-size:0.68rem;padding:5px 10px;">Ninguno</button>
+          <button onclick="aplicarFiltroFertilEjec()" class="btn" style="flex:1;font-size:0.74rem;">🔍 Cargar tabla</button>
         </div>
       </div>
-    </div>` + jornalesField() + obsField('Observaciones de fertilización...'),
+      <!-- Tabla de ingreso -->
+      <div id="fertil-ejec-tabla-wrap" style="display:none;margin-top:4px;">
+        <div style="overflow-x:auto;border:1px solid var(--borde);border-radius:8px;">
+          <table id="fertil-ejec-tabla" style="border-collapse:collapse;width:100%;min-width:480px;font-size:0.72rem;">
+            <thead>
+              <tr style="background:var(--azul-oscuro);color:#fff;">
+                <th style="padding:8px 6px;text-align:left;min-width:100px;">EQ-TR</th>
+                <th style="padding:8px 4px;text-align:center;border-left:1px solid #4a6fa5;">N — Urea (kg)</th>
+                <th style="padding:8px 4px;text-align:center;border-left:1px solid #4a6fa5;">P — F.Base (kg)</th>
+                <th style="padding:8px 4px;text-align:center;border-left:1px solid #4a6fa5;">K — KCl (kg)</th>
+                <th style="padding:8px 4px;text-align:center;border-left:1px solid #4a6fa5;">Ác.Sulf. (kg)</th>
+              </tr>
+            </thead>
+            <tbody id="fertil-ejec-tbody"></tbody>
+          </table>
+        </div>
+        <button onclick="guardarFertilEjecutado()" class="btn" style="width:100%;margin-top:12px;padding:13px;">
+          💾 Guardar preparación del día
+        </button>
+      </div>
+    </div>`,
 };
 
 const CAMPOS_EXTRA = {
@@ -3757,7 +3744,7 @@ async function renderGantt(){
       } else {
         let npkHtml = `
           <div style="font-size:0.68rem;color:var(--texto-suave);padding:8px 10px;background:var(--fondo);border-bottom:1px solid var(--borde);">
-            Toca una celda para registrar kg preparados y marcar si fue lanzado por sistema de riego.
+            Acumulado semanal de kg preparados por EQ-TR. Se actualiza conforme el fertilizador registra en la pestaña <strong>Ejecutado</strong>.
           </div>
           <table style="border-collapse:collapse;width:100%;font-size:0.68rem;">
             <thead><tr style="background:var(--azul-oscuro);color:#fff;">
@@ -3812,10 +3799,8 @@ async function renderGantt(){
             const lanzBadge = lanz
               ? '<div style="font-size:0.58rem;color:#27AE60;">✅ Lanzado</div>'
               : acum>0 ? '<div style="font-size:0.58rem;color:#E67E22;">🔧 Preparado</div>' : '';
-            const onclk = tapeable ? ' onclick="abrirNpkFromCache('+npkIdx+')"' : '';
-            const bg = acum===0&&prog>0 ? 'background:var(--verde-menta);' : '';
-            const valStr = acum>0 ? acum+' kg' : '<span style="color:#aaa;font-size:0.66rem;">+ anotar</span>';
-            return '<td'+onclk+' style="padding:6px 4px;text-align:center;border:1px solid var(--borde);'+(tapeable?'cursor:pointer;':'')+bg+'">'
+            const valStr = acum>0 ? acum+' kg' : '<span style="color:#aaa;font-size:0.66rem;">—</span>';
+            return '<td style="padding:6px 4px;text-align:center;border:1px solid var(--borde);">'
               +'<div style="font-size:0.62rem;color:var(--texto-suave);">P:'+prog+'</div>'
               +'<div style="font-size:0.74rem;font-weight:700;color:'+col2+';">'+valStr+'</div>'
               +lanzBadge+'</td>';
@@ -4080,6 +4065,183 @@ async function borrarNpkIrrigacion(){
     if (!res.ok) throw new Error(await res.text());
     showToast('🗑️ Eliminado'); cerrarNpkModal(); renderGantt();
   }catch(e){ showToast('Error: '+e.message,'error'); }
+}
+
+// ── FERTILIZACIÓN — TAB EJECUTADO ────────────────────────────
+// EQ-TR por fundo (cargados del resumen en Supabase o hardcoded del Excel S26)
+const EQTR_POR_FUNDO = {
+  'Lobo 2': ['EQ09-TR01','EQ09-TR02','EQ09-TR03','EQ11-TR04','EQ11-TR05',
+              'EQ14-TR01','EQ14-TR03','EQ16-TR01','EQ16-TR03','EQ16-TR04',
+              'EQ16-TR05','EQ17-TR02','EQ17-TR04','EQ18-TR01','EQ18-TR04',
+              'EQ19-TR02','EQ19-TR04'],
+  'Lobo 1': [],
+  'Huaca':  [],
+};
+
+function onFertilEjecFundoChange(){
+  const fundo = document.getElementById('fertil-ejec-fundo')?.value;
+  const wrap  = document.getElementById('fertil-ejec-eqtr-wrap');
+  if (!wrap) return;
+
+  // Intentar cargar EQ-TR del resumen en Supabase primero, fallback a hardcoded
+  const lista = EQTR_POR_FUNDO[fundo] || [];
+  if (!lista.length){
+    wrap.innerHTML = '<div style="font-size:0.72rem;color:var(--texto-suave);">Sin lotes registrados para este fundo</div>';
+    return;
+  }
+
+  wrap.innerHTML = lista.map(eqtr => {
+    const riego = getFertirriego(eqtr);
+    const col = riego==='R2'?'#2E86C1':'#8E44AD';
+    return `<label style="display:flex;align-items:center;gap:8px;padding:5px 4px;cursor:pointer;font-size:0.74rem;border-bottom:1px solid var(--borde);">
+      <input type="checkbox" class="chk-eqtr" value="${eqtr}" checked style="accent-color:var(--azul-oscuro);width:16px;height:16px;"/>
+      <span style="font-weight:700;">${eqtr}</span>
+      <span style="font-size:0.62rem;color:${col};">${riego}</span>
+    </label>`;
+  }).join('');
+
+  // También intentar cargar EQ-TR del resumen Supabase
+  cargarEqTrDesdeResumen(fundo);
+}
+
+async function cargarEqTrDesdeResumen(fundo){
+  try{
+    const hoy = new Date();
+    const lunes = lunesDeSemanaN(getISOWeek(hoy), getISOYear(hoy));
+    const res = await sbFetch(`programa_aplicaciones?labor=eq.fertilizacion&eq_tr=eq.RESUMEN&fundo=eq.${encodeURIComponent(fundo)}&fecha_programada=eq.${lunes}&limit=1`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const detalle = data[0]?.datos_extra?.detalle_eqtr;
+    if (!detalle || !detalle.length) return;
+    // Actualizar lista con los EQ-TR del programa
+    const wrap = document.getElementById('fertil-ejec-eqtr-wrap');
+    if (!wrap) return;
+    wrap.innerHTML = detalle.sort((a,b)=>a.eqtr.localeCompare(b.eqtr)).map(r => {
+      const riego = r.fertirriego || getFertirriego(r.eqtr);
+      const col = riego==='R2'?'#2E86C1':'#8E44AD';
+      return `<label style="display:flex;align-items:center;gap:8px;padding:5px 4px;cursor:pointer;font-size:0.74rem;border-bottom:1px solid var(--borde);">
+        <input type="checkbox" class="chk-eqtr" value="${r.eqtr}" checked style="accent-color:var(--azul-oscuro);width:16px;height:16px;"/>
+        <span style="font-weight:700;">${r.eqtr}</span>
+        <span style="font-size:0.62rem;color:${col};">${riego}</span>
+        ${r.urea_kg>0?`<span style="font-size:0.58rem;color:#3b82f6;">N:${r.urea_kg}kg</span>`:''}
+        ${r.fosforo_kg>0?`<span style="font-size:0.58rem;color:#f97316;">P:${r.fosforo_kg}kg</span>`:''}
+        ${r.potasio_kg>0?`<span style="font-size:0.58rem;color:#a855f7;">K:${r.potasio_kg}kg</span>`:''}
+      </label>`;
+    }).join('');
+  }catch(e){ /* silently fail */ }
+}
+
+function selectAllEqTr(sel){
+  document.querySelectorAll('.chk-eqtr').forEach(c => { c.checked = sel; });
+}
+
+async function aplicarFiltroFertilEjec(){
+  const fundo  = document.getElementById('fertil-ejec-fundo')?.value;
+  const fecha  = document.getElementById('fertil-ejec-fecha')?.value;
+  const selEqTr = [...document.querySelectorAll('.chk-eqtr:checked')].map(c=>c.value);
+  if (!fundo){ showToast('Selecciona un fundo', 'error'); return; }
+  if (!selEqTr.length){ showToast('Selecciona al menos un EQ-TR', 'error'); return; }
+
+  const wrap = document.getElementById('fertil-ejec-tabla-wrap');
+  const tbody = document.getElementById('fertil-ejec-tbody');
+  if (!wrap || !tbody) return;
+
+  // Cargar registros existentes del día para pre-llenar la tabla
+  let registrosHoy = {};
+  try{
+    const res = await sbFetch(`labores_campo?labor=eq.fertilizacion&fecha=eq.${fecha}&limit=200`);
+    if (res.ok){
+      const data = await res.json();
+      data.filter(r=>r.datos_extra?.tipo==='npk_eqtr').forEach(r=>{
+        const eqtr = r.datos_extra?.eqtr_irrigado || `${r.equipo}-${r.parcelas}`;
+        registrosHoy[eqtr] = r;
+      });
+    }
+  }catch(e){}
+
+  tbody.innerHTML = selEqTr.map(eqtr => {
+    const riego = getFertirriego(eqtr);
+    const col = riego==='R2'?'#2E86C1':'#8E44AD';
+    const prev = registrosHoy[eqtr];
+    const n  = prev?.datos_extra?.urea_kg    || '';
+    const p  = prev?.datos_extra?.fosforo_kg || '';
+    const k  = prev?.datos_extra?.potasio_kg || '';
+    const as = prev?.datos_extra?.acido_kg   || '';
+    const prevId = prev?.id || '';
+    const inp = (id, val) => `<input type="number" min="0" step="0.1" placeholder="0" value="${val}"
+      id="fe-${eqtr.replace('-','_')}-${id}"
+      style="width:70px;border:none;border-bottom:1px solid var(--borde);text-align:center;font-size:0.78rem;padding:4px 2px;background:transparent;"/>`;
+    return `<tr style="border-bottom:1px solid var(--borde);" data-eqtr="${eqtr}" data-previd="${prevId}">
+      <td style="padding:8px 6px;font-weight:700;border-left:3px solid ${col};">${eqtr}<br/><span style="font-size:0.6rem;color:${col};">${riego}</span></td>
+      <td style="padding:6px 4px;text-align:center;">${inp('n',n)}</td>
+      <td style="padding:6px 4px;text-align:center;">${inp('p',p)}</td>
+      <td style="padding:6px 4px;text-align:center;">${inp('k',k)}</td>
+      <td style="padding:6px 4px;text-align:center;">${inp('as',as)}</td>
+    </tr>`;
+  }).join('');
+
+  wrap.style.display = '';
+}
+
+async function guardarFertilEjecutado(){
+  const fundo = document.getElementById('fertil-ejec-fundo')?.value;
+  const fecha = document.getElementById('fertil-ejec-fecha')?.value;
+  if (!fundo || !fecha){ showToast('Falta fundo o fecha', 'error'); return; }
+
+  const filas = document.querySelectorAll('#fertil-ejec-tbody tr[data-eqtr]');
+  if (!filas.length){ showToast('Carga la tabla primero', 'error'); return; }
+
+  showToast('⏳ Guardando...');
+  let guardados = 0, errores = 0;
+
+  for (const fila of filas){
+    const eqtr   = fila.dataset.eqtr;
+    const prevId = fila.dataset.previd;
+    const eqParts = eqtr.split('-');
+    const n  = parseFloat(fila.querySelector(`[id$="-n"]`)?.value)  || 0;
+    const p  = parseFloat(fila.querySelector(`[id$="-p"]`)?.value)  || 0;
+    const k  = parseFloat(fila.querySelector(`[id$="-k"]`)?.value)  || 0;
+    const as = parseFloat(fila.querySelector(`[id$="-as"]`)?.value) || 0;
+    if (n+p+k+as === 0) continue; // omitir filas vacías
+
+    const datos = {
+      _usuario: currentUser.user, tipo: 'npk_eqtr',
+      fertirriego: getFertirriego(eqtr), eqtr_irrigado: eqtr,
+      urea_kg:    n||null, fosforo_kg: p||null,
+      potasio_kg: k||null, acido_kg:   as||null
+    };
+    const reg = {
+      labor:'fertilizacion', fundo, equipo: eqParts[0], parcelas: eqParts[1]||'',
+      fecha, controlador: currentUser.nombre, rol: currentUser.role, datos_extra: datos
+    };
+
+    try{
+      let res;
+      if (prevId){
+        res = await sbFetch(`labores_campo?id=eq.${prevId}`,{
+          method:'PATCH', headers:{'Content-Type':'application/json','Prefer':'return=minimal'},
+          body: JSON.stringify({ datos_extra: datos })
+        });
+      } else {
+        res = await sbFetch('labores_campo',{
+          method:'POST', headers:{'Content-Type':'application/json','Prefer':'return=minimal'},
+          body: JSON.stringify(reg)
+        });
+      }
+      if (res.ok || res.status===201){ guardados++; }
+      else { errores++; }
+    }catch(e){ errores++; }
+  }
+
+  if (guardados > 0){
+    showToast(`✅ ${guardados} lote(s) guardados`);
+    // Actualizar los prevId recargando
+    aplicarFiltroFertilEjec();
+  } else if (errores > 0){
+    showToast('Error al guardar algunos registros', 'error');
+  } else {
+    showToast('No había datos para guardar — las celdas están vacías', 'error');
+  }
 }
 
 function actualizarUnidadFertil(){
@@ -4488,7 +4650,7 @@ function abrirFormulario(laborId, registroExistente){
   if (registroExistente) precargarFormulario(registroExistente);
   refreshVerifyTable();
   cargarRegistrosAnterioresForm(laborId);
-  switchAppTab(laborId === 'fertilizacion' ? 'registros' : 'ejecutado');
+  switchAppTab(laborId === 'fertilizacion' ? 'ejecutado' : 'ejecutado');
   // Conectar listeners de mejoria de caudal si es purga
   if (laborId === 'purga'){
     ['f-caudal-inicial','f-caudal-final'].forEach(id => {
@@ -6179,23 +6341,23 @@ function switchAppTab(tab){
     if (el) el.classList.toggle('hidden', t !== tab);
   });
 
-  // Para fertilizacion: solo mostrar tab Registros, ocultar los demás tabs
+  // Para fertilizacion: mostrar Ejecutado y Registros, ocultar Programado
   const tabsBar = document.querySelector('.app-tabs');
   if (tabsBar){
-    if (laborActual === 'fertilizacion'){
-      tabsBar.style.display = 'none';
-      // Forzar Registros
-      if (tab !== 'registros') { switchAppTab('registros'); return; }
-    } else {
-      tabsBar.style.display = '';
-    }
+    tabsBar.style.display = '';
+    document.querySelectorAll('.app-tab').forEach(b => {
+      if (laborActual === 'fertilizacion' && b.dataset.tab === 'programado')
+        b.style.display = 'none';
+      else
+        b.style.display = '';
+    });
   }
 
-  // Verificación y botón Guardar: solo en Ejecutado
+  // Verificación y botón Guardar: ocultar siempre en fertilizacion (tiene su propio botón)
   const verify = document.querySelector('.verify-table-wrap');
-  if (verify) verify.style.display = tab === 'ejecutado' ? '' : 'none';
+  if (verify) verify.style.display = (tab === 'ejecutado' && laborActual !== 'fertilizacion') ? '' : 'none';
   const guardarBtn = document.getElementById('btn-guardar-registro');
-  if (guardarBtn) guardarBtn.style.display = tab === 'ejecutado' ? '' : 'none';
+  if (guardarBtn) guardarBtn.style.display = (tab === 'ejecutado' && laborActual !== 'fertilizacion') ? '' : 'none';
 
   if (tab === 'registros'){
     cargarRegistrosAnterioresForm(laborActual);
