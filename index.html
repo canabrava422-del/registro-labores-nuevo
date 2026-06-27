@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.24"/>
+<meta name="app-version" content="4.17.25"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -622,7 +622,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.24';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.25';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -3348,13 +3348,39 @@ const FERTIL_PROG_BASE = {"Lobo 2": {"semana26": {"EQ09-TR01": {"Urea": 22.0, "�
 const FERTIL_TIPOS = ['Urea','Fósforo','Potasio','Ácido sulfúrico'];
 const FERTIL_COLORES = { 'Urea':'#3498DB','Fósforo':'#E67E22','Potasio':'#8E44AD','Ácido sulfúrico':'#E74C3C' };
 
-// Retorna el lunes de la semana que contiene `date`
-function lunesDeSemana(date){
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0,10);
+// Número de semana ISO de una fecha
+function getISOWeek(date){
+  const d = new Date(date); d.setHours(0,0,0,0);
+  d.setDate(d.getDate() + 4 - (d.getDay()||7));
+  const y = new Date(d.getFullYear(),0,1);
+  return Math.ceil(((d-y)/86400000+1)/7);
+}
+
+// Año ISO de una fecha (puede diferir del año calendario en sem 1/52)
+function getISOYear(date){
+  const d = new Date(date); d.setHours(0,0,0,0);
+  d.setDate(d.getDate() + 4 - (d.getDay()||7));
+  return d.getFullYear();
+}
+
+// Lunes de la semana ISO N del año Y
+function lunesDeSemanaN(week, year){
+  const simple = new Date(year, 0, 1 + (week-1)*7);
+  const dow = simple.getDay() || 7;
+  simple.setDate(simple.getDate() - dow + 1);
+  // Corrección: verificar que el jueves de esa semana esté en el año correcto
+  const thu = new Date(simple); thu.setDate(thu.getDate()+3);
+  if (thu.getFullYear() < year) simple.setDate(simple.getDate()+7);
+  if (thu.getFullYear() > year) simple.setDate(simple.getDate()-7);
+  return simple.toISOString().slice(0,10);
+}
+
+// Retorna el lunes ISO de la semana que contiene date (string YYYY-MM-DD)
+function lunesDeSemana(dateStr){
+  const d = new Date(dateStr+'T12:00:00');
+  const week = getISOWeek(d);
+  const year = getISOYear(d);
+  return lunesDeSemanaN(week, year);
 }
 
 // Array de 7 fechas de la semana (lunes a domingo)
@@ -3383,8 +3409,10 @@ async function cargarGanttFertilizacion(laborId){
   const avanceCont = document.getElementById('tab-registros-avance');
   if (!avanceCont) return;
 
-  const hoy = new Date().toISOString().slice(0,10);
-  const lunesActual = lunesDeSemana(hoy);
+  const hoy2 = new Date().toISOString().slice(0,10);
+  const semActual = getISOWeek(new Date());
+  const yearActual = getISOYear(new Date());
+  _ganttSemana = lunesDeSemanaN(semActual, yearActual);
 
   avanceCont.innerHTML = `
     <style>
@@ -3431,12 +3459,24 @@ async function cargarGanttFertilizacion(laborId){
           <button onclick="navGantt(1)">Sem. siguiente →</button>
         </div>
       </div>
-      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
         <select id="gantt-fundo" onchange="renderGantt()" style="font-size:0.72rem;">
           <option value="">Todos los fundos</option>
           <option>Lobo 2</option><option>Lobo 1</option><option>Huaca</option>
         </select>
-        <input type="date" id="gantt-semana" value="${hoy}" onchange="renderGantt()" style="font-size:0.72rem;display:none;"/>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span style="font-size:0.7rem;color:var(--texto-suave);">Sem.</span>
+          <input type="number" id="gantt-semana-num" min="1" max="53"
+            value="${semActual}"
+            onchange="renderGanttDesdeNum()"
+            style="width:52px;font-size:0.8rem;text-align:center;border:1px solid var(--borde);border-radius:6px;padding:6px 4px;"/>
+          <span style="font-size:0.7rem;color:var(--texto-suave);">Año</span>
+          <input type="number" id="gantt-semana-year" min="2024" max="2030"
+            value="${yearActual}"
+            onchange="renderGanttDesdeNum()"
+            style="width:66px;font-size:0.8rem;text-align:center;border:1px solid var(--borde);border-radius:6px;padding:6px 4px;"/>
+        </div>
+        <input type="date" id="gantt-semana" value="${hoy2}" style="display:none;"/>
       </div>
       <div class="gantt-kpis" id="gantt-kpis">
         <div class="gantt-kpi"><div class="gantt-kpi-label">Cargando...</div></div>
@@ -3528,12 +3568,24 @@ async function cargarGanttFertilizacion(laborId){
   await renderGantt();
 }
 
-let _ganttSemana = lunesDeSemana(new Date().toISOString().slice(0,10));
+function renderGanttDesdeNum(){
+  const num  = parseInt(document.getElementById('gantt-semana-num')?.value) || getISOWeek(new Date());
+  const year = parseInt(document.getElementById('gantt-semana-year')?.value) || getISOYear(new Date());
+  _ganttSemana = lunesDeSemanaN(num, year);
+  renderGantt();
+}
+
+let _ganttSemana = lunesDeSemanaN(getISOWeek(new Date()), getISOYear(new Date()));
 
 function navGantt(dir){
-  const d = new Date(_ganttSemana);
+  const d = new Date(_ganttSemana+'T12:00:00');
   d.setDate(d.getDate() + dir*7);
   _ganttSemana = d.toISOString().slice(0,10);
+  // Actualizar los inputs de semana y año
+  const numEl  = document.getElementById('gantt-semana-num');
+  const yearEl = document.getElementById('gantt-semana-year');
+  if (numEl)  numEl.value  = getISOWeek(d);
+  if (yearEl) yearEl.value = getISOYear(d);
   renderGantt();
 }
 
@@ -3541,20 +3593,21 @@ const F_COLORS = { 'Urea':'#3b82f6','Fósforo':'#f97316','Potasio':'#a855f7','Á
 const F_SHORT  = { 'Urea':'UREA','Fósforo':'FÓSFORO','Potasio':'POTASIO','Ácido sulfúrico':'ÁC. SULF.' };
 
 async function renderGantt(){
-  const semanaEl = document.getElementById('gantt-semana');
-  const lunes = semanaEl?.value ? lunesDeSemana(semanaEl.value) : _ganttSemana;
+  const semNum  = parseInt(document.getElementById('gantt-semana-num')?.value)  || getISOWeek(new Date());
+  const semYear = parseInt(document.getElementById('gantt-semana-year')?.value) || getISOYear(new Date());
+  const lunes = _ganttSemana || lunesDeSemanaN(semNum, semYear);
   _ganttSemana = lunes;
-  const dias = diasDeSemana(lunes).slice(0,6);
+  const dias = diasDeSemana(lunes).slice(0,6); // Lun-Sáb
   const hoy = new Date().toISOString().slice(0,10);
   const filtroFundo = document.getElementById('gantt-fundo')?.value || '';
 
-  // Badge semana
+  // Badge semana con ISO correcto
   const semLabel = document.getElementById('gantt-sem-label');
   if (semLabel){
-    const numSem = Math.ceil((new Date(lunes) - new Date(new Date(lunes).getFullYear(),0,1)) / 604800000);
-    const d0=new Date(lunes), d1=new Date(dias[5]);
+    const d0=new Date(lunes+'T12:00:00'), d1=new Date(dias[5]+'T12:00:00');
     const fmt = d => `${d.getDate()} ${['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][d.getMonth()]}`;
-    semLabel.innerHTML = `Semana ${numSem} · ${fmt(d0)}-${fmt(d1)} ${d0.getFullYear()}`;
+    const wn = getISOWeek(d0);
+    semLabel.innerHTML = `Semana ${wn} · ${fmt(d0)}-${fmt(d1)} ${d1.getFullYear()}`;
   }
 
   const kpisEl = document.getElementById('gantt-kpis');
