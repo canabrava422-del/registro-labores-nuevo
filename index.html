@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.18"/>
+<meta name="app-version" content="4.17.19"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -551,7 +551,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.18';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.19';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -2179,11 +2179,20 @@ const FORMULARIOS = {
 
   fertilizacion: () => baseBlock('🌿 Fertilización') + `
     <div class="form-card">
-      <div class="section-title">📦 Ejecución diaria</div>
+      <div class="section-title">🧪 1. Preparación de fertilizante (fertirriego)</div>
+      <div style="font-size:0.7rem;color:var(--texto-suave);margin-bottom:10px;">Registra cuántos sacos/bidones preparaste hoy en cada fertirriego.</div>
       <div class="form-grid">
-        <div class="form-field full">
+        <div class="form-field">
+          <label>Fertirriego</label>
+          <select id="f-fertil-riego">
+            <option value="">— Selecciona —</option>
+            <option value="R2">R2 (EQ09–EQ15)</option>
+            <option value="R3">R3 (EQ16–EQ20)</option>
+          </select>
+        </div>
+        <div class="form-field">
           <label>Fertilizante</label>
-          <select id="f-fertil-tipo">
+          <select id="f-fertil-tipo" onchange="actualizarUnidadFertil()">
             <option value="">— Selecciona —</option>
             <option>Urea</option>
             <option>Fósforo</option>
@@ -2192,14 +2201,48 @@ const FORMULARIOS = {
           </select>
         </div>
         <div class="form-field full">
-          <label>Bolsas aplicadas hoy</label>
-          <input type="number" id="f-bolsas-ejec" step="1" min="0" placeholder="0" oninput="setAvanceHaOculto(parseFloat(this.value)||0)"/>
+          <label>Cantidad preparada hoy</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="number" id="f-bolsas-ejec" step="1" min="0" placeholder="0" style="flex:1;" oninput="setAvanceHaOculto(parseFloat(this.value)||0)"/>
+            <span id="f-fertil-unidad" style="font-size:0.76rem;color:var(--texto-suave);white-space:nowrap;">sacos / bidones</span>
+          </div>
         </div>
       </div>
     </div>
     <div class="form-card" style="background:var(--verde-menta);border:1px solid var(--verde-claro);">
-      <div style="font-size:0.74rem;color:var(--verde);font-weight:700;">📅 Programación de la semana</div>
-      <div style="font-size:0.72rem;color:var(--texto-suave);margin-top:4px;">El Gantt de cumplimiento semanal está disponible en la pestaña <strong>"Registros"</strong>.</div>
+      <div style="font-size:0.74rem;color:var(--azul-oscuro);font-weight:700;">💧 2. Irrigación por EQ-TR (opcional)</div>
+      <div style="font-size:0.7rem;color:var(--texto-suave);margin:6px 0 10px;">Después de preparar, registra cuántos kg de cada fertilizante pasaron por el sistema de riego en cada lote.</div>
+      <div class="form-grid">
+        <div class="form-field full">
+          <label>EQ-TR</label>
+          <select id="f-fertil-eqtr">
+            <option value="">— Selecciona lote —</option>
+            <optgroup label="R2 (EQ09–EQ15)">
+              <option>EQ09-TR01</option><option>EQ09-TR02</option><option>EQ09-TR03</option>
+              <option>EQ11-TR04</option><option>EQ11-TR05</option>
+              <option>EQ14-TR01</option><option>EQ14-TR03</option>
+            </optgroup>
+            <optgroup label="R3 (EQ16–EQ20)">
+              <option>EQ16-TR01</option><option>EQ16-TR03</option><option>EQ16-TR04</option><option>EQ16-TR05</option>
+              <option>EQ17-TR02</option><option>EQ17-TR04</option>
+              <option>EQ18-TR01</option><option>EQ18-TR04</option>
+              <option>EQ19-TR02</option><option>EQ19-TR04</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>N — Urea (kg)</label>
+          <input type="number" id="f-irrig-n" min="0" step="0.1" placeholder="0"/>
+        </div>
+        <div class="form-field">
+          <label>P — Ferty Base (kg)</label>
+          <input type="number" id="f-irrig-p" min="0" step="0.1" placeholder="0"/>
+        </div>
+        <div class="form-field">
+          <label>K — KCl (kg)</label>
+          <input type="number" id="f-irrig-k" min="0" step="0.1" placeholder="0"/>
+        </div>
+      </div>
     </div>` + jornalesField() + obsField('Observaciones de fertilización...'),
 };
 
@@ -3457,21 +3500,23 @@ async function renderGantt(){
     let urlResumen = `programa_aplicaciones?labor=eq.fertilizacion&eq_tr=eq.RESUMEN&fecha_programada=eq.${lunes}&limit=5`;
     let urlEjec    = `labores_campo?labor=eq.fertilizacion&fecha=gte.${lunes}&fecha=lte.${domingo}&limit=500`;
     if (filtroFundo){ urlProg+=`&fundo=eq.${encodeURIComponent(filtroFundo)}`; urlEjec+=`&fundo=eq.${encodeURIComponent(filtroFundo)}`; }
-
     const [rP, rR, rE] = await Promise.all([sbFetch(urlProg), sbFetch(urlResumen), sbFetch(urlEjec)]);
     const prog    = rP.ok ? await rP.json() : [];
     const resumen = rR.ok ? await rR.json() : [];
-    const ejec    = rE.ok ? await rE.json() : [];
+    const ejecAll = rE.ok ? await rE.json() : [];
 
-    // Detalle EQ-TR del resumen
+    // Separar ejecución: preparación (global) vs irrigación (por EQ-TR)
+    const ejecPrep  = ejecAll.filter(r => r.datos_extra?.tipo === 'preparacion' || (!r.datos_extra?.tipo && r.datos_extra?.fertilizante));
+    const ejecIrrig = ejecAll.filter(r => r.datos_extra?.tipo === 'irrigacion');
+
     const detalleEqTr = resumen[0]?.datos_extra?.detalle_eqtr || [];
-    const totalesProg  = resumen[0]?.datos_extra?.totales || {};
+    const totalesProg = resumen[0]?.datos_extra?.totales || {};
 
     // KPIs por fertilizante
     const kpiData = {};
     FERTIL_TIPOS.forEach(f => { kpiData[f] = {prog:0, ejec:0}; });
     prog.forEach(r => { const f=r.datos_extra?.fertilizante||r.insumo; if(kpiData[f]) kpiData[f].prog += r.datos_extra?.bolsas_programadas||0; });
-    ejec.forEach(r => { const f=r.datos_extra?.fertilizante; if(kpiData[f]) kpiData[f].ejec += r.datos_extra?.bolsas_ejecutadas||0; });
+    ejecPrep.forEach(r => { const f=r.datos_extra?.fertilizante; if(kpiData[f]) kpiData[f].ejec += r.datos_extra?.bolsas_ejecutadas||0; });
 
     const totalProg = Object.values(kpiData).reduce((s,k)=>s+k.prog,0);
     const totalEjec = Object.values(kpiData).reduce((s,k)=>s+k.ejec,0);
@@ -3517,7 +3562,7 @@ async function renderGantt(){
           const celdas = dias.map(fecha => {
             const p = progRiego.filter(r=>r.fecha_programada===fecha&&(r.datos_extra?.fertilizante||r.insumo)===f)
                                .reduce((s,r)=>s+(r.datos_extra?.bolsas_programadas||0),0);
-            const e = ejec.filter(r=>r.fecha===fecha&&r.datos_extra?.fertilizante===f&&r.datos_extra?.fertirriego===riego)
+            const e = ejecPrep.filter(r=>r.fecha===fecha&&r.datos_extra?.fertilizante===f&&(r.datos_extra?.fertirriego===riego||(r.equipo||'').includes(riego)))
                           .reduce((s,r)=>s+(r.datos_extra?.bolsas_ejecutadas||0),0);
             totProg+=p; totEjec+=e;
             const esHoy=fecha===hoy;
@@ -3556,30 +3601,79 @@ async function renderGantt(){
       if (!detalleEqTr.length){
         npkEl.innerHTML = '<div style="font-size:0.72rem;color:var(--texto-suave);text-align:center;padding:12px;">Sin detalle de lotes. El admin debe subir el Excel.</div>';
       } else {
-        let npkHtml = `<table style="border-collapse:collapse;width:100%;font-size:0.72rem;">
-          <thead><tr style="background:var(--azul-oscuro);color:#fff;">
-            <th style="padding:8px 6px;text-align:left;">EQ-TR</th>
-            <th style="padding:8px 4px;text-align:center;">Fertirriego</th>
-            <th style="padding:8px 4px;text-align:center;" title="Nitrógeno — Urea">N (Urea kg)</th>
-            <th style="padding:8px 4px;text-align:center;" title="Fósforo — Ferty Base">P (F.Base kg)</th>
-            <th style="padding:8px 4px;text-align:center;" title="Potasio — KCl">K (KCl kg)</th>
-            <th style="padding:8px 4px;text-align:center;">Estado</th>
-          </tr></thead>
-          <tbody>`;
+        let npkHtml = `
+          <table style="border-collapse:collapse;width:100%;font-size:0.7rem;">
+            <thead>
+              <tr style="background:var(--azul-oscuro);color:#fff;">
+                <th style="padding:8px 6px;text-align:left;" rowspan="2">EQ-TR</th>
+                <th style="padding:8px 4px;text-align:center;" rowspan="2">Fertirriego</th>
+                <th style="padding:6px 4px;text-align:center;border-left:1px solid #4a6fa5;" colspan="2">N — Urea (kg)</th>
+                <th style="padding:6px 4px;text-align:center;border-left:1px solid #4a6fa5;" colspan="2">P — F.Base (kg)</th>
+                <th style="padding:6px 4px;text-align:center;border-left:1px solid #4a6fa5;" colspan="2">K — KCl (kg)</th>
+                <th style="padding:8px 4px;text-align:center;" rowspan="2">Estado</th>
+              </tr>
+              <tr style="background:#1a4a7a;color:#acd;">
+                <th style="padding:5px 4px;font-size:0.6rem;border-left:1px solid #4a6fa5;">Prog.</th>
+                <th style="padding:5px 4px;font-size:0.6rem;">Aplic.</th>
+                <th style="padding:5px 4px;font-size:0.6rem;border-left:1px solid #4a6fa5;">Prog.</th>
+                <th style="padding:5px 4px;font-size:0.6rem;">Aplic.</th>
+                <th style="padding:5px 4px;font-size:0.6rem;border-left:1px solid #4a6fa5;">Prog.</th>
+                <th style="padding:5px 4px;font-size:0.6rem;">Aplic.</th>
+              </tr>
+            </thead>
+            <tbody>`;
+
         detalleEqTr.forEach(r => {
-          const tieneN=r.urea_kg>0, tieneP=r.fosforo_kg>0, tieneK=r.potasio_kg>0;
           const riego = r.fertirriego || getFertirriego(r.eqtr);
           const col_r = riego==='R2'?'#2E86C1':'#8E44AD';
-          const completado = pctGlobal >= 100;
+
+          // Sumar irrigación ejecutada para este EQ-TR en la semana
+          const irrig = ejecIrrig.filter(e => (e.datos_extra?.eqtr_irrigado===r.eqtr || e.equipo===r.eqtr.split('-')[0]));
+          const n_aplic = irrig.reduce((s,e)=>s+(e.datos_extra?.urea_kg||0),0);
+          const p_aplic = irrig.reduce((s,e)=>s+(e.datos_extra?.fosforo_kg||0),0);
+          const k_aplic = irrig.reduce((s,e)=>s+(e.datos_extra?.potasio_kg||0),0);
+
+          const n_prog = r.urea_kg||0; const p_prog = r.fosforo_kg||0; const k_prog = r.potasio_kg||0;
+
+          // % completado por EQ-TR (basado en N+P+K)
+          const totProg = n_prog+p_prog+k_prog;
+          const totAplic = n_aplic+p_aplic+k_aplic;
+          const pct = totProg>0 ? Math.min(100,Math.round(totAplic/totProg*100)) : null;
+          const estadoColor = pct===100?'#27AE60':pct>0?'#E67E22':'var(--texto-suave)';
+
+          const celN = (np,na) => `<td style="padding:6px 4px;text-align:center;border:1px solid var(--borde);color:var(--texto-suave);font-size:0.68rem;">${np>0?np:'—'}</td><td style="padding:6px 4px;text-align:center;border:1px solid var(--borde);font-weight:700;color:${na>0?(na>=np?'#27AE60':'#E67E22'):'#ccc'};">${na>0?na:'—'}</td>`;
+
           npkHtml += `<tr style="border-bottom:1px solid var(--borde);">
             <td style="padding:7px 6px;font-weight:700;border-left:3px solid ${col_r};">${r.eqtr}</td>
-            <td style="padding:7px 4px;text-align:center;font-weight:700;font-size:0.7rem;color:${col_r};">${riego}</td>
-            <td style="padding:7px 4px;text-align:center;color:${tieneN?F_COLORS['Urea']:'#ccc'};">${tieneN?r.urea_kg+'':'—'}</td>
-            <td style="padding:7px 4px;text-align:center;color:${tieneP?F_COLORS['Fósforo']:'#ccc'};">${tieneP?r.fosforo_kg+'':'—'}</td>
-            <td style="padding:7px 4px;text-align:center;color:${tieneK?F_COLORS['Potasio']:'#ccc'};">${tieneK?r.potasio_kg+'':'—'}</td>
-            <td style="padding:7px 4px;text-align:center;font-size:0.8rem;">${completado?'✅':'⏳'}</td>
+            <td style="padding:7px 4px;text-align:center;font-weight:700;font-size:0.68rem;color:${col_r};">${riego}</td>
+            ${celN(n_prog,n_aplic)}
+            ${celN(p_prog,p_aplic)}
+            ${celN(k_prog,k_aplic)}
+            <td style="padding:7px 4px;text-align:center;font-weight:700;color:${estadoColor};">
+              ${pct===100?'✅':pct!==null?pct+'%':'⏳'}
+            </td>
           </tr>`;
         });
+
+        // Fila de totales
+        const totN_prog = detalleEqTr.reduce((s,r)=>s+(r.urea_kg||0),0);
+        const totP_prog = detalleEqTr.reduce((s,r)=>s+(r.fosforo_kg||0),0);
+        const totK_prog = detalleEqTr.reduce((s,r)=>s+(r.potasio_kg||0),0);
+        const totN_aplic = ejecIrrig.reduce((s,r)=>s+(r.datos_extra?.urea_kg||0),0);
+        const totP_aplic = ejecIrrig.reduce((s,r)=>s+(r.datos_extra?.fosforo_kg||0),0);
+        const totK_aplic = ejecIrrig.reduce((s,r)=>s+(r.datos_extra?.potasio_kg||0),0);
+
+        npkHtml += `<tr style="background:var(--fondo);font-weight:700;border-top:2px solid var(--azul-oscuro);">
+          <td colspan="2" style="padding:7px 6px;color:var(--azul-oscuro);">TOTAL SEMANA</td>
+          <td style="padding:7px 4px;text-align:center;font-size:0.68rem;color:var(--texto-suave);">${totN_prog}</td>
+          <td style="padding:7px 4px;text-align:center;color:${totN_aplic>=totN_prog&&totN_prog>0?'#27AE60':'#E67E22'};">${totN_aplic||'—'}</td>
+          <td style="padding:7px 4px;text-align:center;font-size:0.68rem;color:var(--texto-suave);">${totP_prog}</td>
+          <td style="padding:7px 4px;text-align:center;color:${totP_aplic>=totP_prog&&totP_prog>0?'#27AE60':'#E67E22'};">${totP_aplic||'—'}</td>
+          <td style="padding:7px 4px;text-align:center;font-size:0.68rem;color:var(--texto-suave);">${totK_prog}</td>
+          <td style="padding:7px 4px;text-align:center;color:${totK_aplic>=totK_prog&&totK_prog>0?'#27AE60':'#E67E22'};">${totK_aplic||'—'}</td>
+          <td></td>
+        </tr>`;
+
         npkHtml += '</tbody></table>';
         npkEl.innerHTML = npkHtml;
       }
@@ -3602,6 +3696,12 @@ function onProgFertilFundoChange(){}  // placeholder (ya no se usa el form manua
 // ── CARGA DE EXCEL ────────────────────────────────────────────
 let _excelTotales   = {}; // { R2: {Urea:142,...}, R3: {Urea:165,...} }
 let _excelDetalle   = []; // [{ eqtr, fertirriego, urea_kg, fosforo_kg, potasio_kg }]
+
+function actualizarUnidadFertil(){
+  const f = document.getElementById('f-fertil-tipo')?.value;
+  const el = document.getElementById('f-fertil-unidad');
+  if (el) el.textContent = f === 'Ácido sulfúrico' ? 'bidones (50 kg c/u)' : f ? 'sacos' : 'sacos / bidones';
+}
 
 function getFertirriego(eqtr){
   const n = parseInt((eqtr||'').replace('EQ','').split('-')[0]);
@@ -4166,12 +4266,29 @@ async function guardarLabor(){
     datosExtra.avance_ha = parseFloat(totalHa.toFixed(2));
     datosExtra.detalle_parcelas = tableData;
   } else if (laborActual === 'fertilizacion'){
-    const tipo   = document.getElementById('f-fertil-tipo')?.value;
-    const bolsas = parseInt(document.getElementById('f-bolsas-ejec')?.value) || 0;
-    if (!tipo){ showToast('Selecciona el tipo de fertilizante', 'error'); return; }
-    if (!bolsas){ showToast('Ingresa la cantidad de bolsas aplicadas', 'error'); return; }
-    datosExtra.fertilizante = tipo;
-    datosExtra.bolsas_ejecutadas = bolsas;
+    const tipo_f = document.getElementById('f-fertil-tipo')?.value;
+    const riego  = document.getElementById('f-fertil-riego')?.value;
+    const bolsas = parseFloat(document.getElementById('f-bolsas-ejec')?.value) || 0;
+    const eqtr   = document.getElementById('f-fertil-eqtr')?.value;
+    const n_kg   = parseFloat(document.getElementById('f-irrig-n')?.value) || 0;
+    const p_kg   = parseFloat(document.getElementById('f-irrig-p')?.value) || 0;
+    const k_kg   = parseFloat(document.getElementById('f-irrig-k')?.value) || 0;
+    // Requiere al menos preparación O irrigación
+    if (!tipo_f && !eqtr){ showToast('Selecciona fertilizante o EQ-TR', 'error'); return; }
+    if (tipo_f && !riego){ showToast('Selecciona el fertirriego (R2 o R3)', 'error'); return; }
+    if (eqtr && (n_kg+p_kg+k_kg) === 0){ showToast('Ingresa kg aplicados (N, P o K)', 'error'); return; }
+    datosExtra.tipo          = tipo_f ? 'preparacion' : 'irrigacion';
+    datosExtra.fertirriego   = riego || getFertirriego(eqtr);
+    datosExtra.fertilizante  = tipo_f || null;
+    datosExtra.bolsas_ejecutadas = bolsas || null;
+    datosExtra.unidad        = tipo_f ? getUnidadFertil(tipo_f) : null;
+    datosExtra.eqtr_irrigado = eqtr || null;
+    datosExtra.urea_kg       = n_kg || null;
+    datosExtra.fosforo_kg    = p_kg || null;
+    datosExtra.potasio_kg    = k_kg || null;
+    // Usar EQ-TR para identificar el lote o GLOBAL-Riego para preparación
+    if (eqtr) { eq = eqtr.split('-')[0]; tr = eqtr.split('-')[1]; }
+    else { eq = `GLOBAL-${riego}`; tr = ''; }
   } else if (laborActual === 'entable'){
     const tableData = getEntableParcelasData();
     if (!tableData.length){ showToast('Completa el cuadro de parcelas', 'error'); return; }
