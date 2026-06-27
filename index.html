@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.19"/>
+<meta name="app-version" content="4.17.21"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -551,7 +551,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.19';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.21';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -3741,8 +3741,8 @@ function procesarExcelFertil(input){
         return null;
       }
 
-      // Acumular totales por fertirriego (R2/R3) y detalle EQ-TR (kg)
-      const totales = {
+      // Acumular kg por fertirriego y fertilizante, luego convertir a sacos/bidones
+      const kgAcum = {
         R2: {'Urea':0,'Fósforo':0,'Potasio':0,'Ácido sulfúrico':0},
         R3: {'Urea':0,'Fósforo':0,'Potasio':0,'Ácido sulfúrico':0}
       };
@@ -3759,12 +3759,25 @@ function procesarExcelFertil(input){
         const mat = mapMat(row[iMat]);
         if (!mat) continue;
         const riego = getFertirriego(eqtr);
-        totales[riego][mat.f] = (totales[riego][mat.f]||0) + Math.ceil(qty / mat.k);
+        kgAcum[riego][mat.f] += qty; // acumular kg siempre
         if (!detalleEqTr[eqtr]) detalleEqTr[eqtr] = {urea_kg:0, fosforo_kg:0, potasio_kg:0, fertirriego: riego};
         if (mat.f==='Urea')     detalleEqTr[eqtr].urea_kg    += qty;
         if (mat.f==='Fósforo')  detalleEqTr[eqtr].fosforo_kg += qty;
         if (mat.f==='Potasio')  detalleEqTr[eqtr].potasio_kg += qty;
       }
+
+      // Convertir kg totales a sacos/bidones UNA SOLA VEZ (evita error de redondeo por fila)
+      const SACOS_KG = {'Urea':50,'Fósforo':25,'Potasio':50,'Ácido sulfúrico':50};
+      const totales = { R2:{}, R3:{} };
+      ['R2','R3'].forEach(riego => {
+        FERTIL_TIPOS.forEach(f => {
+          const kg = kgAcum[riego][f]||0;
+          // Ácido sulfúrico: redondear al entero inferior (floor)
+          // Los demás: redondear al entero superior (ceil)
+          const redondear = f === 'Ácido sulfúrico' ? Math.floor : Math.ceil;
+          totales[riego][f] = kg > 0 ? redondear(kg / SACOS_KG[f]) : 0;
+        });
+      });
 
       const totalGeneral = Object.values(totales.R2).reduce((s,v)=>s+v,0) + Object.values(totales.R3).reduce((s,v)=>s+v,0);
       if (!totalGeneral){ showToast('No se encontraron materiales activos (Reserva=SI)', 'error'); return; }
