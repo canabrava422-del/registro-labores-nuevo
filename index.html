@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.21"/>
+<meta name="app-version" content="4.17.22"/>
 <link rel="manifest" href="/registro-labores-nuevo/manifest.json"/>
 <link rel="apple-touch-icon" href="/registro-labores-nuevo/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -262,6 +262,38 @@
 
 <!-- Overlay pantalla completa para mapas -->
 <!-- Modal edición observación -->
+<!-- Modal irrigación NPK por EQ-TR -->
+<div id="npk-edit-modal" onclick="if(event.target===this)cerrarNpkModal()" style="display:none;position:fixed;inset:0;z-index:260;background:rgba(0,0,0,0.55);align-items:flex-end;justify-content:center;padding-bottom:env(safe-area-inset-bottom);">
+  <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:600px;padding:20px 18px;padding-top:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div>
+        <div style="font-weight:700;color:var(--azul-oscuro);font-size:0.88rem;">💧 Irrigación por sistema de riego</div>
+        <div id="npk-modal-eqtr" style="font-size:0.72rem;color:var(--texto-suave);margin-top:2px;"></div>
+      </div>
+      <button onclick="cerrarNpkModal()" style="background:none;border:none;font-size:1.2rem;color:#999;cursor:pointer;">✕</button>
+    </div>
+    <div style="font-size:0.7rem;color:var(--texto-suave);margin-bottom:12px;">Ingresa los kg de cada fertilizante que pasaron por el sistema de riego hoy.</div>
+    <div class="form-grid">
+      <div class="form-field">
+        <label>N — Urea (kg) <span id="npk-n-prog" style="font-weight:400;font-size:0.66rem;color:var(--texto-suave);"></span></label>
+        <input type="number" id="npk-n" min="0" step="0.1" placeholder="0"/>
+      </div>
+      <div class="form-field">
+        <label>P — Ferty Base (kg) <span id="npk-p-prog" style="font-weight:400;font-size:0.66rem;color:var(--texto-suave);"></span></label>
+        <input type="number" id="npk-p" min="0" step="0.1" placeholder="0"/>
+      </div>
+      <div class="form-field">
+        <label>K — KCl (kg) <span id="npk-k-prog" style="font-weight:400;font-size:0.66rem;color:var(--texto-suave);"></span></label>
+        <input type="number" id="npk-k" min="0" step="0.1" placeholder="0"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="btn" onclick="guardarNpkIrrigacion()" style="flex:1;">💾 Guardar</button>
+      <button id="npk-btn-borrar" onclick="borrarNpkIrrigacion()" style="display:none;padding:11px 14px;border:1.5px solid var(--rojo);border-radius:8px;background:#fdecea;color:var(--rojo);font-weight:700;font-size:0.76rem;">🗑️</button>
+    </div>
+  </div>
+</div>
+
 <div id="obs-edit-modal" style="display:none;position:fixed;inset:0;z-index:250;background:rgba(0,0,0,0.6);align-items:flex-end;justify-content:center;padding-bottom:env(safe-area-inset-bottom);">
   <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:600px;padding:20px 18px;padding-top:16px;max-height:85vh;overflow-y:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
@@ -551,7 +583,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.21';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.22';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -3602,53 +3634,62 @@ async function renderGantt(){
         npkEl.innerHTML = '<div style="font-size:0.72rem;color:var(--texto-suave);text-align:center;padding:12px;">Sin detalle de lotes. El admin debe subir el Excel.</div>';
       } else {
         let npkHtml = `
+          <div style="font-size:0.68rem;color:var(--texto-suave);padding:8px 10px;background:var(--fondo);border-bottom:1px solid var(--borde);">
+            Toca una celda <span style="background:var(--verde-menta);padding:1px 5px;border-radius:4px;">+ anotar</span> para registrar kg aplicados. Arriba: kg programado · Abajo: kg aplicado.
+          </div>
           <table style="border-collapse:collapse;width:100%;font-size:0.7rem;">
-            <thead>
-              <tr style="background:var(--azul-oscuro);color:#fff;">
-                <th style="padding:8px 6px;text-align:left;" rowspan="2">EQ-TR</th>
-                <th style="padding:8px 4px;text-align:center;" rowspan="2">Fertirriego</th>
-                <th style="padding:6px 4px;text-align:center;border-left:1px solid #4a6fa5;" colspan="2">N — Urea (kg)</th>
-                <th style="padding:6px 4px;text-align:center;border-left:1px solid #4a6fa5;" colspan="2">P — F.Base (kg)</th>
-                <th style="padding:6px 4px;text-align:center;border-left:1px solid #4a6fa5;" colspan="2">K — KCl (kg)</th>
-                <th style="padding:8px 4px;text-align:center;" rowspan="2">Estado</th>
-              </tr>
-              <tr style="background:#1a4a7a;color:#acd;">
-                <th style="padding:5px 4px;font-size:0.6rem;border-left:1px solid #4a6fa5;">Prog.</th>
-                <th style="padding:5px 4px;font-size:0.6rem;">Aplic.</th>
-                <th style="padding:5px 4px;font-size:0.6rem;border-left:1px solid #4a6fa5;">Prog.</th>
-                <th style="padding:5px 4px;font-size:0.6rem;">Aplic.</th>
-                <th style="padding:5px 4px;font-size:0.6rem;border-left:1px solid #4a6fa5;">Prog.</th>
-                <th style="padding:5px 4px;font-size:0.6rem;">Aplic.</th>
-              </tr>
-            </thead>
+            <thead><tr style="background:var(--azul-oscuro);color:#fff;">
+              <th style="padding:8px 6px;text-align:left;">EQ-TR</th>
+              <th style="padding:8px 4px;text-align:center;">Fertirriego</th>
+              <th style="padding:8px 4px;text-align:center;">N — Urea</th>
+              <th style="padding:8px 4px;text-align:center;">P — F.Base</th>
+              <th style="padding:8px 4px;text-align:center;">K — KCl</th>
+              <th style="padding:8px 4px;text-align:center;">Estado</th>
+            </tr></thead>
             <tbody>`;
 
         detalleEqTr.forEach(r => {
           const riego = r.fertirriego || getFertirriego(r.eqtr);
           const col_r = riego==='R2'?'#2E86C1':'#8E44AD';
 
-          // Sumar irrigación ejecutada para este EQ-TR en la semana
-          const irrig = ejecIrrig.filter(e => (e.datos_extra?.eqtr_irrigado===r.eqtr || e.equipo===r.eqtr.split('-')[0]));
+          const irrig = ejecIrrig.filter(e => e.datos_extra?.eqtr_irrigado===r.eqtr);
+          const irrig_hoy = irrig.find(e => e.fecha === hoy);
           const n_aplic = irrig.reduce((s,e)=>s+(e.datos_extra?.urea_kg||0),0);
           const p_aplic = irrig.reduce((s,e)=>s+(e.datos_extra?.fosforo_kg||0),0);
           const k_aplic = irrig.reduce((s,e)=>s+(e.datos_extra?.potasio_kg||0),0);
 
           const n_prog = r.urea_kg||0; const p_prog = r.fosforo_kg||0; const k_prog = r.potasio_kg||0;
 
-          // % completado por EQ-TR (basado en N+P+K)
           const totProg = n_prog+p_prog+k_prog;
           const totAplic = n_aplic+p_aplic+k_aplic;
           const pct = totProg>0 ? Math.min(100,Math.round(totAplic/totProg*100)) : null;
           const estadoColor = pct===100?'#27AE60':pct>0?'#E67E22':'var(--texto-suave)';
 
-          const celN = (np,na) => `<td style="padding:6px 4px;text-align:center;border:1px solid var(--borde);color:var(--texto-suave);font-size:0.68rem;">${np>0?np:'—'}</td><td style="padding:6px 4px;text-align:center;border:1px solid var(--borde);font-weight:700;color:${na>0?(na>=np?'#27AE60':'#E67E22'):'#ccc'};">${na>0?na:'—'}</td>`;
+          // Función para hacer celda tapeable
+          const tapArgs = JSON.stringify([r.eqtr, filtroFundo||r.eqtr, n_prog, p_prog, k_prog,
+            irrig_hoy?.id||null, irrig_hoy?.datos_extra?.urea_kg||0,
+            irrig_hoy?.datos_extra?.fosforo_kg||0, irrig_hoy?.datos_extra?.potasio_kg||0,
+            irrig_hoy?.fecha||null]).replace(/"/g,"'");
+
+          const puedeTocar = puedEditarNpk(irrig_hoy?.fecha || new Date().toISOString().slice(0,10)) || !irrig_hoy;
+          const tapStyle = puedeTocar ? 'cursor:pointer;' : '';
+          const tapCall = puedeTocar ? `onclick="abrirNpkModal(...JSON.parse('${JSON.stringify([r.eqtr, filtroFundo||resumen[0]?.fundo||'Lobo 2', n_prog, p_prog, k_prog, irrig_hoy?.id||null, irrig_hoy?.datos_extra?.urea_kg||0, irrig_hoy?.datos_extra?.fosforo_kg||0, irrig_hoy?.datos_extra?.potasio_kg||0, irrig_hoy?.fecha||null])}'.replaceAll(&quot;'&quot;,'&quot;')))"` : '';
+
+          const celTap = (prog, aplic) => {
+            const color = aplic>0?(aplic>=prog&&prog>0?'#27AE60':'#E67E22'):'var(--texto-suave)';
+            const hint = puedeTocar && prog>0 ? ' title="Toca para registrar"' : '';
+            return `<td ${hint} style="padding:7px 5px;text-align:center;border:1px solid var(--borde);${puedeTocar&&prog>0?'cursor:pointer;background:var(--verde-menta);':''}" onclick="${puedeTocar&&prog>0?`abrirNpkModal('${r.eqtr}','${filtroFundo||resumen[0]?.datos_extra?.fundo||'Lobo 2'}',${n_prog},${p_prog},${k_prog},${irrig_hoy?.id||null},${irrig_hoy?.datos_extra?.urea_kg||0},${irrig_hoy?.datos_extra?.fosforo_kg||0},${irrig_hoy?.datos_extra?.potasio_kg||0},'${irrig_hoy?.fecha||''}')`:''}">
+              <div style="font-size:0.66rem;color:var(--texto-suave);">${prog>0?prog:'—'}</div>
+              <div style="font-size:0.76rem;font-weight:700;color:${color};">${aplic>0?aplic:(puedeTocar&&prog>0?'<span style="font-size:0.7rem;color:#aaa;">+ anotar</span>':'—')}</div>
+            </td>`;
+          };
 
           npkHtml += `<tr style="border-bottom:1px solid var(--borde);">
             <td style="padding:7px 6px;font-weight:700;border-left:3px solid ${col_r};">${r.eqtr}</td>
             <td style="padding:7px 4px;text-align:center;font-weight:700;font-size:0.68rem;color:${col_r};">${riego}</td>
-            ${celN(n_prog,n_aplic)}
-            ${celN(p_prog,p_aplic)}
-            ${celN(k_prog,k_aplic)}
+            ${celTap(n_prog, n_aplic)}
+            ${celTap(p_prog, p_aplic)}
+            ${celTap(k_prog, k_aplic)}
             <td style="padding:7px 4px;text-align:center;font-weight:700;color:${estadoColor};">
               ${pct===100?'✅':pct!==null?pct+'%':'⏳'}
             </td>
@@ -3662,15 +3703,15 @@ async function renderGantt(){
         const totN_aplic = ejecIrrig.reduce((s,r)=>s+(r.datos_extra?.urea_kg||0),0);
         const totP_aplic = ejecIrrig.reduce((s,r)=>s+(r.datos_extra?.fosforo_kg||0),0);
         const totK_aplic = ejecIrrig.reduce((s,r)=>s+(r.datos_extra?.potasio_kg||0),0);
-
+        const celTot = (prog,aplic) => `<td style="padding:7px 4px;text-align:center;border:1px solid var(--borde);">
+          <div style="font-size:0.62rem;color:var(--texto-suave);">P:${prog||0}</div>
+          <div style="font-weight:700;color:${aplic>0?(aplic>=prog?'#27AE60':'#E67E22'):'#ccc'};">A:${aplic||0}</div>
+        </td>`;
         npkHtml += `<tr style="background:var(--fondo);font-weight:700;border-top:2px solid var(--azul-oscuro);">
           <td colspan="2" style="padding:7px 6px;color:var(--azul-oscuro);">TOTAL SEMANA</td>
-          <td style="padding:7px 4px;text-align:center;font-size:0.68rem;color:var(--texto-suave);">${totN_prog}</td>
-          <td style="padding:7px 4px;text-align:center;color:${totN_aplic>=totN_prog&&totN_prog>0?'#27AE60':'#E67E22'};">${totN_aplic||'—'}</td>
-          <td style="padding:7px 4px;text-align:center;font-size:0.68rem;color:var(--texto-suave);">${totP_prog}</td>
-          <td style="padding:7px 4px;text-align:center;color:${totP_aplic>=totP_prog&&totP_prog>0?'#27AE60':'#E67E22'};">${totP_aplic||'—'}</td>
-          <td style="padding:7px 4px;text-align:center;font-size:0.68rem;color:var(--texto-suave);">${totK_prog}</td>
-          <td style="padding:7px 4px;text-align:center;color:${totK_aplic>=totK_prog&&totK_prog>0?'#27AE60':'#E67E22'};">${totK_aplic||'—'}</td>
+          ${celTot(totN_prog,totN_aplic)}
+          ${celTot(totP_prog,totP_aplic)}
+          ${celTot(totK_prog,totK_aplic)}
           <td></td>
         </tr>`;
 
@@ -3696,6 +3737,114 @@ function onProgFertilFundoChange(){}  // placeholder (ya no se usa el form manua
 // ── CARGA DE EXCEL ────────────────────────────────────────────
 let _excelTotales   = {}; // { R2: {Urea:142,...}, R3: {Urea:165,...} }
 let _excelDetalle   = []; // [{ eqtr, fertirriego, urea_kg, fosforo_kg, potasio_kg }]
+
+// ── NPK IRRIGACIÓN INTERACTIVA ────────────────────────────────
+let _npkModalEqtr = null;
+let _npkModalFundo = null;
+let _npkModalRegistroId = null; // si existe un registro previo para editar
+let _npkModalFecha = null;
+let _npkModalProg = {};
+
+function puedEditarNpk(fecha){
+  if (!currentUser) return false;
+  if (currentUser.role === 'admin') return true;
+  const hoy = new Date().toISOString().slice(0,10);
+  return fecha === hoy;
+}
+
+function abrirNpkModal(eqtr, fundo, progN, progP, progK, registroId, n_aplic, p_aplic, k_aplic, fecha_reg){
+  const hoy = new Date().toISOString().slice(0,10);
+  const puedeEditar = registroId ? puedEditarNpk(fecha_reg) : true;
+
+  if (!puedeEditar){
+    showToast('Solo el administrador puede editar registros de días anteriores', 'error');
+    return;
+  }
+
+  _npkModalEqtr = eqtr;
+  _npkModalFundo = fundo;
+  _npkModalRegistroId = registroId || null;
+  _npkModalFecha = fecha_reg || hoy;
+  _npkModalProg = { n: progN, p: progP, k: progK };
+
+  document.getElementById('npk-modal-eqtr').textContent = `${eqtr} · ${getFertirriego(eqtr)} · ${fundo}`;
+  document.getElementById('npk-n-prog').textContent = progN > 0 ? `(Prog: ${progN} kg)` : '';
+  document.getElementById('npk-p-prog').textContent = progP > 0 ? `(Prog: ${progP} kg)` : '';
+  document.getElementById('npk-k-prog').textContent = progK > 0 ? `(Prog: ${progK} kg)` : '';
+  document.getElementById('npk-n').value = n_aplic > 0 ? n_aplic : '';
+  document.getElementById('npk-p').value = p_aplic > 0 ? p_aplic : '';
+  document.getElementById('npk-k').value = k_aplic > 0 ? k_aplic : '';
+
+  const btnBorrar = document.getElementById('npk-btn-borrar');
+  if (btnBorrar) btnBorrar.style.display = registroId ? '' : 'none';
+
+  document.getElementById('npk-edit-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function cerrarNpkModal(){
+  document.getElementById('npk-edit-modal').style.display = 'none';
+  document.body.style.overflow = '';
+  _npkModalEqtr = null; _npkModalRegistroId = null;
+}
+
+async function guardarNpkIrrigacion(){
+  if (!_npkModalEqtr) return;
+  const n = parseFloat(document.getElementById('npk-n')?.value) || 0;
+  const p = parseFloat(document.getElementById('npk-p')?.value) || 0;
+  const k = parseFloat(document.getElementById('npk-k')?.value) || 0;
+  if (n+p+k === 0){ showToast('Ingresa al menos un valor kg', 'error'); return; }
+
+  const hoy = new Date().toISOString().slice(0,10);
+  const eqParts = _npkModalEqtr.split('-');
+  const reg = {
+    labor: 'fertilizacion', fundo: _npkModalFundo,
+    equipo: eqParts[0], parcelas: eqParts[1]||'',
+    fecha: hoy, controlador: currentUser.nombre, rol: currentUser.role,
+    datos_extra: {
+      _usuario: currentUser.user, tipo: 'irrigacion',
+      fertirriego: getFertirriego(_npkModalEqtr),
+      eqtr_irrigado: _npkModalEqtr,
+      urea_kg: n||null, fosforo_kg: p||null, potasio_kg: k||null
+    }
+  };
+
+  try{
+    let res;
+    if (_npkModalRegistroId){
+      // Editar registro existente
+      res = await sbFetch(`labores_campo?id=eq.${_npkModalRegistroId}`,{
+        method:'PATCH', headers:{'Content-Type':'application/json','Prefer':'return=minimal'},
+        body: JSON.stringify({ datos_extra: reg.datos_extra })
+      });
+    } else {
+      // Crear nuevo
+      res = await sbFetch('labores_campo',{
+        method:'POST', headers:{'Content-Type':'application/json','Prefer':'return=minimal'},
+        body: JSON.stringify(reg)
+      });
+    }
+    if (!res.ok) throw new Error(await res.text());
+    showToast('✅ Irrigación guardada');
+    cerrarNpkModal();
+    renderGantt();
+  }catch(e){ showToast('Error: ' + e.message, 'error'); }
+}
+
+async function borrarNpkIrrigacion(){
+  if (!_npkModalRegistroId){ cerrarNpkModal(); return; }
+  if (!puedEditarNpk(_npkModalFecha)){ showToast('Sin permiso para borrar este registro', 'error'); return; }
+  if (!confirm(`¿Eliminar el registro de irrigación de ${_npkModalEqtr}?`)) return;
+  try{
+    const res = await sbFetch(`labores_campo?id=eq.${_npkModalRegistroId}`,{
+      method:'DELETE', headers:{'Prefer':'return=minimal'}
+    });
+    if (!res.ok) throw new Error(await res.text());
+    showToast('🗑️ Registro eliminado');
+    cerrarNpkModal();
+    renderGantt();
+  }catch(e){ showToast('Error: ' + e.message, 'error'); }
+}
 
 function actualizarUnidadFertil(){
   const f = document.getElementById('f-fertil-tipo')?.value;
@@ -4094,7 +4243,7 @@ function abrirFormulario(laborId, registroExistente){
   if (registroExistente) precargarFormulario(registroExistente);
   refreshVerifyTable();
   cargarRegistrosAnterioresForm(laborId);
-  switchAppTab('ejecutado');
+  switchAppTab(laborId === 'fertilizacion' ? 'registros' : 'ejecutado');
   // Conectar listeners de mejoria de caudal si es purga
   if (laborId === 'purga'){
     ['f-caudal-inicial','f-caudal-final'].forEach(id => {
@@ -5777,6 +5926,18 @@ function switchAppTab(tab){
     const el = document.getElementById(`tab-${t}`);
     if (el) el.classList.toggle('hidden', t !== tab);
   });
+
+  // Para fertilizacion: solo mostrar tab Registros, ocultar los demás tabs
+  const tabsBar = document.querySelector('.app-tabs');
+  if (tabsBar){
+    if (laborActual === 'fertilizacion'){
+      tabsBar.style.display = 'none';
+      // Forzar Registros
+      if (tab !== 'registros') { switchAppTab('registros'); return; }
+    } else {
+      tabsBar.style.display = '';
+    }
+  }
 
   // Verificación y botón Guardar: solo en Ejecutado
   const verify = document.querySelector('.verify-table-wrap');
