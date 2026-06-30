@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.36"/>
+<meta name="app-version" content="4.17.37"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -632,7 +632,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.36';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.37';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -1802,10 +1802,13 @@ async function cargarMapaFundoTendido(){
         let rangos = Array.isArray(d.rangos_lineas) ? d.rangos_lineas : [];
         if (!rangos.length && d.linea_desde && d.linea_hasta) rangos = [[d.linea_desde, d.linea_hasta]];
         if (rangos.length){
+          // Aceptar 'largo_lineas' (nombre antiguo) o 'longitud_manguera' (nombre nuevo del formulario)
+          const largo = parseFloat(d.largo_lineas || d.longitud_manguera) || 0;
+          const dist  = parseFloat(d.distanciamiento_surcos) || 0;
           tendidas.set(`${r.equipo}-${d.parcela}`, {
             tipo: d.tipo_manguera || '',
-            largo: parseFloat(d.largo_lineas) || 0,
-            dist: parseFloat(d.distanciamiento_surcos) || 0,
+            largo,
+            dist,
             rangos
           });
         }
