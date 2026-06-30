@@ -1,11 +1,11 @@
-const CACHE = 'regcampo-4.17.32';
+const CACHE = 'regcampo-4.17.33';
 const SHELL = [
-  '/registro-labores-nuevo/index.html',
-  '/registro-labores-nuevo/manifest.json',
-  '/registro-labores-nuevo/icons/icon-any-192.png',
-  '/registro-labores-nuevo/icons/icon-any-512.png',
-  '/registro-labores-nuevo/icons/icon-maskable-192.png',
-  '/registro-labores-nuevo/icons/icon-maskable-512.png'
+  '/index.html',
+  '/manifest.json',
+  '/icons/icon-any-192.png',
+  '/icons/icon-any-512.png',
+  '/icons/icon-maskable-192.png',
+  '/icons/icon-maskable-512.png'
 ];
 
 self.addEventListener('install', (e) => {
@@ -41,7 +41,7 @@ self.addEventListener('fetch', (e) => {
           }
           return networkResp;
         })
-        .catch(() => cached || caches.match('/registro-labores-nuevo/index.html'));
+        .catch(() => cached || caches.match('/index.html'));
       return cached || fetchPromise;
     })
   );
