@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.33"/>
+<meta name="app-version" content="4.17.34"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -631,7 +631,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.33';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.34';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -4515,48 +4515,119 @@ async function guardarProgramaFertil(){ showToast('Usa el botón "Cargar Excel" 
 
 
 // ── PANTALLA COMPLETA DE MAPAS ────────────────────────────────
+// ── ZOOM DENTRO DE PANTALLA COMPLETA ──────────────────────────
+let _mapaFSZoom = 1;
+let _mapaFSVB = null;
+let _mapaFSPinchDist = null, _mapaFSPinchZoomInicial = 1;
+let _mapaFSPinchOrigenX = 0, _mapaFSPinchOrigenY = 0, _mapaFSPinchPantallaX = 0, _mapaFSPinchPantallaY = 0;
+
+function zoomMapaFS(delta){
+  if (!_mapaFSVB) return;
+  _mapaFSZoom = delta === 0 ? 1 : Math.max(0.3, Math.min(80, _mapaFSZoom + delta));
+  aplicarZoomMapaFS();
+}
+function aplicarZoomMapaFS(){
+  const svg = document.getElementById('mapa-fundo-svg-fs');
+  if (!svg || !_mapaFSVB) return;
+  svg.setAttribute('width', Math.round(_mapaFSVB.w * _mapaFSZoom));
+  svg.setAttribute('height', Math.round(_mapaFSVB.h * _mapaFSZoom));
+  const pct = document.getElementById('mapa-fs-zoom-pct');
+  if (pct) pct.textContent = Math.round(_mapaFSZoom*100) + '%';
+}
+function attachPinchZoomMapaFS(){
+  const scroll = document.getElementById('mapa-fs-scroll');
+  if (!scroll) return;
+  scroll.ontouchstart = (e) => {
+    if (e.touches.length === 2){
+      _mapaFSPinchDist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+      _mapaFSPinchZoomInicial = _mapaFSZoom;
+      const rect = scroll.getBoundingClientRect();
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      _mapaFSPinchPantallaX = midX - rect.left;
+      _mapaFSPinchPantallaY = midY - rect.top;
+      _mapaFSPinchOrigenX = (scroll.scrollLeft + _mapaFSPinchPantallaX) / _mapaFSZoom;
+      _mapaFSPinchOrigenY = (scroll.scrollTop + _mapaFSPinchPantallaY) / _mapaFSZoom;
+    }
+  };
+  scroll.ontouchmove = (e) => {
+    if (e.touches.length === 2 && _mapaFSPinchDist){
+      e.preventDefault();
+      const nueva = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+      const factor = nueva / _mapaFSPinchDist;
+      _mapaFSZoom = Math.max(0.3, Math.min(80, _mapaFSPinchZoomInicial * factor));
+      aplicarZoomMapaFS();
+      scroll.scrollLeft = _mapaFSPinchOrigenX * _mapaFSZoom - _mapaFSPinchPantallaX;
+      scroll.scrollTop  = _mapaFSPinchOrigenY * _mapaFSZoom - _mapaFSPinchPantallaY;
+    }
+  };
+  scroll.ontouchend = (e) => { if (e.touches.length < 2) _mapaFSPinchDist = null; };
+}
+
 function abrirMapaFullscreen(tipo){
   const overlay = document.getElementById('mapa-fullscreen-overlay');
   const body    = document.getElementById('mapa-fs-body');
   const title   = document.getElementById('mapa-fs-title');
   if (!overlay || !body) return;
+  _mapaFSZoom = 1; _mapaFSVB = null;
+
+  const zoomBar = `
+    <div style="display:flex;gap:6px;align-items:center;padding:8px 10px;background:#fff;border-bottom:1px solid var(--borde);flex-shrink:0;flex-wrap:wrap;">
+      <button onclick="zoomMapaFS(-1)" style="width:34px;height:34px;border-radius:8px;border:1.5px solid var(--borde);background:#fff;font-weight:700;font-size:1.1rem;color:var(--azul-oscuro);">−</button>
+      <button onclick="zoomMapaFS(1)" style="width:34px;height:34px;border-radius:8px;border:1.5px solid var(--borde);background:#fff;font-weight:700;font-size:1.1rem;color:var(--azul-oscuro);">+</button>
+      <button onclick="zoomMapaFS(5)" style="padding:0 10px;height:34px;border-radius:8px;border:1.5px solid var(--borde);background:#fff;font-weight:700;font-size:0.68rem;color:var(--azul-oscuro);">+5</button>
+      <button onclick="zoomMapaFS(0)" style="padding:0 10px;height:34px;border-radius:8px;border:1.5px solid var(--borde);background:#fff;font-weight:700;font-size:0.7rem;color:var(--texto-suave);">Restablecer</button>
+      <span id="mapa-fs-zoom-pct" style="font-size:0.68rem;color:var(--texto-suave);font-weight:700;">100%</span>
+      <span style="font-size:0.6rem;color:var(--texto-suave);">Pellizca para acercar/alejar</span>
+    </div>`;
 
   if (tipo === 'tendido'){
     const src = document.getElementById('form-mapa-fundo-tendido');
-    if (!src || !src.innerHTML.trim()){ showToast('Selecciona un fundo primero', 'error'); return; }
+    const srcSvg = src?.querySelector('svg');
+    if (!srcSvg){ showToast('Selecciona un fundo primero', 'error'); return; }
     title.textContent = '🗺️ Mapa Tendido de manguera';
-    body.innerHTML = '';
-    // Clonar el SVG del mapa de tendido
-    const clone = src.querySelector('svg')?.cloneNode(true);
-    if (clone){
-      clone.style.width = '100%';
-      clone.style.height = '100%';
-      clone.style.minWidth = '600px';
-      body.appendChild(clone);
-    } else {
-      body.innerHTML = src.innerHTML;
-    }
+    const vb = srcSvg.getAttribute('viewBox')?.split(' ').slice(2).map(Number) || [800,800];
+    _mapaFSVB = { w: vb[0], h: vb[1] };
+
+    body.innerHTML = `
+      <div style="display:flex;flex-direction:column;height:100%;width:100%;">
+        ${zoomBar}
+        <div id="mapa-fs-scroll" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;background:#fff;"></div>
+      </div>`;
+    const scrollDiv = document.getElementById('mapa-fs-scroll');
+    const clone = srcSvg.cloneNode(true);
+    clone.id = 'mapa-fundo-svg-fs';
+    clone.removeAttribute('style');
+    clone.style.display = 'block';
+    clone.setAttribute('width', _mapaFSVB.w);
+    clone.setAttribute('height', _mapaFSVB.h);
+    scrollDiv.appendChild(clone);
+    attachPinchZoomMapaFS();
+
   } else if (tipo === 'observaciones'){
     const svg = document.getElementById('obs-mapa-svg');
     if (!svg || !svg.innerHTML.trim()){ showToast('Selecciona un fundo primero', 'error'); return; }
     const fundo = document.getElementById('obs-fundo')?.value || 'Mapa';
     title.textContent = `📍 Observaciones — ${fundo}`;
-    body.innerHTML = '';
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'width:100%;height:100%;overflow:auto;background:#F0F8FB;';
+    const vb = svg.getAttribute('viewBox')?.split(' ').slice(2).map(Number) || [800,800];
+    _mapaFSVB = { w: vb[0], h: vb[1] };
+
+    body.innerHTML = `
+      <div style="display:flex;flex-direction:column;height:100%;width:100%;">
+        ${zoomBar}
+        <div id="mapa-fs-scroll" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;background:#F0F8FB;"></div>
+      </div>`;
+    const scrollDiv = document.getElementById('mapa-fs-scroll');
     const clone = svg.cloneNode(true);
-    clone.style.width  = '100%';
-    clone.style.minWidth = '600px';
+    clone.id = 'mapa-fundo-svg-fs';
+    clone.removeAttribute('style');
+    clone.style.display = 'block';
     clone.style.cursor = 'crosshair';
-    clone.addEventListener('click', function(e){
-      // Propagar el click al SVG original para registrar pins en fullscreen
-      const rect = svg.getBoundingClientRect();
-      const scaleX = svg.viewBox.baseVal.width / rect.width;
-      const scaleY = svg.viewBox.baseVal.height / rect.height;
-      onObsMapClick(e, clone);
-    });
-    wrap.appendChild(clone);
-    body.appendChild(wrap);
+    clone.setAttribute('width', _mapaFSVB.w);
+    clone.setAttribute('height', _mapaFSVB.h);
+    clone.addEventListener('click', function(e){ onObsMapClick(e, clone); });
+    scrollDiv.appendChild(clone);
+    attachPinchZoomMapaFS();
   }
 
   overlay.classList.add('active');
@@ -4570,6 +4641,7 @@ function cerrarMapaFullscreen(){
   // Limpiar el body del overlay para liberar memoria
   const body = document.getElementById('mapa-fs-body');
   if (body) body.innerHTML = '';
+  _mapaFSZoom = 1; _mapaFSVB = null; _mapaFSPinchDist = null;
 }
 
 // Cerrar con Escape
