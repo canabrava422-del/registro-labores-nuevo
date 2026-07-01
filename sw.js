@@ -1,4 +1,4 @@
-const CACHE = 'regcampo-4.17.37';
+const CACHE = 'regcampo-4.17.38';
 const SHELL = [
   '/index.html',
   '/manifest.json',

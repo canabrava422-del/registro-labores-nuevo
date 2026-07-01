@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.37"/>
+<meta name="app-version" content="4.17.38"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -632,7 +632,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.37';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.38';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -2550,10 +2550,30 @@ function renderPartidaLista(){
         const [eq, tr] = g.eqtr.split('-');
         const parcelas = getParcelasMap(g.fundo)[g.eqtr] || [];
         const totalHa = parcelas.reduce((s,p) => s + (getHaParcela(g.fundo, eq, tr, p) || 0), 0);
-        const pct = totalHa > 0 ? Math.min(100, (totalAvance / totalHa) * 100) : (registrosPaso.length > 0 ? 100 : 0);
-        const done = pct >= 100;
-        const texto = done ? '✓' : (pct > 0 ? Math.round(pct) + '%' : paso.num);
-        return { done, pct: Math.round(pct), texto };
+        let pct;
+        if (totalHa > 0){
+          pct = Math.min(100, (totalAvance / totalHa) * 100);
+        } else if (totalAvance > 0){
+          // Hay avance registrado pero sin Ha de referencia — mostrar el ha avanzada
+          pct = 50; // indeterminado pero positivo
+        } else {
+          // Sin Ha y sin avance — mostrar 0 o check si hay al menos un registro
+          pct = registrosPaso.length > 0 ? 0 : 0;
+        }
+        const done = totalHa > 0 && pct >= 100;
+        // Siempre mostrar el % de avance en Ha
+        let texto;
+        if (totalHa > 0){
+          texto = pct >= 100 ? '100%' : (pct > 0 ? Math.round(pct)+'%' : paso.num);
+        } else if (registrosPaso.length > 0 && totalAvance > 0){
+          // Mostrar las ha avanzadas directamente cuando no hay referencia
+          texto = totalAvance.toFixed(1)+'ha';
+        } else if (registrosPaso.length > 0){
+          texto = '✓';
+        } else {
+          texto = paso.num;
+        }
+        return { done, pct: Math.round(pct), texto, totalAvance, totalHa };
       } else {
         // Simple: basta con que exista un registro
         const done = registrosPaso.length > 0;
