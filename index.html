@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.38"/>
+<meta name="app-version" content="4.17.39"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -632,7 +632,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.38';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.39';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -2587,8 +2587,7 @@ function renderPartidaLista(){
       const info = pasosInfo[idx];
       const lineaDone = idx > 0 && pasosInfo[idx-1].done;
       if (idx > 0) timelineHtml += `<div class="timeline-line ${lineaDone ? 'done' : ''}"></div>`;
-      // Color del círculo: azul oscuro si done, naranja si en progreso, borde solo si no iniciado
-      const circleCls = info.done ? 'done' : (info.pct > 0 ? 'en-progreso' : '');
+      const circleCls = info.pct >= 100 ? 'done' : (info.pct > 0 ? 'en-progreso' : '');
       timelineHtml += `
         <div class="timeline-step">
           <div class="timeline-circle ${circleCls}">${info.texto}</div>
