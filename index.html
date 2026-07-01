@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.39"/>
+<meta name="app-version" content="4.17.40"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -632,7 +632,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.39';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.40';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -2560,7 +2560,7 @@ function renderPartidaLista(){
           // Sin Ha y sin avance — mostrar 0 o check si hay al menos un registro
           pct = registrosPaso.length > 0 ? 0 : 0;
         }
-        const done = totalHa > 0 && pct >= 100;
+        const done = pct >= 100;
         // Siempre mostrar el % de avance en Ha
         let texto;
         if (totalHa > 0){
