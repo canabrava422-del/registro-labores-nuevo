@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.45"/>
+<meta name="app-version" content="4.17.46"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -666,7 +666,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.45';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.46';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -3128,7 +3128,7 @@ async function guardarAnotacion(){
 
   const guardarEnCola = (motivo) => {
     const cola = JSON.parse(localStorage.getItem('obs_offline_queue') || '[]');
-    const item = { registro, fotoBase64, _id: Date.now() };
+    const item = { registro, fotoBase64, _id: Date.now(), _notificar: asignado || null };
     cola.push(item);
     localStorage.setItem('obs_offline_queue', JSON.stringify(cola));
     showToast(motivo);
@@ -3157,6 +3157,10 @@ async function guardarAnotacion(){
     const res = await sbFetch('labores_campo',{ method:'POST', headers:{'Prefer':'return=minimal'}, body:JSON.stringify(registro) });
     if (!res.ok) throw new Error(await res.text());
     showToast('✅ Observación guardada');
+
+    // Enviar notificación al usuario asignado
+    if (asignado) await notificarAsignado(asignado, tipo, fundo, fecha);
+
     limpiarFormAnotacion();
     cargarAnotacionesFundo(fundo);
   }catch(e){
@@ -3281,6 +3285,10 @@ async function sincronizarObsOffline(){
         body: JSON.stringify(reg)
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      // Notificar al asignado cuando se sincroniza
+      if (item._notificar && item.registro?.datos_extra?.tipo_obs){
+        await notificarAsignado(item._notificar, item.registro.datos_extra.tipo_obs, item.registro.fundo, item.registro.fecha).catch(()=>{});
+      }
     }catch(e){
       console.warn('Fallo al sincronizar obs:', e);
       fallidas.push(item);
@@ -6368,9 +6376,9 @@ async function cargarNotificaciones(){
     });
   }
 
-  // Anuncios del administrador
+  // Anuncios generales del administrador
   try{
-    const res = await sbFetch('anuncios?order=created_at.desc&limit=20');
+    const res = await sbFetch('anuncios?tipo=is.null&order=created_at.desc&limit=20');
     if (res.ok){
       const data = await res.json();
       data.forEach(a => {
@@ -6387,23 +6395,54 @@ async function cargarNotificaciones(){
     }
   }catch(e){}
 
+  // Notificaciones personales: observaciones asignadas a este usuario
+  if (currentUser?.nombre){
+    try{
+      const res = await sbFetch(`anuncios?tipo=eq.obs_asignada&para_usuario=eq.${encodeURIComponent(currentUser.nombre)}&order=created_at.desc&limit=30`);
+      if (res.ok){
+        const data = await res.json();
+        data.forEach(a => {
+          const key = `notif-${a.id}`;
+          if (dismissed.includes(key)) return;
+          const d = new Date(a.created_at);
+          const yaLeida = Array.isArray(a.leido_por) && a.leido_por.includes(currentUser.nombre);
+          items.push({
+            key, id: a.id, tipo: 'obs_asignada', personal: true, yaLeida,
+            autor: a.autor || 'Admin', mensaje: a.mensaje,
+            fechaTexto: isNaN(d) ? '' : d.toLocaleString('es-PE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }),
+            orden: isNaN(d) ? 0 : d.getTime()
+          });
+        });
+      }
+    }catch(e){}
+  }
+
   items.sort((a,b) => b.orden - a.orden);
 
-  if (!list) { actualizarNotifDot(items.length); return; }
+  // Badge: contar notificaciones personales no leídas
+  const noLeidas = items.filter(i => i.personal && !i.yaLeida).length;
+  actualizarNotifDot(noLeidas > 0 ? noLeidas : items.length);
+
+  if (!list) return;
   if (!items.length){
     list.innerHTML = '<div class="notif-empty">Sin notificaciones nuevas</div>';
   } else {
-    list.innerHTML = items.map(i => `
-      <div class="notif-item unread">
+    list.innerHTML = items.map(i => {
+      const esPersonal = i.personal;
+      const icono = i.tipo==='version' ? '🆕' : esPersonal ? '🔔' : '📢';
+      const bgStyle = esPersonal && !i.yaLeida ? 'background:#fff8e1;border-left:3px solid #E67E22;' : '';
+      const leidoBadge = esPersonal && !i.yaLeida ? '<span style="font-size:0.6rem;background:#E67E22;color:#fff;padding:1px 5px;border-radius:4px;margin-left:4px;">NUEVA</span>' : '';
+      const onclickExtra = esPersonal && !i.yaLeida ? `onclick="marcarNotifLeida(${i.id})"` : '';
+      return `<div class="notif-item unread" style="${bgStyle}cursor:${esPersonal?'pointer':'default'};" ${onclickExtra}>
         <div class="notif-meta">
-          <span>${i.tipo==='version' ? '🆕' : '📢'} ${i.autor}</span>
+          <span>${icono} ${i.autor}${leidoBadge}</span>
           <span>${i.fechaTexto}</span>
-          <span class="notif-trash" onclick="dismissNotif('${i.key}')" title="Eliminar">🗑</span>
+          <span class="notif-trash" onclick="event.stopPropagation();dismissNotif('${i.key}')" title="Eliminar">🗑</span>
         </div>
-        <div class="notif-msg">${i.mensaje}</div>
-      </div>`).join('');
+        <div class="notif-msg" style="white-space:pre-line;">${i.mensaje}</div>
+      </div>`;
+    }).join('');
   }
-  actualizarNotifDot(items.length);
 }
 
 function actualizarNotifDot(cantidad){
@@ -6429,6 +6468,38 @@ async function cargarAnuncioBanner(){
         <div style="font-size:0.85rem;color:var(--texto);">${a.mensaje}</div>
       </div>`;
   }catch(e){}
+}
+
+// ── NOTIFICACIONES PERSONALES ─────────────────────────────────
+async function notificarAsignado(nombreAsignado, tipoObs, fundo, fecha){
+  if (!nombreAsignado) return;
+  const mensaje = `📍 Observación asignada a ti:\n"${tipoObs}" en ${fundo} (${fecha})\nAsignado por: ${currentUser.nombre}`;
+  try{
+    await sbFetch('anuncios', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mensaje, autor: currentUser.nombre, para_usuario: nombreAsignado, tipo: 'obs_asignada' })
+    });
+  }catch(e){ console.warn('No se pudo enviar notificación:', e); }
+}
+
+async function marcarNotifLeida(id){
+  if (!currentUser?.nombre) return;
+  try{
+    // Obtener el registro actual para hacer append al array leido_por
+    const res = await sbFetch(`anuncios?id=eq.${id}&select=leido_por`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const prevLeidos = Array.isArray(data[0]?.leido_por) ? data[0].leido_por : [];
+    if (prevLeidos.includes(currentUser.nombre)) return; // ya leído
+    const nuevosLeidos = [...prevLeidos, currentUser.nombre];
+    await sbFetch(`anuncios?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ leido_por: nuevosLeidos })
+    });
+    await cargarNotificaciones();
+  }catch(e){ console.warn('Error al marcar leída:', e); }
 }
 
 async function publicarAnuncio(){
