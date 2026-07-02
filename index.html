@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.40"/>
+<meta name="app-version" content="4.17.41"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -632,7 +632,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.40';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.41';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -4994,6 +4994,21 @@ async function guardarLabor(){
     datos_extra: { ...datosExtra, _usuario: currentUser.user },
   };
 
+  // Si es una EDICIÓN: conservar el autor original y agregar nota del editor
+  if (registroEditandoId){
+    const registroOriginal = _ejecucionesCache?.find(r => r.id === registroEditandoId);
+    if (registroOriginal){
+      // Mantener controlador y usuario originales
+      registro.controlador = registroOriginal.controlador;
+      registro.rol          = registroOriginal.rol;
+      registro.datos_extra._usuario = registroOriginal.datos_extra?._usuario || registroOriginal.controlador;
+      // Guardar quién editó y cuándo
+      registro.datos_extra._editado_por = currentUser.nombre;
+      registro.datos_extra._editado_por_usuario = currentUser.user;
+      registro.datos_extra._editado_en = new Date().toISOString();
+    }
+  }
+
   // Sin conexión y es un registro NUEVO (no edición): guardar en cola local
   if (!registroEditandoId && !isOnline()){
     addToQueue(registro);
@@ -5469,7 +5484,9 @@ function renderRecordsHistorial(records){
         <div class="hist-date">${formatDate(r.fecha)}${hora!=='—' ? ' · '+hora : ''}</div>
       </div>
       <div class="hist-tags">${tags.join('')}</div>
-      <div class="hist-user">👤 ${r.controlador} · ${r.rol === 'admin' ? '⭐ Admin' : 'Controlador'}</div>
+      <div class="hist-user">👤 ${r.controlador} · ${r.rol === 'admin' ? '⭐ Admin' : 'Controlador'}
+        ${r.datos_extra?._editado_por ? `<span style="display:block;font-size:0.64rem;color:#E67E22;margin-top:2px;">✏️ Editado por ${r.datos_extra._editado_por} · ${r.datos_extra._editado_en ? new Date(r.datos_extra._editado_en).toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''}</span>` : ''}
+      </div>
       ${puedeEditar ? `
       <div style="display:flex;gap:8px;margin-top:8px;">
         <button onclick='event.stopPropagation();editarRegistro(${JSON.stringify(r).replace(/'/g,"&#39;")})' style="flex:1;padding:7px;font-size:0.7rem;border:1px solid var(--borde);border-radius:8px;background:#fff;font-weight:700;color:var(--azul);">✏️ Editar</button>
@@ -5513,11 +5530,13 @@ function showDetail(id){
     ['Dosis', r.dosis_cantidad ? `${r.dosis_cantidad} ${r.dosis_unidad||''}` : '—', false],
     ['Registrado por', r.controlador || '—', false],
     ['Rol', r.rol === 'admin' ? '⭐ Administrador' : 'Controlador', false],
+    ...(r.datos_extra?._editado_por ? [['✏️ Editado por', `${r.datos_extra._editado_por}${r.datos_extra._editado_en ? ' · '+new Date(r.datos_extra._editado_en).toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''}`, false]] : []),
   ];
 
   if (r.datos_extra){
     Object.entries(r.datos_extra).forEach(([k,v]) => {
       if (k === 'detalle_parcelas') return;
+      if (k.startsWith('_')) return; // campos internos (_usuario, _editado_por, etc.)
       if (v !== null && v !== undefined && v !== ''){
         const label = DETAIL_LABEL_MAP[k] || k.replace(/_/g,' ');
         const display = k === 'ratio_jor_ha' ? `${v} jor/ha` : String(v);
