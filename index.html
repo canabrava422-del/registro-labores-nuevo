@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.41"/>
+<meta name="app-version" content="4.17.42"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -632,7 +632,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.41';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.42';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -3062,18 +3062,27 @@ async function guardarAnotacion(){
   const fecha = document.getElementById('f-fecha')?.value || new Date().toISOString().slice(0,10);
   if (!fundo){ showToast('Selecciona un fundo', 'error'); return; }
   if (!tipo){ showToast('Escribe el tipo de observación', 'error'); return; }
-  if (_obsPinLat === null){ showToast('Toca el mapa para colocar la ubicación', 'error'); return; }
-  const asignado = document.getElementById('obs-asignado')?.value || '';
 
+  // Pin no obligatorio si no hay internet — se puede guardar sin ubicación exacta
+  const sinUbicacion = _obsPinLat === null;
+  if (sinUbicacion && navigator.onLine){
+    showToast('Toca el mapa para colocar la ubicación', 'error'); return;
+  }
+  if (sinUbicacion){
+    showToast('Sin ubicación exacta — la observación se guardará sin pin. Puedes editarla después.', 'info');
+  }
+
+  const asignado = document.getElementById('obs-asignado')?.value || '';
   const registro = {
     labor:'observaciones', fundo, fecha, equipo:'', parcelas:'',
     observaciones: desc, controlador: currentUser.nombre, rol: currentUser.role,
     datos_extra:{ _usuario: currentUser.user, tipo_obs: tipo, descripcion: desc,
       lat: _obsPinLat, lon: _obsPinLon, heading: _obsHeading, foto_url: null,
-      estado:'pendiente', asignado_a: asignado || null }
+      estado:'pendiente', asignado_a: asignado || null,
+      sin_ubicacion: sinUbicacion || null }
   };
 
-  // Si hay foto, convertir a base64 para guardar offline
+  // Convertir foto a base64 (funciona offline)
   let fotoBase64 = null;
   if (_obsFotoFile){
     fotoBase64 = await new Promise(res => {
@@ -3083,29 +3092,43 @@ async function guardarAnotacion(){
     });
   }
 
-  if (!navigator.onLine){
-    // Guardar en cola offline
+  const guardarEnCola = (motivo) => {
     const cola = JSON.parse(localStorage.getItem('obs_offline_queue') || '[]');
-    cola.push({ registro, fotoBase64, _id: Date.now() });
+    const item = { registro, fotoBase64, _id: Date.now() };
+    cola.push(item);
     localStorage.setItem('obs_offline_queue', JSON.stringify(cola));
-    showToast('📴 Sin conexión — anotación guardada localmente. Se subirá al reconectarte.');
-    // Mostrar en la lista local inmediatamente
-    _obsAnotaciones.unshift({ id: 'offline_' + Date.now(), ...registro, _offline: true, _fotoBase64: fotoBase64 });
+    showToast(motivo);
+    _obsAnotaciones.unshift({ id: 'offline_' + item._id, ...registro, _offline: true, _fotoBase64: fotoBase64 });
     limpiarFormAnotacion();
     renderListaAnotaciones();
     renderObsMap(fundo);
+  };
+
+  if (!navigator.onLine){
+    guardarEnCola('📴 Sin conexión — observación guardada localmente. Se sincronizará al reconectarte.');
     return;
   }
 
-  // Online: subir foto si existe y guardar
-  if (_obsFotoFile){ showToast('📷 Subiendo foto...'); registro.datos_extra.foto_url = await subirFotoStorage(_obsFotoFile, fundo, 'OBS', '', fecha); }
+  // Online: intentar subir foto y guardar
   try{
+    if (_obsFotoFile){
+      showToast('📷 Subiendo foto...');
+      try{
+        registro.datos_extra.foto_url = await subirFotoStorage(_obsFotoFile, fundo, 'OBS', '', fecha);
+      }catch(eFoto){
+        // Foto falla (sin Storage) → guardar igual, foto se sube al sincronizar
+        console.warn('Foto no subida, se guardará en cola:', eFoto);
+      }
+    }
     const res = await sbFetch('labores_campo',{ method:'POST', headers:{'Prefer':'return=minimal'}, body:JSON.stringify(registro) });
-    if (!res.ok) throw new Error();
-    showToast('✅ Anotación guardada');
+    if (!res.ok) throw new Error(await res.text());
+    showToast('✅ Observación guardada');
     limpiarFormAnotacion();
     cargarAnotacionesFundo(fundo);
-  }catch(e){ showToast('Error al guardar', 'error'); }
+  }catch(e){
+    // Fallo de red aunque navigator.onLine diga true → guardar en cola
+    guardarEnCola('📴 Error de red — observación guardada localmente. Se sincronizará pronto.');
+  }
 }
 
 // ── EDITAR / BORRAR OBSERVACIONES ─────────────────────────────
@@ -3203,27 +3226,40 @@ async function sincronizarObsOffline(){
   if (!cola.length) return;
   showToast(`🔄 Sincronizando ${cola.length} observación(es) pendiente(s)...`);
   const fallidas = [];
+
   for (const item of cola){
     try{
-      const reg = item.registro;
-      if (item.fotoBase64){
-        // Convertir base64 a File y subir
-        const res = await fetch(item.fotoBase64);
-        const blob = await res.blob();
-        const file = new File([blob], 'obs_offline.jpg', { type: blob.type });
-        reg.datos_extra.foto_url = await subirFotoStorage(file, reg.fundo, 'OBS', '', reg.fecha);
+      const reg = { ...item.registro };
+      // Subir foto si existe en base64
+      if (item.fotoBase64 && !reg.datos_extra.foto_url){
+        try{
+          const res = await fetch(item.fotoBase64);
+          const blob = await res.blob();
+          const file = new File([blob], 'obs_offline.jpg', { type: blob.type });
+          reg.datos_extra.foto_url = await subirFotoStorage(file, reg.fundo, 'OBS', '', reg.fecha);
+        }catch(eFoto){
+          console.warn('No se pudo subir la foto offline, se guardará sin ella:', eFoto);
+          // Continuar sin foto en vez de fallar todo el registro
+        }
       }
-      const r = await sbFetch('labores_campo',{ method:'POST', headers:{'Prefer':'return=minimal'}, body:JSON.stringify(reg) });
-      if (!r.ok) throw new Error();
-    }catch(e){ fallidas.push(item); }
+      const r = await sbFetch('labores_campo',{
+        method:'POST', headers:{'Content-Type':'application/json','Prefer':'return=minimal'},
+        body: JSON.stringify(reg)
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    }catch(e){
+      console.warn('Fallo al sincronizar obs:', e);
+      fallidas.push(item);
+    }
   }
+
   localStorage.setItem('obs_offline_queue', JSON.stringify(fallidas));
   if (!fallidas.length){
     showToast('✅ Observaciones sincronizadas correctamente');
     const fundo = document.getElementById('obs-fundo')?.value;
     if (fundo) cargarAnotacionesFundo(fundo);
   } else {
-    showToast(`⚠️ ${fallidas.length} observación(es) no pudieron sincronizarse`, 'error');
+    showToast(`⚠️ ${fallidas.length} observación(es) pendiente(s) — se reintentará más tarde`);
   }
 }
 window.addEventListener('online', () => { _isOnline = true; updateSyncBar(); sincronizarObsOffline(); });

@@ -1,4 +1,4 @@
-const CACHE = 'regcampo-4.17.41';
+const CACHE = 'regcampo-4.17.42';
 const SHELL = [
   '/index.html',
   '/manifest.json',
@@ -24,13 +24,29 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  // Nunca cachear llamadas a Supabase: siempre red, siempre datos frescos.
-  if (url.hostname.includes('supabase.co')) {
-    e.respondWith(fetch(e.request));
+
+  // Supabase Storage (fotos): si falla la red, devolver error silencioso
+  if (url.hostname.includes('supabase.co') && url.pathname.includes('/storage/')) {
+    e.respondWith(
+      fetch(e.request).catch(() => new Response('', { status: 503 }))
+    );
     return;
   }
+
+  // Supabase REST API: siempre intentar red primero, sin cachear
+  if (url.hostname.includes('supabase.co')) {
+    e.respondWith(
+      fetch(e.request).catch(() => new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      }))
+    );
+    return;
+  }
+
   if (e.request.method !== 'GET') return;
 
+  // App shell y recursos estáticos: cache-first con actualización en background
   e.respondWith(
     caches.match(e.request).then((cached) => {
       const fetchPromise = fetch(e.request)
@@ -42,6 +58,7 @@ self.addEventListener('fetch', (e) => {
           return networkResp;
         })
         .catch(() => cached || caches.match('/index.html'));
+      // Si hay cache devuélvela inmediatamente; actualiza en background
       return cached || fetchPromise;
     })
   );
