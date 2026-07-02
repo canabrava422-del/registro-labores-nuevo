@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.43"/>
+<meta name="app-version" content="4.17.44"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -666,7 +666,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.43';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.44';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -4771,7 +4771,7 @@ async function generarReporteExcel(){
     const LAB_NOMBRE_FULL = Object.fromEntries(LABORES.map(l=>[l.id,l.nombre]));
 
     // Hoja 1: Resumen
-    const h1 = ['EQ-TR','Fundo',...LAB_ORD.map(l=>LAB_NOM[l]),'Labores realizadas','Ha avance total','Controladores'];
+    const h1 = ['Equipo','Turno','Fundo',...LAB_ORD.map(l=>LAB_NOM[l]),'Labores realizadas','Ha avance total','Controladores'];
     const f1 = [h1];
     Object.keys(porEqTr).sort().forEach(key => {
       const g = porEqTr[key];
@@ -4785,15 +4785,15 @@ async function generarReporteExcel(){
       const realizadas = LAB_ORD.filter(l=>(g.labores[l]||[]).length>0).length;
       const totalHa = Object.values(g.labores).flat().reduce((s,r)=>s+(r.datos_extra?.avance_ha||0),0);
       const ctrls = [...new Set(Object.values(g.labores).flat().map(r=>r.controlador).filter(Boolean))].join(', ');
-      f1.push([key,g.fundo,...celdas,`${realizadas}/${LAB_ORD.length}`,totalHa>0?+totalHa.toFixed(2):0,ctrls]);
+      f1.push([g.eq||key, g.tr||'', g.fundo,...celdas,`${realizadas}/${LAB_ORD.length}`,totalHa>0?+totalHa.toFixed(2):0,ctrls]);
     });
     if (f1.length===1) f1.push(['Sin registros esta semana']);
     const ws1 = XLSX.utils.aoa_to_sheet(f1);
-    ws1['!cols'] = [{wch:13},{wch:9},...LAB_ORD.map(()=>({wch:28})),{wch:14},{wch:14},{wch:30}];
+    ws1['!cols'] = [{wch:10},{wch:7},{wch:9},...LAB_ORD.map(()=>({wch:28})),{wch:14},{wch:14},{wch:30}];
     XLSX.utils.book_append_sheet(wb, ws1, 'Resumen por EQ-TR');
 
     // Hoja 2: Detalle
-    const h2 = ['Fecha','Día','EQ-TR','Fundo','Labor','Controlador','Ha avance','Observaciones','Insumo'];
+    const h2 = ['Fecha','Día','Equipo','Turno','Fundo','Labor','Controlador','Ha avance','Observaciones','Insumo'];
     const DIAS_ES = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
     const f2 = [h2];
     Object.keys(porEqTr).sort().forEach(key => {
@@ -4802,7 +4802,8 @@ async function generarReporteExcel(){
         (g.labores[labor]||[]).forEach(r => {
           const d = new Date(r.fecha+'T12:00:00');
           f2.push([r.fecha?r.fecha.split('-').reverse().join('/'):'—',DIAS_ES[d.getDay()],
-            key,g.fundo,LAB_NOMBRE_FULL[labor]||labor,r.controlador||'—',
+            g.eq||r.equipo||'—', g.tr||r.parcelas||'—', g.fundo,
+            LAB_NOMBRE_FULL[labor]||labor,r.controlador||'—',
             r.datos_extra?.avance_ha?+r.datos_extra.avance_ha.toFixed(2):0,
             r.observaciones||'—',r.insumo||'—']);
         });
@@ -4810,7 +4811,7 @@ async function generarReporteExcel(){
     });
     if (f2.length===1) f2.push(['Sin registros']);
     const ws2 = XLSX.utils.aoa_to_sheet(f2);
-    ws2['!cols'] = [{wch:12},{wch:5},{wch:13},{wch:10},{wch:22},{wch:20},{wch:10},{wch:40},{wch:15}];
+    ws2['!cols'] = [{wch:12},{wch:5},{wch:10},{wch:7},{wch:10},{wch:22},{wch:20},{wch:10},{wch:40},{wch:15}];
     XLSX.utils.book_append_sheet(wb, ws2, 'Detalle de registros');
 
     // Hoja 3: Por controlador
@@ -4863,7 +4864,12 @@ async function generarReportePDF(){
           +(ha>0?`<br/><span style="color:#2e7d32;">${ha.toFixed(1)} ha</span>`:'')
           +(obs?`<br/><i style="color:#555;">${obs.slice(0,60)}</i>`:'')+'</td>';
       }).join('');
-      filas += `<tr><td style="font-weight:700;">${key}</td><td style="color:#666;font-size:9px;">${g.fundo}</td>${celdas}</tr>`;
+      filas += `<tr>
+        <td style="font-weight:700;">${g.eq||key}</td>
+        <td style="font-weight:700;color:#135381;">${g.tr||''}</td>
+        <td style="color:#666;font-size:9px;">${g.fundo}</td>
+        ${celdas}
+      </tr>`;
     });
 
     const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
@@ -4891,7 +4897,7 @@ th:first-child,td:first-child{text-align:left;} td{border:1px solid #ddd;padding
   <div class="stat"><b>${ctrls.length}</b><span>Controladores</span></div>
 </div>
 <table>
-<thead><tr><th>EQ-TR</th><th>Fundo</th>${LAB_ORD.map(l=>`<th>${LAB_NOM[l]}</th>`).join('')}</tr></thead>
+<thead><tr><th>Equipo</th><th>Turno</th><th>Fundo</th>${LAB_ORD.map(l=>`<th>${LAB_NOM[l]}</th>`).join('')}</tr></thead>
 <tbody>${filas||'<tr><td colspan="12" style="text-align:center;color:#999;padding:20px;">Sin registros esta semana</td></tr>'}</tbody>
 </table>
 <div class="footer">
