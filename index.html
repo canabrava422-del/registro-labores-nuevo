@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.42"/>
+<meta name="app-version" content="4.17.43"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -555,6 +555,40 @@
   <section id="view-kpis" class="hidden">
     <div class="section-title-dash">Dashboard · Registro de Labores</div>
 
+    <!-- ── REPORTE SEMANAL ── -->
+    <div class="dash-card" style="border-left:4px solid var(--azul-oscuro);">
+      <div class="dash-card-title">📋 Reporte Semanal por EQ-TR</div>
+      <div style="font-size:0.72rem;color:var(--texto-suave);margin-bottom:12px;">Genera un resumen de todas las labores de la semana por lote.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <div style="flex:1;min-width:120px;">
+          <label style="font-size:0.68rem;color:var(--texto-suave);display:block;margin-bottom:3px;">Fundo</label>
+          <select id="rep-fundo" style="width:100%;font-size:0.8rem;">
+            <option value="">Todos</option>
+            <option>Lobo 2</option><option>Lobo 1</option><option>Huaca</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:5px;align-items:flex-end;">
+          <div>
+            <label style="font-size:0.68rem;color:var(--texto-suave);display:block;margin-bottom:3px;">Sem.</label>
+            <input type="number" id="rep-semana" min="1" max="53" value="${getISOWeek(new Date())}" style="width:54px;text-align:center;font-size:0.8rem;border:1px solid var(--borde);border-radius:6px;padding:6px 4px;"/>
+          </div>
+          <div>
+            <label style="font-size:0.68rem;color:var(--texto-suave);display:block;margin-bottom:3px;">Año</label>
+            <input type="number" id="rep-year" min="2024" max="2030" value="${getISOYear(new Date())}" style="width:66px;text-align:center;font-size:0.8rem;border:1px solid var(--borde);border-radius:6px;padding:6px 4px;"/>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="generarReporteExcel()" class="btn" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;">
+          <span>📊</span> Descargar Excel
+        </button>
+        <button onclick="generarReportePDF()" style="flex:1;background:var(--rojo);border:none;border-radius:8px;padding:12px;color:#fff;font-weight:700;font-size:0.8rem;display:flex;align-items:center;justify-content:center;gap:6px;">
+          <span>📄</span> Imprimir / PDF
+        </button>
+      </div>
+      <div id="rep-estado" style="font-size:0.7rem;color:var(--texto-suave);text-align:center;margin-top:8px;"></div>
+    </div>
+
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-val" id="kpi-total">—</div>
@@ -632,7 +666,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.42';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.43';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -4695,6 +4729,187 @@ function cerrarMapaFullscreen(){
   const body = document.getElementById('mapa-fs-body');
   if (body) body.innerHTML = '';
   _mapaFSZoom = 1; _mapaFSVB = null; _mapaFSPinchDist = null;
+}
+
+// ============================================================
+// REPORTE SEMANAL AUTOMÁTICO
+// ============================================================
+async function obtenerDatosReporte(){
+  const semNum  = parseInt(document.getElementById('rep-semana')?.value) || getISOWeek(new Date());
+  const semYear = parseInt(document.getElementById('rep-year')?.value)   || getISOYear(new Date());
+  const fundo   = document.getElementById('rep-fundo')?.value || '';
+  const lunes   = lunesDeSemanaN(semNum, semYear);
+  const dias    = diasDeSemana(lunes);
+  const sabado  = dias[5];
+  const repEl   = document.getElementById('rep-estado');
+  if (repEl) repEl.textContent = '⏳ Cargando datos...';
+  let url = `labores_campo?fecha=gte.${lunes}&fecha=lte.${sabado}&order=fecha.asc&limit=2000`;
+  if (fundo) url += `&fundo=eq.${encodeURIComponent(fundo)}`;
+  const res = await sbFetch(url);
+  if (!res.ok) throw new Error('Error al cargar datos');
+  const registros = await res.json();
+  const porEqTr = {};
+  registros.forEach(r => {
+    const key = r.equipo && r.parcelas ? `${r.equipo}-${r.parcelas}` : (r.equipo || 'SIN-EQ');
+    if (!porEqTr[key]) porEqTr[key] = { fundo:r.fundo, eq:r.equipo, tr:r.parcelas, labores:{} };
+    if (!porEqTr[key].labores[r.labor]) porEqTr[key].labores[r.labor] = [];
+    porEqTr[key].labores[r.labor].push(r);
+  });
+  return { porEqTr, lunes, sabado, semNum, semYear, fundo, registros };
+}
+
+async function generarReporteExcel(){
+  if (typeof XLSX === 'undefined'){ showToast('SheetJS no disponible', 'error'); return; }
+  const repEl = document.getElementById('rep-estado');
+  try{
+    const { porEqTr, lunes, sabado, semNum, semYear, fundo } = await obtenerDatosReporte();
+    const wb = XLSX.utils.book_new();
+    const LAB_ORD = ['entable','purga','calibracion','aplicacion','limpieza','plancero','manguera','tendido','flushing','caudal'];
+    const LAB_NOM = { entable:'Entable', purga:'Purga c/Pig', calibracion:'Calibración',
+      aplicacion:'Aplicación', limpieza:'Limp.Laterales', plancero:'Plan 0 Fuga',
+      manguera:'Rev.Manguera', tendido:'Tendido Mang.', flushing:'Flushing', caudal:'Med.Caudal' };
+    const LAB_NOMBRE_FULL = Object.fromEntries(LABORES.map(l=>[l.id,l.nombre]));
+
+    // Hoja 1: Resumen
+    const h1 = ['EQ-TR','Fundo',...LAB_ORD.map(l=>LAB_NOM[l]),'Labores realizadas','Ha avance total','Controladores'];
+    const f1 = [h1];
+    Object.keys(porEqTr).sort().forEach(key => {
+      const g = porEqTr[key];
+      const celdas = LAB_ORD.map(labor => {
+        const regs = g.labores[labor]||[];
+        if (!regs.length) return '—';
+        const ctrl = [...new Set(regs.map(r=>r.controlador).filter(Boolean))].join(', ');
+        const ha = regs.reduce((s,r)=>s+(r.datos_extra?.avance_ha||0),0);
+        return `✅ ${ctrl}${ha>0?' ('+ha.toFixed(1)+' ha)':''}`;
+      });
+      const realizadas = LAB_ORD.filter(l=>(g.labores[l]||[]).length>0).length;
+      const totalHa = Object.values(g.labores).flat().reduce((s,r)=>s+(r.datos_extra?.avance_ha||0),0);
+      const ctrls = [...new Set(Object.values(g.labores).flat().map(r=>r.controlador).filter(Boolean))].join(', ');
+      f1.push([key,g.fundo,...celdas,`${realizadas}/${LAB_ORD.length}`,totalHa>0?+totalHa.toFixed(2):0,ctrls]);
+    });
+    if (f1.length===1) f1.push(['Sin registros esta semana']);
+    const ws1 = XLSX.utils.aoa_to_sheet(f1);
+    ws1['!cols'] = [{wch:13},{wch:9},...LAB_ORD.map(()=>({wch:28})),{wch:14},{wch:14},{wch:30}];
+    XLSX.utils.book_append_sheet(wb, ws1, 'Resumen por EQ-TR');
+
+    // Hoja 2: Detalle
+    const h2 = ['Fecha','Día','EQ-TR','Fundo','Labor','Controlador','Ha avance','Observaciones','Insumo'];
+    const DIAS_ES = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    const f2 = [h2];
+    Object.keys(porEqTr).sort().forEach(key => {
+      const g = porEqTr[key];
+      LAB_ORD.forEach(labor => {
+        (g.labores[labor]||[]).forEach(r => {
+          const d = new Date(r.fecha+'T12:00:00');
+          f2.push([r.fecha?r.fecha.split('-').reverse().join('/'):'—',DIAS_ES[d.getDay()],
+            key,g.fundo,LAB_NOMBRE_FULL[labor]||labor,r.controlador||'—',
+            r.datos_extra?.avance_ha?+r.datos_extra.avance_ha.toFixed(2):0,
+            r.observaciones||'—',r.insumo||'—']);
+        });
+      });
+    });
+    if (f2.length===1) f2.push(['Sin registros']);
+    const ws2 = XLSX.utils.aoa_to_sheet(f2);
+    ws2['!cols'] = [{wch:12},{wch:5},{wch:13},{wch:10},{wch:22},{wch:20},{wch:10},{wch:40},{wch:15}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Detalle de registros');
+
+    // Hoja 3: Por controlador
+    const porCtrl = {};
+    Object.values(porEqTr).forEach(g => Object.values(g.labores).flat().forEach(r => {
+      const c = r.controlador||'Sin nombre';
+      if (!porCtrl[c]) porCtrl[c] = {regs:0,ha:0,labs:new Set()};
+      porCtrl[c].regs++; porCtrl[c].ha+=r.datos_extra?.avance_ha||0; porCtrl[c].labs.add(r.labor);
+    }));
+    const h3 = ['Controlador','N° Registros','Ha Total','Labores realizadas'];
+    const f3 = [h3,...Object.entries(porCtrl).sort((a,b)=>b[1].regs-a[1].regs)
+      .map(([c,d])=>[c,d.regs,d.ha>0?+d.ha.toFixed(2):0,[...d.labs].map(l=>LAB_NOMBRE_FULL[l]||l).join(', ')])];
+    const ws3 = XLSX.utils.aoa_to_sheet(f3);
+    ws3['!cols'] = [{wch:22},{wch:12},{wch:12},{wch:55}];
+    XLSX.utils.book_append_sheet(wb, ws3, 'Por controlador');
+
+    const sem = `S${String(semNum).padStart(2,'0')}-${semYear}`;
+    XLSX.writeFile(wb, `Reporte_Labores_${sem}${fundo?'_'+fundo.replace(/ /g,'_'):''}.xlsx`);
+    if (repEl) repEl.textContent = `✅ Excel descargado (${sem})`;
+    showToast('📊 Reporte Excel generado correctamente');
+  }catch(e){
+    if (repEl) repEl.textContent = '❌ ' + e.message;
+    showToast('Error: '+e.message,'error');
+  }
+}
+
+async function generarReportePDF(){
+  const repEl = document.getElementById('rep-estado');
+  try{
+    const { porEqTr, lunes, sabado, semNum, semYear, fundo, registros } = await obtenerDatosReporte();
+    const LAB_ORD = ['entable','purga','calibracion','aplicacion','limpieza','plancero','manguera','tendido','flushing','caudal'];
+    const LAB_NOM = {entable:'Entable',purga:'Purga',calibracion:'Calibración',aplicacion:'Aplicación',
+      limpieza:'Limp.Lat.',plancero:'Plan 0 Fuga',manguera:'Rev.Mang.',tendido:'Tendido',flushing:'Flushing',caudal:'Caudal'};
+    const LAB_NOMBRE_FULL = Object.fromEntries(LABORES.map(l=>[l.id,l.nombre]));
+    const eqtrOrden = Object.keys(porEqTr).sort();
+    const semLabel = `Semana ${semNum} · ${lunes.split('-').reverse().join('/')} – ${sabado.split('-').reverse().join('/')} ${semYear}`;
+    const totalHa = registros.reduce((s,r)=>s+(r.datos_extra?.avance_ha||0),0);
+    const ctrls = [...new Set(registros.map(r=>r.controlador).filter(Boolean))];
+
+    let filas = '';
+    eqtrOrden.forEach(key => {
+      const g = porEqTr[key];
+      const celdas = LAB_ORD.map(labor => {
+        const regs = g.labores[labor]||[];
+        if (!regs.length) return '<td style="color:#bbb;text-align:center;">—</td>';
+        const ctrl = [...new Set(regs.map(r=>r.controlador).filter(Boolean))].join(', ');
+        const ha = regs.reduce((s,r)=>s+(r.datos_extra?.avance_ha||0),0);
+        const obs = regs.map(r=>r.observaciones).filter(Boolean).join(' | ');
+        return `<td style="background:#e8f5e9;font-size:9px;"><b>${ctrl}</b>`
+          +(ha>0?`<br/><span style="color:#2e7d32;">${ha.toFixed(1)} ha</span>`:'')
+          +(obs?`<br/><i style="color:#555;">${obs.slice(0,60)}</i>`:'')+'</td>';
+      }).join('');
+      filas += `<tr><td style="font-weight:700;">${key}</td><td style="color:#666;font-size:9px;">${g.fundo}</td>${celdas}</tr>`;
+    });
+
+    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+<title>Reporte Labores ${semLabel}</title>
+<style>
+*{box-sizing:border-box;} body{font-family:Arial,sans-serif;font-size:10px;margin:15px;color:#222;}
+h1{font-size:13px;color:#135381;margin:0 0 4px;}
+.sub{font-size:9px;color:#777;margin-bottom:12px;}
+.stats{display:flex;gap:12px;margin-bottom:14px;}
+.stat{background:#f0f8fb;border-radius:5px;padding:6px 12px;text-align:center;border-top:3px solid #135381;}
+.stat b{display:block;font-size:16px;color:#135381;}
+.stat span{font-size:9px;color:#666;}
+table{border-collapse:collapse;width:100%;}
+th{background:#135381;color:#fff;padding:4px 3px;font-size:9px;text-align:center;border:1px solid #0d3a5c;}
+th:first-child,td:first-child{text-align:left;} td{border:1px solid #ddd;padding:4px 3px;vertical-align:top;}
+.footer{margin-top:12px;font-size:9px;color:#888;border-top:1px solid #eee;padding-top:8px;}
+@media print{@page{size:A3 landscape;margin:12mm;} body{margin:0;} .no-print{display:none;}}
+</style></head><body>
+<h1>📋 Reporte de Labores de Campo · ${fundo||'Todos los fundos'}</h1>
+<div class="sub">${semLabel} · Generado el ${new Date().toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+<div class="stats">
+  <div class="stat"><b>${registros.length}</b><span>Registros</span></div>
+  <div class="stat"><b>${totalHa>0?totalHa.toFixed(1)+' ha':'—'}</b><span>Ha avanzadas</span></div>
+  <div class="stat"><b>${eqtrOrden.length}</b><span>Lotes activos</span></div>
+  <div class="stat"><b>${ctrls.length}</b><span>Controladores</span></div>
+</div>
+<table>
+<thead><tr><th>EQ-TR</th><th>Fundo</th>${LAB_ORD.map(l=>`<th>${LAB_NOM[l]}</th>`).join('')}</tr></thead>
+<tbody>${filas||'<tr><td colspan="12" style="text-align:center;color:#999;padding:20px;">Sin registros esta semana</td></tr>'}</tbody>
+</table>
+<div class="footer">
+  <b>Controladores:</b> ${ctrls.join(' · ')||'—'}<br/>
+  ✅ Con registros · — Sin actividad
+</div>
+<script>window.onload=()=>setTimeout(()=>window.print(),300);<\/script>
+</body></html>`;
+
+    const w = window.open('','_blank');
+    if (!w){ showToast('Permite ventanas emergentes para el PDF','error'); return; }
+    w.document.write(html);
+    w.document.close();
+    if (repEl) repEl.textContent = '✅ Abriendo vista previa para imprimir / guardar PDF';
+  }catch(e){
+    if (repEl) repEl.textContent = '❌ '+e.message;
+    showToast('Error: '+e.message,'error');
+  }
 }
 
 // Cerrar con Escape
