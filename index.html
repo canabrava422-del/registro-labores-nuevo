@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.49"/>
+<meta name="app-version" content="4.17.50"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -144,7 +144,7 @@
   .verify-table .td-label{color:var(--texto-suave);font-weight:600;width:55%;}
   .verify-table .td-val{font-weight:700;color:var(--azul-oscuro);}
   .verify-empty{text-align:center;color:var(--texto-suave);padding:14px;font-size:0.78rem;}
-  .pp-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .pp-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;overflow-y:visible;}
   .pp-table{width:100%;border-collapse:collapse;font-size:0.72rem;min-width:520px;}
   .pp-table th{background:var(--fondo);padding:6px 6px;text-align:center;font-size:0.62rem;color:var(--texto-suave);border-bottom:1.5px solid var(--borde);}
   .pp-table td{padding:5px;border-bottom:1px solid var(--borde);text-align:center;}
@@ -678,7 +678,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.49';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.50';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -1154,7 +1154,7 @@ function buildEntableParcelasTable(){
       </tr>`;
   }).join('');
   wrap.innerHTML = `
-    <div class="pp-table-scroll">
+    <div class="pp-table-scroll" style="padding-bottom:130px;">
       <table class="pp-table">
         <thead><tr><th>Parcela</th><th>Ha</th><th>Ha avanzadas</th><th>Ha pendientes</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -2473,6 +2473,10 @@ function cerrarSesion(){
 }
 
 async function entrarApp(){
+  // Solicitar permisos de orientación al iniciar — no durante acciones del usuario
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+    DeviceOrientationEvent.requestPermission().catch(()=>{});
+  }
   document.getElementById('view-login').classList.add('hidden');
   document.getElementById('app-main').classList.remove('hidden');
   document.getElementById('bottom-nav').classList.remove('hidden');
@@ -3129,7 +3133,7 @@ function cancelarAnotacion(){
 }
 
 // Foto de nueva observación
-function abrirCamaraObs(){ pedirPermisoOrientacion(); document.getElementById('obs-camara-input').click(); }
+function abrirCamaraObs(){ document.getElementById('obs-camara-input').click(); }
 function abrirGaleriaObs(){ document.getElementById('obs-foto-input').click(); }
 function onObsFotoSeleccionada(input){
   const file = input.files[0];
