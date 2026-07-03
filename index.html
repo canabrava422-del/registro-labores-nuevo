@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.52"/>
+<meta name="app-version" content="4.17.53"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -369,6 +369,28 @@
   </div>
 </div>
 
+<!-- Modal global "Condición de tendido" — bottom sheet, funciona en iOS sin bugs de posicionamiento -->
+<div id="cond-modal-overlay" onclick="cerrarCondModal()" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.45);"></div>
+<div id="cond-modal" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:301;background:#fff;border-radius:16px 16px 0 0;padding:20px 18px 32px;max-width:500px;margin:0 auto;box-shadow:0 -4px 24px rgba(0,0,0,.18);">
+  <div style="text-align:center;margin-bottom:14px;">
+    <div style="width:36px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 12px;"></div>
+    <div style="font-weight:700;font-size:0.88rem;color:var(--azul-oscuro);">Condición de tendido</div>
+    <div style="font-size:0.7rem;color:var(--texto-suave);margin-top:2px);">Parcela <span id="cond-modal-parcela"></span></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
+    <label style="display:flex;align-items:center;gap:14px;padding:14px 12px;border:2px solid var(--borde);border-radius:10px;cursor:pointer;font-size:0.9rem;font-weight:600;" id="cond-lbl-critico">
+      <input type="checkbox" id="cond-chk-critico" style="width:22px;height:22px;accent-color:#E74C3C;" onchange="actualizarCondModal()"/> 🔴 Crítico <span style="font-size:0.7rem;color:#999;font-weight:400;">(0–3 L/min)</span>
+    </label>
+    <label style="display:flex;align-items:center;gap:14px;padding:14px 12px;border:2px solid var(--borde);border-radius:10px;cursor:pointer;font-size:0.9rem;font-weight:600;" id="cond-lbl-regular">
+      <input type="checkbox" id="cond-chk-regular" style="width:22px;height:22px;accent-color:#E67E22;" onchange="actualizarCondModal()"/> 🟠 Regular <span style="font-size:0.7rem;color:#999;font-weight:400;">(3–5 L/min)</span>
+    </label>
+    <label style="display:flex;align-items:center;gap:14px;padding:14px 12px;border:2px solid var(--borde);border-radius:10px;cursor:pointer;font-size:0.9rem;font-weight:600;" id="cond-lbl-bueno">
+      <input type="checkbox" id="cond-chk-bueno" style="width:22px;height:22px;accent-color:#27AE60;" onchange="actualizarCondModal()"/> 🟢 Bueno <span style="font-size:0.7rem;color:#999;font-weight:400;">(5–7 L/min)</span>
+    </label>
+  </div>
+  <button onclick="confirmarCondModal()" style="width:100%;padding:14px;background:var(--azul-oscuro);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.88rem;">✅ Confirmar</button>
+</div>
+
 <!-- Modal detalle pin observación -->
 <div id="obs-pin-modal" onclick="if(event.target===this)cerrarObsPinModal()" style="display:none;position:fixed;inset:0;z-index:270;background:rgba(0,0,0,0.6);align-items:flex-end;justify-content:center;padding-bottom:env(safe-area-inset-bottom);">
   <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:85vh;overflow-y:auto;padding:18px;padding-top:calc(14px + env(safe-area-inset-top));">
@@ -678,7 +700,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.52';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.53';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -1588,13 +1610,12 @@ function buildCaudalParcelasTable(){
         <td><input type="number" class="pp-input cd-regular" value="${v.regular}" placeholder="0" step="1" min="0" oninput="onCaudalTableInput()" title="Mangueras 3-5 L/min"/></td>
         <td><input type="number" class="pp-input cd-bueno" value="${v.bueno}" placeholder="0" step="1" min="0" oninput="onCaudalTableInput()" title="Mangueras 5-7 L/min"/></td>
         <td><input type="number" class="pp-input cd-exceso" value="${v.exceso}" placeholder="0" step="1" min="0" oninput="onCaudalTableInput()" title="Mangueras >7 L/min"/></td>
-        <td style="position:relative;">
-          <button type="button" class="cd-cond-btn" onclick="toggleCondPanel(event,this)" style="width:90px;padding:6px 4px;font-size:0.66rem;border:1px solid var(--borde);border-radius:6px;background:#fff;color:var(--texto);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${condResumen} ▾</button>
-          <div class="cd-cond-panel hidden" style="position:fixed;z-index:999;background:#fff;border:1px solid var(--borde);border-radius:10px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.22);min-width:130px;">
-            <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;font-weight:400;text-transform:none;padding:8px 4px;cursor:pointer;"><input type="checkbox" class="cd-cond" value="Crítico" style="width:18px;height:18px;accent-color:var(--azul-oscuro);" ${condCheck('Crítico')} onchange="onCondPanelChange(this)"/>Crítico</label>
-            <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;font-weight:400;text-transform:none;padding:8px 4px;cursor:pointer;"><input type="checkbox" class="cd-cond" value="Regular" style="width:18px;height:18px;accent-color:var(--azul-oscuro);" ${condCheck('Regular')} onchange="onCondPanelChange(this)"/>Regular</label>
-            <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;font-weight:400;text-transform:none;padding:8px 4px;cursor:pointer;"><input type="checkbox" class="cd-cond" value="Bueno" style="width:18px;height:18px;accent-color:var(--azul-oscuro);" ${condCheck('Bueno')} onchange="onCondPanelChange(this)"/>Bueno</label>
-          </div>
+        <td>
+          <button type="button" class="cd-cond-btn" data-parcela="${p}"
+            onclick="abrirCondModal(this)"
+            style="width:90px;padding:6px 4px;font-size:0.66rem;border:1px solid var(--borde);border-radius:6px;background:#fff;color:var(--texto);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${condResumen} ▾</button>
+          <!-- El estado de checkboxes se guarda en data-* para no depender de DOM oculto -->
+          <span class="cd-cond-state" data-critico="${condCheck('Crítico')?1:0}" data-regular="${condCheck('Regular')?1:0}" data-bueno="${condCheck('Bueno')?1:0}" style="display:none;"></span>
         </td>
         <td><input type="number" class="pp-input cd-longitud" value="${v.longitud}" placeholder="0.0" step="0.1" min="0" oninput="onCaudalTableInput()" title="Longitud de manguera (m) = ancho de la parcela"/></td>
         <td><input type="number" class="pp-input cd-dist" value="${v.dist}" placeholder="0.0" step="0.1" min="0" oninput="onCaudalTableInput()" title="Distanciamiento entre surcos (m)"/></td>
@@ -1615,39 +1636,81 @@ function buildCaudalParcelasTable(){
 
 // Abre/cierra el panel desplegable de "Condición de tendido" de una fila,
 // cerrando cualquier otro panel que estuviera abierto.
-function toggleCondPanel(event, btn){
-  event.stopPropagation();
-  const panel = btn.nextElementSibling;
-  const yaAbierto = !panel.classList.contains('hidden');
-  // Cerrar todos
-  document.querySelectorAll('.cd-cond-panel').forEach(p => p.classList.add('hidden'));
-  if (!yaAbierto){
-    panel.classList.remove('hidden');
-    // Posicionar con fixed para iOS (evita clip dentro de table)
-    const rect = btn.getBoundingClientRect();
-    const panelH = 120; // altura aprox del panel
-    const spaceBelow = window.innerHeight - rect.bottom;
-    if (spaceBelow < panelH){
-      // Abrir hacia arriba
-      panel.style.top  = (rect.top - panelH - 4) + 'px';
-    } else {
-      panel.style.top  = (rect.bottom + 4) + 'px';
-    }
-    panel.style.left = Math.max(4, Math.min(rect.left, window.innerWidth - 150)) + 'px';
-  }
+// ── Condición de tendido — bottom sheet (compatible iOS) ─────
+let _condModalBtn = null; // botón que abrió el modal
+
+function abrirCondModal(btn){
+  _condModalBtn = btn;
+  const row = btn.closest('.cd-row');
+  const parcela = row?.dataset.parcela || '';
+  const state = row?.querySelector('.cd-cond-state');
+
+  // Leer estado actual desde data attributes
+  document.getElementById('cond-chk-critico').checked = state?.dataset.critico === '1';
+  document.getElementById('cond-chk-regular').checked = state?.dataset.regular === '1';
+  document.getElementById('cond-chk-bueno').checked   = state?.dataset.bueno   === '1';
+  document.getElementById('cond-modal-parcela').textContent = parcela;
+  actualizarCondModal();
+
+  document.getElementById('cond-modal-overlay').style.display = 'block';
+  document.getElementById('cond-modal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
 }
-function onCondPanelChange(chk){
-  const panel = chk.closest('.cd-cond-panel');
-  const btn = panel.previousElementSibling;
-  const seleccionadas = [...panel.querySelectorAll('.cd-cond:checked')].map(c => c.value);
-  btn.textContent = (seleccionadas.length ? seleccionadas.join(', ') : 'Elegir') + ' ▾';
+
+function actualizarCondModal(){
+  // Resaltar labels según estado del checkbox
+  const pares = [
+    ['cond-chk-critico','cond-lbl-critico','#fdecea','#E74C3C'],
+    ['cond-chk-regular','cond-lbl-regular','#fef3e2','#E67E22'],
+    ['cond-chk-bueno',  'cond-lbl-bueno',  '#e8f5e9','#27AE60'],
+  ];
+  pares.forEach(([chkId, lblId, bgOn, colOn]) => {
+    const chk = document.getElementById(chkId);
+    const lbl = document.getElementById(lblId);
+    if (chk && lbl){
+      lbl.style.background   = chk.checked ? bgOn   : '#fff';
+      lbl.style.borderColor  = chk.checked ? colOn  : 'var(--borde)';
+      lbl.style.color        = chk.checked ? colOn  : 'var(--texto)';
+    }
+  });
+}
+
+function confirmarCondModal(){
+  if (!_condModalBtn) { cerrarCondModal(); return; }
+  const critico = document.getElementById('cond-chk-critico').checked;
+  const regular = document.getElementById('cond-chk-regular').checked;
+  const bueno   = document.getElementById('cond-chk-bueno').checked;
+  const selArr  = [...(critico?['Crítico']:[]), ...(regular?['Regular']:[]), ...(bueno?['Bueno']:[])];
+
+  // Guardar estado en data attributes del span oculto
+  const row   = _condModalBtn.closest('.cd-row');
+  const state = row?.querySelector('.cd-cond-state');
+  if (state){
+    state.dataset.critico = critico ? '1' : '0';
+    state.dataset.regular = regular ? '1' : '0';
+    state.dataset.bueno   = bueno   ? '1' : '0';
+  }
+
+  // Actualizar texto del botón
+  _condModalBtn.textContent = (selArr.length ? selArr.join(', ') : 'Elegir') + ' ▾';
+  _condModalBtn.style.color = selArr.length ? 'var(--azul-oscuro)' : 'var(--texto)';
+  _condModalBtn.style.fontWeight = selArr.length ? '700' : '400';
+
+  cerrarCondModal();
   onCaudalTableInput();
 }
-document.addEventListener('click', function(e){
-  if (!e.target.closest('.cd-cond-panel') && !e.target.closest('.cd-cond-btn')){
-    document.querySelectorAll('.cd-cond-panel').forEach(p => p.classList.add('hidden'));
-  }
-});
+
+function cerrarCondModal(){
+  document.getElementById('cond-modal-overlay').style.display = 'none';
+  document.getElementById('cond-modal').style.display = 'none';
+  document.body.style.overflow = '';
+  _condModalBtn = null;
+}
+
+function onCondPanelChange(chk){
+  // Legacy — ya no se usa pero lo dejamos por compatibilidad
+  onCaudalTableInput();
+}
 
 function onCaudalTableInput(){
   let totalHa=0, totalCritico=0, totalRegular=0, totalBueno=0, totalExceso=0, totalHasPend=0;
@@ -1659,7 +1722,12 @@ function onCaudalTableInput(){
     const exceso = parseInt(row.querySelector('.cd-exceso')?.value) || 0;
     const dist = row.querySelector('.cd-dist')?.value || '';
     const longitud = parseFloat(row.querySelector('.cd-longitud')?.value) || 0;
-    const condSeleccionadas = [...row.querySelectorAll('.cd-cond:checked')].map(c => c.value);
+    // Leer condiciones del data-state (bottom sheet modal)
+    const state = row.querySelector('.cd-cond-state');
+    const condSeleccionadas = [];
+    if (state?.dataset.critico === '1') condSeleccionadas.push('Crítico');
+    if (state?.dataset.regular === '1') condSeleccionadas.push('Regular');
+    if (state?.dataset.bueno   === '1') condSeleccionadas.push('Bueno');
 
     const valoresPorCondicion = { 'Crítico': critico, 'Regular': regular, 'Bueno': bueno };
     const sumaSeleccionada = condSeleccionadas.reduce((s, c) => s + (valoresPorCondicion[c] || 0), 0);
