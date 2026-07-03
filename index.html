@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.48"/>
+<meta name="app-version" content="4.17.49"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -678,7 +678,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.48';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.49';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -1590,10 +1590,10 @@ function buildCaudalParcelasTable(){
         <td><input type="number" class="pp-input cd-exceso" value="${v.exceso}" placeholder="0" step="1" min="0" oninput="onCaudalTableInput()" title="Mangueras >7 L/min"/></td>
         <td style="position:relative;">
           <button type="button" class="cd-cond-btn" onclick="toggleCondPanel(event,this)" style="width:90px;padding:6px 4px;font-size:0.66rem;border:1px solid var(--borde);border-radius:6px;background:#fff;color:var(--texto);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${condResumen} ▾</button>
-          <div class="cd-cond-panel hidden" style="position:absolute;top:100%;left:0;z-index:60;background:#fff;border:1px solid var(--borde);border-radius:8px;padding:8px;box-shadow:0 6px 16px rgba(0,0,0,.18);min-width:110px;">
-            <label style="display:flex;align-items:center;gap:5px;font-size:0.68rem;font-weight:400;text-transform:none;padding:3px 0;"><input type="checkbox" class="cd-cond" value="Crítico" ${condCheck('Crítico')} onchange="onCondPanelChange(this)"/>Crítico</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:0.68rem;font-weight:400;text-transform:none;padding:3px 0;"><input type="checkbox" class="cd-cond" value="Regular" ${condCheck('Regular')} onchange="onCondPanelChange(this)"/>Regular</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:0.68rem;font-weight:400;text-transform:none;padding:3px 0;"><input type="checkbox" class="cd-cond" value="Bueno" ${condCheck('Bueno')} onchange="onCondPanelChange(this)"/>Bueno</label>
+          <div class="cd-cond-panel hidden" style="position:fixed;z-index:999;background:#fff;border:1px solid var(--borde);border-radius:10px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.22);min-width:130px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;font-weight:400;text-transform:none;padding:8px 4px;cursor:pointer;"><input type="checkbox" class="cd-cond" value="Crítico" style="width:18px;height:18px;accent-color:var(--azul-oscuro);" ${condCheck('Crítico')} onchange="onCondPanelChange(this)"/>Crítico</label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;font-weight:400;text-transform:none;padding:8px 4px;cursor:pointer;"><input type="checkbox" class="cd-cond" value="Regular" style="width:18px;height:18px;accent-color:var(--azul-oscuro);" ${condCheck('Regular')} onchange="onCondPanelChange(this)"/>Regular</label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;font-weight:400;text-transform:none;padding:8px 4px;cursor:pointer;"><input type="checkbox" class="cd-cond" value="Bueno" style="width:18px;height:18px;accent-color:var(--azul-oscuro);" ${condCheck('Bueno')} onchange="onCondPanelChange(this)"/>Bueno</label>
           </div>
         </td>
         <td><input type="number" class="pp-input cd-longitud" value="${v.longitud}" placeholder="0.0" step="0.1" min="0" oninput="onCaudalTableInput()" title="Longitud de manguera (m) = ancho de la parcela"/></td>
@@ -1619,8 +1619,22 @@ function toggleCondPanel(event, btn){
   event.stopPropagation();
   const panel = btn.nextElementSibling;
   const yaAbierto = !panel.classList.contains('hidden');
+  // Cerrar todos
   document.querySelectorAll('.cd-cond-panel').forEach(p => p.classList.add('hidden'));
-  if (!yaAbierto) panel.classList.remove('hidden');
+  if (!yaAbierto){
+    panel.classList.remove('hidden');
+    // Posicionar con fixed para iOS (evita clip dentro de table)
+    const rect = btn.getBoundingClientRect();
+    const panelH = 120; // altura aprox del panel
+    const spaceBelow = window.innerHeight - rect.bottom;
+    if (spaceBelow < panelH){
+      // Abrir hacia arriba
+      panel.style.top  = (rect.top - panelH - 4) + 'px';
+    } else {
+      panel.style.top  = (rect.bottom + 4) + 'px';
+    }
+    panel.style.left = Math.max(4, Math.min(rect.left, window.innerWidth - 150)) + 'px';
+  }
 }
 function onCondPanelChange(chk){
   const panel = chk.closest('.cd-cond-panel');
@@ -2218,7 +2232,7 @@ const FORMULARIOS = {
               <button type="button" onclick="abrirGaleria()" class="btn secundario" style="flex:1;font-size:0.76rem;">🖼️ Elegir de galería</button>
             </div>
             <input type="file" id="f-foto-input" accept="image/*" style="display:none" onchange="onFotoSeleccionada(this)"/>
-            <input type="file" id="f-camara-input" accept="image/*" capture="environment" style="display:none" onchange="onFotoSeleccionada(this)"/>
+            <input type="file" id="f-camara-input" accept="image/*" style="display:none" onchange="onFotoSeleccionada(this)"/>
             <div id="f-foto-preview" style="display:none;margin-top:8px;">
               <img id="f-foto-img" style="max-width:100%;border-radius:10px;border:2px solid var(--verde-claro);"/>
               <button type="button" onclick="quitarFoto()" style="margin-top:6px;padding:5px 12px;font-size:0.72rem;border:1px solid var(--rojo);border-radius:6px;background:#fff;color:var(--rojo);">✕ Quitar foto</button>
@@ -2289,7 +2303,7 @@ const FORMULARIOS = {
             <button type="button" onclick="abrirGaleriaObs()" class="btn secundario" style="flex:1;font-size:0.74rem;">🖼️ Galería</button>
           </div>
           <input type="file" id="obs-foto-input" accept="image/*" style="display:none" onchange="onObsFotoSeleccionada(this)"/>
-          <input type="file" id="obs-camara-input" accept="image/*" capture="environment" style="display:none" onchange="onObsFotoSeleccionada(this)"/>
+          <input type="file" id="obs-camara-input" accept="image/*" style="display:none" onchange="onObsFotoSeleccionada(this)"/>
           <div id="obs-foto-preview" style="display:none;margin-top:8px;">
             <img id="obs-foto-img" style="max-width:100%;border-radius:8px;border:2px solid var(--verde-claro);"/>
             <div id="obs-heading-info" style="font-size:0.68rem;color:var(--azul);margin-top:4px;"></div>
@@ -2316,7 +2330,7 @@ const FORMULARIOS = {
             <button type="button" onclick="abrirGaleriaLev()" class="btn secundario" style="flex:1;font-size:0.74rem;">🖼️ Galería</button>
           </div>
           <input type="file" id="lev-foto-input" accept="image/*" style="display:none" onchange="onLevFotoSeleccionada(this)"/>
-          <input type="file" id="lev-camara-input" accept="image/*" capture="environment" style="display:none" onchange="onLevFotoSeleccionada(this)"/>
+          <input type="file" id="lev-camara-input" accept="image/*" style="display:none" onchange="onLevFotoSeleccionada(this)"/>
           <div id="lev-foto-preview" style="display:none;margin-top:8px;">
             <img id="lev-foto-img" style="max-width:100%;border-radius:8px;border:2px solid var(--verde-claro);"/>
             <button type="button" onclick="quitarFotoLev()" style="margin-top:4px;padding:4px 10px;font-size:0.68rem;border:1px solid var(--rojo);border-radius:6px;background:#fff;color:var(--rojo);">✕ Quitar</button>
