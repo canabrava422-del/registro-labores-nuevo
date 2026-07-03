@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.50"/>
+<meta name="app-version" content="4.17.52"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -678,7 +678,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.50';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.52';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -2302,6 +2302,9 @@ const FORMULARIOS = {
             <button type="button" onclick="abrirCamaraObs()" class="btn secundario" style="flex:1;font-size:0.74rem;">📷 Cámara</button>
             <button type="button" onclick="abrirGaleriaObs()" class="btn secundario" style="flex:1;font-size:0.74rem;">🖼️ Galería</button>
           </div>
+          <div id="ios-brujula-btn-wrap" style="display:none;margin-top:6px;">
+            <button type="button" onclick="activarBrujulaIOS(this)" style="width:100%;padding:9px;border:1.5px solid #E67E22;border-radius:8px;background:#fff8e1;color:#E67E22;font-weight:700;font-size:0.74rem;">🧭 Activar brújula para registrar dirección</button>
+          </div>
           <input type="file" id="obs-foto-input" accept="image/*" style="display:none" onchange="onObsFotoSeleccionada(this)"/>
           <input type="file" id="obs-camara-input" accept="image/*" style="display:none" onchange="onObsFotoSeleccionada(this)"/>
           <div id="obs-foto-preview" style="display:none;margin-top:8px;">
@@ -2920,6 +2923,37 @@ let _obsFiltroCurrent = 'todas';
   }
 })();
 
+function activarBrujulaIOS(btn){
+  if (typeof DeviceOrientationEvent === 'undefined' || typeof DeviceOrientationEvent.requestPermission !== 'function'){
+    showToast('Este dispositivo no requiere activación manual de brújula', 'info'); return;
+  }
+  DeviceOrientationEvent.requestPermission().then(r => {
+    if (r === 'granted'){
+      if (btn) { btn.textContent = '✅ Brújula activada'; btn.disabled = true; btn.style.background='#e8f5e9'; btn.style.color='#27AE60'; btn.style.borderColor='#27AE60'; }
+      // Listener para heading absoluto (más preciso)
+      window.addEventListener('deviceorientationabsolute', e => {
+        if (e.alpha != null){ _obsHeading = Math.round(e.alpha); actualizarHeadingDisplay(); }
+      }, true);
+      window.addEventListener('deviceorientation', e => {
+        if (e.alpha != null && _obsHeading === null){ _obsHeading = Math.round(e.alpha); actualizarHeadingDisplay(); }
+      }, true);
+      showToast('🧭 Brújula activada — la dirección se registrará con tu foto');
+    } else {
+      showToast('Permiso de brújula denegado — la dirección no se registrará', 'error');
+    }
+  }).catch(e => { showToast('Error al activar brújula: '+e.message, 'error'); });
+}
+
+function actualizarHeadingDisplay(){
+  const hi = document.getElementById('obs-heading-info');
+  if (hi && _obsHeading !== null){
+    const dirs = ['N','NE','E','SE','S','SO','O','NO'];
+    const dir = dirs[Math.round(_obsHeading/45) % 8];
+    hi.textContent = `🧭 ${dir} ${_obsHeading}°`;
+    hi.style.color = '#27AE60';
+  }
+}
+
 function pedirPermisoOrientacion(){
   if (typeof DeviceOrientationEvent.requestPermission === 'function'){
     DeviceOrientationEvent.requestPermission().then(r => {
@@ -3143,8 +3177,21 @@ function onObsFotoSeleccionada(input){
   document.getElementById('obs-foto-img').src = _obsFotoPreviewUrl;
   document.getElementById('obs-foto-preview').style.display = 'block';
   const hi = document.getElementById('obs-heading-info');
-  if (hi && _obsHeading !== null) hi.textContent = `🧭 Dirección registrada: ${_obsHeading}° ${headingName(_obsHeading)}`;
-  else if (hi) hi.textContent = 'ℹ️ Dirección no disponible (activa el sensor de brújula)';
+  if (hi && _obsHeading !== null){
+    const dirs = ['N','NE','E','SE','S','SO','O','NO'];
+    const dir = dirs[Math.round(_obsHeading/45) % 8];
+    hi.textContent = `🧭 Dirección: ${dir} ${_obsHeading}°`;
+    hi.style.color = '#27AE60';
+    const wrap = document.getElementById('ios-brujula-btn-wrap');
+    if (wrap) wrap.style.display = 'none';
+  } else if (hi){
+    hi.textContent = '';
+    // Mostrar botón de activación solo en iOS (requiere requestPermission)
+    const needsPermission = typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function';
+    const wrap = document.getElementById('ios-brujula-btn-wrap');
+    if (wrap) wrap.style.display = needsPermission ? '' : 'none';
+  }
 }
 function quitarFotoObs(){
   if (_obsFotoPreviewUrl) URL.revokeObjectURL(_obsFotoPreviewUrl);
