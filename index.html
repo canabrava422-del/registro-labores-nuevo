@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.47"/>
+<meta name="app-version" content="4.17.48"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -678,7 +678,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.47';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.48';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -2140,14 +2140,41 @@ const FORMULARIOS = {
       </div>
     </div>` + jornalesFieldSinAvance() + obsField('Condiciones del tendido...'),
 
-  flushing: () => baseBlock('📍 Instalación de flushing') + `
+  flushing: () => baseBlock('🔩 Flushing') + `
     <div class="form-card">
-      <div class="section-title">🔩 Detalle de instalación</div>
-      <div class="form-grid">
-        <div class="form-field"><label>N° de flushing utilizados</label><input type="number" id="f-flushing-util" step="1" min="0"/></div>
-        <div class="form-field"><label>Flushing pendientes por colocar</label><input type="number" id="f-flushing-pend" step="1" min="0"/></div>
+      <div class="section-title">Tipo de movimiento</div>
+      <div style="display:flex;gap:10px;margin-bottom:4px;">
+        <label style="flex:1;display:flex;align-items:center;gap:8px;border:2px solid var(--borde);border-radius:10px;padding:10px;cursor:pointer;font-weight:700;font-size:0.8rem;" onclick="switchTipoFlushing('instalacion')">
+          <input type="radio" name="f-flushing-tipo" id="f-flushing-instalacion" value="instalacion" checked style="accent-color:var(--azul-oscuro);width:18px;height:18px;"/>
+          🔧 Instalación
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:8px;border:2px solid var(--borde);border-radius:10px;padding:10px;cursor:pointer;font-weight:700;font-size:0.8rem;" onclick="switchTipoFlushing('retiro')">
+          <input type="radio" name="f-flushing-tipo" id="f-flushing-retiro" value="retiro" style="accent-color:var(--rojo);width:18px;height:18px;"/>
+          🗂️ Retiro
+        </label>
       </div>
-    </div>` + jornalesField() + obsField('Notas de instalación...'),
+    </div>
+    <!-- Panel instalación -->
+    <div id="panel-flushing-instalacion" class="form-card">
+      <div class="section-title">🔧 Detalle de instalación</div>
+      <div class="form-grid">
+        <div class="form-field"><label>N° flushing instalados</label><input type="number" id="f-flushing-util" step="1" min="0" placeholder="0"/></div>
+        <div class="form-field"><label>Pendientes por colocar</label><input type="number" id="f-flushing-pend" step="1" min="0" placeholder="0"/></div>
+      </div>
+    </div>
+    <!-- Panel retiro -->
+    <div id="panel-flushing-retiro" class="form-card hidden">
+      <div class="section-title">🗂️ Detalle de retiro</div>
+      <div style="font-size:0.7rem;color:var(--texto-suave);margin-bottom:10px;">Registra cuántos se retiraron y cuántos llegaron dañados al almacén.</div>
+      <div class="form-grid">
+        <div class="form-field"><label>N° flushing retirados</label><input type="number" id="f-flushing-retirados" step="1" min="0" placeholder="0" oninput="calcFlushingRecuperados()"/></div>
+        <div class="form-field"><label>N° flushing dañados</label><input type="number" id="f-flushing-danados" step="1" min="0" placeholder="0" oninput="calcFlushingRecuperados()"/></div>
+        <div class="form-field full">
+          <label>N° recuperados al almacén <span style="font-size:0.64rem;color:var(--texto-suave);">(retirados − dañados)</span></label>
+          <input type="number" id="f-flushing-recuperados" step="1" min="0" readonly style="background:var(--fondo);color:var(--azul-oscuro);font-weight:700;"/>
+        </div>
+      </div>
+    </div>` + jornalesField() + obsField('Notas adicionales...'),
 
   caudal: () => baseBlock('📍 Medición de caudal') + `
     <div class="form-card">
@@ -2795,6 +2822,11 @@ function buildTabsShell(laborId, ejecutadoHtml){
         </select>
       </div>
       <div id="form-registros-anteriores" style="margin-top:4px;"></div>
+      ${laborId === 'flushing' ? `
+        <div style="margin-top:14px;">
+          <div style="font-size:0.82rem;font-weight:700;color:var(--azul-oscuro);margin-bottom:10px;">📦 Stock de flushing por fundo</div>
+          <div id="flushing-stock-wrap"></div>
+        </div>` : ''}
       ${laborId === 'tendido' ? `<div class="mapa-fullscreen-wrap" id="form-mapa-fundo-tendido-wrap" style="margin-top:14px;">
         <button class="btn-fullscreen" onclick="abrirMapaFullscreen('tendido')">⛶ Pantalla completa</button>
         <div id="form-mapa-fundo-tendido"></div>
@@ -3998,6 +4030,87 @@ function getFertirriego(eqtr){
 }
 
 let _prepModal = {};
+
+// ── FLUSHING — INSTALACIÓN Y RETIRO ──────────────────────────
+function switchTipoFlushing(tipo){
+  document.getElementById('panel-flushing-instalacion')?.classList.toggle('hidden', tipo !== 'instalacion');
+  document.getElementById('panel-flushing-retiro')?.classList.toggle('hidden', tipo !== 'retiro');
+  document.querySelectorAll('label[onclick*="switchTipoFlushing"]').forEach(l => {
+    const isSel = l.getAttribute('onclick').includes(`'${tipo}'`);
+    l.style.borderColor = isSel ? (tipo==='instalacion'?'var(--azul-oscuro)':'var(--rojo)') : 'var(--borde)';
+    l.style.background  = isSel ? (tipo==='instalacion'?'var(--verde-menta)':'#fdecea') : '#fff';
+  });
+}
+
+function calcFlushingRecuperados(){
+  const ret = parseFloat(document.getElementById('f-flushing-retirados')?.value)||0;
+  const dan = parseFloat(document.getElementById('f-flushing-danados')?.value)||0;
+  const el  = document.getElementById('f-flushing-recuperados');
+  if (el) el.value = Math.max(0, ret - dan);
+}
+
+async function cargarStockFlushing(){
+  const cont = document.getElementById('flushing-stock-wrap');
+  if (!cont) return;
+  cont.innerHTML = '<div class="empty-state">Cargando stock...</div>';
+  const fundo = val('f-fundo');
+  try{
+    let url = 'labores_campo?labor=eq.flushing&limit=1000';
+    if (fundo) url += `&fundo=eq.${encodeURIComponent(fundo)}`;
+    const res = await sbFetch(url);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const porFundo = {};
+    data.forEach(r => {
+      const f = r.fundo||'Sin fundo';
+      if (!porFundo[f]) porFundo[f]={instalados:0,retirados:0,danados:0,recuperados:0};
+      const d = r.datos_extra||{};
+      if (d.tipo_flushing==='retiro'){
+        porFundo[f].retirados   += d.flushing_retirados||0;
+        porFundo[f].danados     += d.flushing_danados||0;
+        porFundo[f].recuperados += d.flushing_recuperados||0;
+      } else {
+        porFundo[f].instalados  += d.flushing_instalados || d.flushing_util || 0;
+      }
+    });
+    if (!Object.keys(porFundo).length){
+      cont.innerHTML='<div class="empty-state">Sin registros de flushing</div>'; return;
+    }
+    cont.innerHTML = Object.entries(porFundo).map(([f,d])=>{
+      const enCampo   = Math.max(0, d.instalados-d.retirados);
+      const stockTotal= enCampo + d.recuperados;
+      return `<div class="form-card" style="margin-bottom:10px;">
+        <div style="font-weight:700;color:var(--azul-oscuro);margin-bottom:10px;">🏭 ${f}</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:8px;">
+          <div style="background:var(--fondo);border-radius:8px;padding:10px;border-left:3px solid #3498DB;">
+            <div style="font-size:0.6rem;color:var(--texto-suave);">INSTALADOS (historial)</div>
+            <div style="font-size:1.4rem;font-weight:700;color:#3498DB;">${d.instalados}</div>
+          </div>
+          <div style="background:var(--fondo);border-radius:8px;padding:10px;border-left:3px solid #E67E22;">
+            <div style="font-size:0.6rem;color:var(--texto-suave);">EN CAMPO</div>
+            <div style="font-size:1.4rem;font-weight:700;color:#E67E22;">${enCampo}</div>
+          </div>
+          <div style="background:var(--fondo);border-radius:8px;padding:10px;border-left:3px solid #27AE60;">
+            <div style="font-size:0.6rem;color:var(--texto-suave);">EN ALMACÉN</div>
+            <div style="font-size:1.4rem;font-weight:700;color:#27AE60;">${d.recuperados}</div>
+          </div>
+          <div style="background:var(--fondo);border-radius:8px;padding:10px;border-left:3px solid var(--rojo);">
+            <div style="font-size:0.6rem;color:var(--texto-suave);">DAÑADOS / PÉRDIDAS</div>
+            <div style="font-size:1.4rem;font-weight:700;color:var(--rojo);">${d.danados}</div>
+          </div>
+        </div>
+        <div style="background:var(--azul-oscuro);border-radius:8px;padding:10px 14px;color:#fff;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:0.76rem;">📦 STOCK TOTAL DEL FUNDO</span>
+          <span style="font-size:1.6rem;font-weight:700;">${stockTotal}</span>
+        </div>
+        <div style="font-size:0.64rem;color:var(--texto-suave);margin-top:5px;text-align:center;">
+          Stock = En campo (${enCampo}) + En almacén (${d.recuperados})
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){ cont.innerHTML='<div class="empty-state">Error al cargar</div>'; }
+}
+// ── FLUSHING FIN ──────────────────────────────────────────────
 
 function abrirPrepModal(riego, fertil, fecha, prog, ejec, registroId, fundo){
   const hoy = new Date().toISOString().slice(0,10);
@@ -5363,6 +5476,20 @@ async function guardarLabor(){
     const key = id.replace('f-','').replace(/-/g,'_');
     datosExtra[key] = el.type === 'number' ? num(id) : val(id);
   });
+
+  // Flushing: capturar tipo + datos específicos de instalación o retiro
+  if (laborActual === 'flushing'){
+    const tipo = document.querySelector('input[name="f-flushing-tipo"]:checked')?.value || 'instalacion';
+    datosExtra.tipo_flushing = tipo;
+    if (tipo === 'instalacion'){
+      datosExtra.flushing_instalados = num('f-flushing-util') || 0;
+      datosExtra.flushing_pendientes = num('f-flushing-pend') || 0;
+    } else {
+      datosExtra.flushing_retirados   = num('f-flushing-retirados') || 0;
+      datosExtra.flushing_danados     = num('f-flushing-danados') || 0;
+      datosExtra.flushing_recuperados = Math.max(0, (num('f-flushing-retirados')||0) - (num('f-flushing-danados')||0));
+    }
+  }
 
   const registro = {
     labor: laborActual,
@@ -6927,6 +7054,7 @@ function switchAppTab(tab){
       if (mapaWrap) initMapaFundoTendido();
     }
     if (laborActual === 'fertilizacion') cargarGanttFertilizacion(laborActual);
+    if (laborActual === 'flushing') cargarStockFlushing();
   }
   if (tab === 'programado'){
     poblarProgramaSelects();
