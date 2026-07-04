@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.53"/>
+<meta name="app-version" content="4.17.54"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -700,7 +700,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.53';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.54';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -2366,15 +2366,12 @@ const FORMULARIOS = {
         </div>
         <div class="form-field full">
           <label>📷 Foto de la observación <span style="font-size:0.68rem;color:var(--texto-suave);">(La dirección de la cámara se registra automáticamente)</span></label>
-          <div style="display:flex;gap:8px;margin-top:4px;">
-            <button type="button" onclick="abrirCamaraObs()" class="btn secundario" style="flex:1;font-size:0.74rem;">📷 Cámara</button>
-            <button type="button" onclick="abrirGaleriaObs()" class="btn secundario" style="flex:1;font-size:0.74rem;">🖼️ Galería</button>
-          </div>
+          <div id="obs-foto-btns" style="display:flex;gap:8px;margin-top:4px;"></div>
           <div id="ios-brujula-btn-wrap" style="display:none;margin-top:6px;">
             <button type="button" onclick="activarBrujulaIOS(this)" style="width:100%;padding:9px;border:1.5px solid #E67E22;border-radius:8px;background:#fff8e1;color:#E67E22;font-weight:700;font-size:0.74rem;">🧭 Activar brújula para registrar dirección</button>
           </div>
           <input type="file" id="obs-foto-input" accept="image/*" style="display:none" onchange="onObsFotoSeleccionada(this)"/>
-          <input type="file" id="obs-camara-input" accept="image/*" style="display:none" onchange="onObsFotoSeleccionada(this)"/>
+          <input type="file" id="obs-camara-input" accept="image/*" capture="environment" style="display:none" onchange="onObsFotoSeleccionada(this)"/>
           <div id="obs-foto-preview" style="display:none;margin-top:8px;">
             <img id="obs-foto-img" style="max-width:100%;border-radius:8px;border:2px solid var(--verde-claro);"/>
             <div id="obs-heading-info" style="font-size:0.68rem;color:var(--azul);margin-top:4px;"></div>
@@ -3235,7 +3232,25 @@ function cancelarAnotacion(){
 }
 
 // Foto de nueva observación
-function abrirCamaraObs(){ document.getElementById('obs-camara-input').click(); }
+const _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+function iniciarBotonesObsFoto(){
+  const wrap = document.getElementById('obs-foto-btns');
+  if (!wrap) return;
+  if (_isIOS){
+    wrap.innerHTML = '<button type="button" onclick="abrirCamaraObs()" class="btn secundario" style="flex:1;font-size:0.74rem;width:100%;">📷 Foto</button>';
+  } else {
+    wrap.innerHTML = '<button type="button" onclick="abrirCamaraObs()" class="btn secundario" style="flex:1;font-size:0.74rem;">📷 Cámara</button>'
+      + '<button type="button" onclick="abrirGaleriaObs()" class="btn secundario" style="flex:1;font-size:0.74rem;">🖼️ Galería</button>';
+  }
+}
+function abrirCamaraObs(){
+  if (_isIOS){
+    document.getElementById('obs-foto-input').click();
+  } else {
+    document.getElementById('obs-camara-input').click();
+  }
+}
 function abrirGaleriaObs(){ document.getElementById('obs-foto-input').click(); }
 function onObsFotoSeleccionada(input){
   const file = input.files[0];
@@ -5368,6 +5383,7 @@ function abrirFormulario(laborId, registroExistente){
   const labor = LABORES.find(l => l.id === laborId);
   document.getElementById('form-title').innerHTML = `${iconoLabor(labor)} ${labor.nombre}` + (registroEditandoId ? ' (editando)' : '');
   document.getElementById('form-container').innerHTML = buildTabsShell(laborId, FORMULARIOS[laborId]()) + buildVerifyTable();
+  if (laborId === 'observaciones') iniciarBotonesObsFoto();
   document.getElementById('view-home').classList.add('hidden');
   document.getElementById('view-form').classList.remove('hidden');
   attachVerifyListeners();
