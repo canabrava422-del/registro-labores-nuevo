@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.55"/>
+<meta name="app-version" content="4.17.56"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -700,7 +700,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.55';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.56';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -5914,6 +5914,34 @@ function aplicarFiltrosRegistrosTab(){
   if (filtroFundo) filtered = filtered.filter(r => r.fundo === filtroFundo);
   if (filtroEqTr)  filtered = filtered.filter(r => r.equipo === filtroEqTr);
   // Ya vienen ordenados por created_at desc desde Supabase (más reciente primero)
+  // Calibración: mostrar fotos en vez de tabla
+  if (_regTabLaborId === 'calibracion'){
+    if (!filtered.length){
+      cont.innerHTML = '<div class="empty-state">Sin registros para este filtro</div>';
+    } else {
+      cont.innerHTML = '<div style="display:flex;flex-direction:column;gap:14px;">'
+        + filtered.map(r => {
+            const fecha = r.fecha ? new Date(r.fecha+'T12:00:00').toLocaleDateString('es-PE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}) : '—';
+            const eqtr  = r.equipo || '—';
+            const ctrl  = r.controlador || '—';
+            const obs   = r.observaciones || '';
+            const foto  = r.datos_extra?.foto_url || '';
+            return '<div style="border:1px solid var(--borde);border-radius:12px;overflow:hidden;background:#fff;">'
+              + '<div style="background:var(--azul-oscuro);padding:10px 14px;color:#fff;">'
+              +   '<div style="font-weight:700;font-size:0.86rem;">📐 ' + eqtr + '</div>'
+              +   '<div style="font-size:0.7rem;opacity:0.8;margin-top:2px;">' + fecha + ' · ' + ctrl + '</div>'
+              + '</div>'
+              + (foto
+                  ? '<img src="' + foto + '" onclick="verFotoObs(this.src)" style="width:100%;max-height:300px;object-fit:cover;cursor:pointer;display:block;" alt="Foto calibraci\u00f3n"/>'
+                  : '<div style="padding:20px;text-align:center;color:var(--texto-suave);font-size:0.8rem;background:var(--fondo);">📷 Sin foto registrada</div>')
+              + (obs ? '<div style="padding:10px 14px;font-size:0.78rem;color:var(--texto);">' + obs + '</div>' : '')
+              + '</div>';
+          }).join('')
+        + '</div>';
+    }
+    return;
+  }
+
   cont.innerHTML = renderTablaLabor(_regTabLaborId, filtered.slice(0,50), true);
   const n = document.createElement('div');
   n.style.cssText = 'font-size:0.65rem;color:var(--texto-suave);margin-top:6px;text-align:right;';
