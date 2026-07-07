@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.58"/>
+<meta name="app-version" content="4.17.59"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -700,7 +700,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.58';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.59';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -1868,14 +1868,35 @@ function attachPinchZoomMapaFundo(){
   };
 }
 
-let _clipIdCounter = 0;
-// Retorna {defs, svg} — los defs deben ir al inicio del SVG padre
+// Calcula la intersección de una línea vertical x=lx con el polígono.
+// Retorna pares [y_entrada, y_salida] ordenados de arriba a abajo.
+// Usa ray-casting (regla par-impar) — no necesita clipPath.
+function intersectarLineaConPoligono(lx, puntos){
+  const ys = [];
+  for (let i = 0; i < puntos.length; i++){
+    const [x1, y1] = puntos[i];
+    const [x2, y2] = puntos[(i+1) % puntos.length];
+    const xmin = Math.min(x1,x2), xmax = Math.max(x1,x2);
+    if (lx < xmin || lx > xmax) continue;
+    if (Math.abs(x2-x1) < 1e-9){
+      // Segmento vertical — agregar ambos extremos
+      ys.push(y1, y2);
+    } else {
+      const y = y1 + (lx - x1) * (y2 - y1) / (x2 - x1);
+      ys.push(y);
+    }
+  }
+  ys.sort((a,b) => a-b);
+  // Deduplicar y emparejar: [y0,y1], [y2,y3], ...
+  const segmentos = [];
+  for (let i = 0; i+1 < ys.length; i += 2) segmentos.push([ys[i], ys[i+1]]);
+  return segmentos;
+}
+
 function buildParcelaConRayas(key, pts, info, TIPO_COLOR){
-  const safeId = 'clip' + (_clipIdCounter++);
   const puntos = pts.split(' ').map(s => s.split(',').map(Number));
   const xs = puntos.map(p => p[0]), ys = puntos.map(p => p[1]);
   const minx = Math.min(...xs), maxx = Math.max(...xs);
-  const miny = Math.min(...ys), maxy = Math.max(...ys);
 
   if (!info){
     return { defs:'', svg:`<polygon points="${pts}" fill="#E5EEF2" stroke="#9DB8C2" stroke-width="0.8"><title>${key} — Pendiente</title></polygon>` };
@@ -1891,19 +1912,24 @@ function buildParcelaConRayas(key, pts, info, TIPO_COLOR){
 
   const espaciado = (maxx - minx) / totalLineas;
   const sw = Math.max(0.02, espaciado * 0.55).toFixed(3);
+
   let lineas = '';
   info.rangos.forEach(([a, b]) => {
     for (let i = Math.max(1,a); i <= Math.min(totalLineas,b); i++){
-      const x = minx + ((i - 0.5) / totalLineas) * (maxx - minx);
-      lineas += `<line x1="${x.toFixed(2)}" y1="${miny.toFixed(2)}" x2="${x.toFixed(2)}" y2="${maxy.toFixed(2)}" stroke="${color}" stroke-width="${sw}"/>`;
+      const lx = minx + ((i - 0.5) / totalLineas) * (maxx - minx);
+      // Calcular intersección exacta con el polígono → línea solo dentro del borde
+      const segs = intersectarLineaConPoligono(lx, puntos);
+      segs.forEach(([y1, y2]) => {
+        lineas += `<line x1="${lx.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${lx.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${color}" stroke-width="${sw}"/>`;
+      });
     }
   });
 
   return {
-    defs: `<clipPath id="${safeId}"><polygon points="${pts}"/></clipPath>`,
-    svg:  `<polygon points="${pts}" fill="#F7FAFB" stroke="#9DB8C2" stroke-width="0.8"><title>${titulo}</title></polygon>
-           <g clip-path="url(#${safeId})">${lineas}</g>
-           <polygon points="${pts}" fill="transparent" stroke="#9DB8C2" stroke-width="0.8"/>`
+    defs: '',
+    svg:  `<polygon points="${pts}" fill="#F7FAFB" stroke="#9DB8C2" stroke-width="0.8"><title>${titulo}</title></polygon>`
+          + lineas
+          + `<polygon points="${pts}" fill="transparent" stroke="#9DB8C2" stroke-width="0.6"/>`
   };
 }
 
@@ -1969,9 +1995,9 @@ async function cargarMapaFundoTendido(){
 
     const poligonosFundo = SVG_POLYGONS_FUNDO[fundo];
     if (poligonosFundo){
-      // ---- MAPA REAL: dibuja la forma geográfica de cada parcela ----
+      // ---- MAPA GEOGRÁFICO: formas reales con líneas calculadas por intersección ----
       const vb = VIEWBOX_FUNDO[fundo];
-      let allDefs = '', shapes = '';
+      let shapes = '';
       eqTrKeys.forEach(eqtr => {
         mapaFundo[eqtr].forEach(p => {
           const key = `${eqtr}-${p}`;
@@ -1979,12 +2005,10 @@ async function cargarMapaFundoTendido(){
           if (!pts) return;
           const info = tendidas.get(key);
           const built = buildParcelaConRayas(key, pts, info, TIPO_COLOR);
-          allDefs += built.defs;
-          shapes  += built.svg;
+          shapes += built.svg;
         });
       });
 
-      // Dibujar los bordes de cada EQ-TR encima de las parcelas
       const eqtrPolys = EQTR_POLYS_FUNDO[fundo] || {};
       let borderShapes = '';
       eqTrKeys.forEach(eqtr => {
@@ -1992,7 +2016,6 @@ async function cargarMapaFundoTendido(){
         if (!pts) return;
         borderShapes += `<polygon points="${pts}" fill="none" stroke="#135381" stroke-width="2.5" stroke-linejoin="round"><title>${eqtr}</title></polygon>`;
       });
-      // Etiquetas de EQ-TR: calcular el centroide de cada polígono
       let labelShapes = '';
       eqTrKeys.forEach(eqtr => {
         const pts = eqtrPolys[eqtr];
@@ -2016,33 +2039,24 @@ async function cargarMapaFundoTendido(){
         </div>
         <div id="mapa-fundo-scroll" style="overflow:auto;max-height:560px;border:1px solid var(--borde);border-radius:8px;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;">
           <svg id="mapa-fundo-svg" width="${vb.w}" height="${vb.h}" viewBox="0 0 ${vb.w} ${vb.h}" style="background:#fff;display:block;">
-            ${allDefs ? `<defs>${allDefs}</defs>` : ''}
-            ${shapes}
-            ${borderShapes}
-            ${labelShapes}
+            ${shapes}${borderShapes}${labelShapes}
           </svg>
         </div>
         <div style="font-size:0.62rem;color:var(--texto-suave);margin-top:6px;">Toca/mantén presionada una parcela para ver su código y tipo de manguera</div>`;
       attachPinchZoomMapaFundo();
       aplicarZoomMapaFundo();
     } else {
-      // ---- Sin polígonos disponibles todavía: cuadrícula simple ----
+      // Sin polígonos: cuadrícula simple
       const tarjetas = eqTrKeys.map(eqtr => {
         const parcelas = mapaFundo[eqtr];
         const celdas = parcelas.map(p => {
           const key = `${eqtr}-${p}`;
-          const tipo = tendidas.get(key);
-          const ok = tendidas.has(key);
-          const color = ok ? (TIPO_COLOR[tipo] || '#9CA8AD') : '';
-          const estilo = color ? `style="background:${color};"` : '';
-          return `<div class="mapa-celda" ${estilo} title="${key}${tipo ? ' — '+tipo : ''}">${p}</div>`;
+          const info = tendidas.get(key);
+          const color = info ? (TIPO_COLOR[info.tipo] || '#9CA8AD') : '';
+          return `<div class="mapa-celda" ${color?`style="background:${color};"`:''}>${p}</div>`;
         }).join('');
-        const totalTendidasEqTr = parcelas.filter(p => tendidas.has(`${eqtr}-${p}`)).length;
-        return `
-          <div class="mapa-eqtr-card">
-            <div class="mapa-eqtr-titulo">${eqtr} · ${totalTendidasEqTr}/${parcelas.length} parcelas tendidas</div>
-            <div class="mapa-parcelas-grid">${celdas}</div>
-          </div>`;
+        const n = parcelas.filter(p => tendidas.has(`${eqtr}-${p}`)).length;
+        return `<div class="mapa-eqtr-card"><div class="mapa-eqtr-titulo">${eqtr} · ${n}/${parcelas.length}</div><div class="mapa-parcelas-grid">${celdas}</div></div>`;
       }).join('');
       cont.innerHTML = resumenHtml + tarjetas;
     }
