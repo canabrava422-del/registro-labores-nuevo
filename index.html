@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.63"/>
+<meta name="app-version" content="4.17.64"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -700,7 +700,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.63';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.64';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -7392,11 +7392,44 @@ aplicarFontScale();
 if (currentUser){ entrarApp(); }
 
 if ('serviceWorker' in navigator){
+  let _newWorker = null;
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      // Detectar nuevo SW disponible
+      reg.addEventListener('updatefound', () => {
+        _newWorker = reg.installing;
+        _newWorker.addEventListener('statechange', () => {
+          if (_newWorker.state === 'installed' && navigator.serviceWorker.controller){
+            // Hay versión nueva lista — mostrar banner
+            const banner = document.getElementById('update-banner');
+            if (banner) banner.style.display = 'flex';
+          }
+        });
+      });
+      // Revisar actualizaciones cada vez que el usuario vuelve a la app
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update();
+      });
+    }).catch(()=>{});
+    // Cuando el nuevo SW toma control → recargar automáticamente
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (_newWorker) window.location.reload();
+    });
+  });
+}
+function actualizarApp(){
+  document.getElementById('update-banner').style.display = 'none';
+  navigator.serviceWorker?.getRegistration().then(reg => {
+    if (reg?.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    else window.location.reload(true);
   });
 }
 
 </script>
+  <!-- Banner de nueva versión disponible -->
+  <div id="update-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#135381;color:#fff;padding:14px 16px;display:none;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 -4px 12px rgba(0,0,0,.3);">
+    <span style="font-size:0.82rem;font-weight:600;">🔄 Nueva versión disponible</span>
+    <button onclick="actualizarApp()" style="background:#fff;color:#135381;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:0.78rem;cursor:pointer;">Actualizar ahora</button>
+  </div>
 </body>
 </html>

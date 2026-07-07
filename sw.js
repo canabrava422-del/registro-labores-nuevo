@@ -1,4 +1,4 @@
-const CACHE = 'regcampo-4.17.63';
+const CACHE = 'regcampo-4.17.64';
 const SHELL = [
   '/',
   '/index.html',
@@ -8,6 +8,11 @@ const SHELL = [
   '/icons/icon-maskable-192.png',
   '/icons/icon-maskable-512.png'
 ];
+
+// Escuchar mensaje para forzar actualización desde la app
+self.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
