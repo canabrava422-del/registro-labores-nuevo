@@ -1,4 +1,4 @@
-const CACHE = 'regcampo-4.17.59';
+const CACHE = 'regcampo-4.17.60';
 const SHELL = [
   '/',
   '/index.html',
