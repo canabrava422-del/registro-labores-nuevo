@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.56"/>
+<meta name="app-version" content="4.17.58"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -700,7 +700,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.56';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.58';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -1869,6 +1869,7 @@ function attachPinchZoomMapaFundo(){
 }
 
 let _clipIdCounter = 0;
+// Retorna {defs, svg} — los defs deben ir al inicio del SVG padre
 function buildParcelaConRayas(key, pts, info, TIPO_COLOR){
   const safeId = 'clip' + (_clipIdCounter++);
   const puntos = pts.split(' ').map(s => s.split(',').map(Number));
@@ -1877,7 +1878,7 @@ function buildParcelaConRayas(key, pts, info, TIPO_COLOR){
   const miny = Math.min(...ys), maxy = Math.max(...ys);
 
   if (!info){
-    return `<polygon points="${pts}" fill="#E5EEF2" stroke="#9DB8C2" stroke-width="0.8"><title>${key} — Pendiente</title></polygon>`;
+    return { defs:'', svg:`<polygon points="${pts}" fill="#E5EEF2" stroke="#9DB8C2" stroke-width="0.8"><title>${key} — Pendiente</title></polygon>` };
   }
 
   const totalLineas = info.largo && info.dist ? Math.max(1, Math.round(info.largo / info.dist)) : 0;
@@ -1885,14 +1886,9 @@ function buildParcelaConRayas(key, pts, info, TIPO_COLOR){
   const titulo = `${key} — Tendida${info.tipo ? ' ('+info.tipo+')' : ''}`;
 
   if (!totalLineas || !info.rangos.length){
-    // Sin datos suficientes para calcular líneas individuales: relleno sólido como respaldo
-    return `<polygon points="${pts}" fill="${color}" stroke="#9DB8C2" stroke-width="0.8"><title>${titulo}</title></polygon>`;
+    return { defs:'', svg:`<polygon points="${pts}" fill="${color}" stroke="#9DB8C2" stroke-width="0.8"><title>${titulo}</title></polygon>` };
   }
 
-  // Rayas: numeradas de izquierda a derecha dentro del ancho real de la parcela,
-  // recortadas (clip-path) a la forma exacta del polígono.
-  // El stroke es exactamente 55% del espacio entre líneas — siempre queda un gap del 45%
-  // que se hace visible con zoom, sin importar la escala del fundo.
   const espaciado = (maxx - minx) / totalLineas;
   const sw = Math.max(0.02, espaciado * 0.55).toFixed(3);
   let lineas = '';
@@ -1903,11 +1899,12 @@ function buildParcelaConRayas(key, pts, info, TIPO_COLOR){
     }
   });
 
-  return `
-    <defs><clipPath id="${safeId}"><polygon points="${pts}"/></clipPath></defs>
-    <polygon points="${pts}" fill="#F7FAFB" stroke="#9DB8C2" stroke-width="0.8"><title>${titulo}</title></polygon>
-    <g clip-path="url(#${safeId})">${lineas}</g>
-    <polygon points="${pts}" fill="transparent" stroke="#9DB8C2" stroke-width="0.8"><title>${titulo}</title></polygon>`;
+  return {
+    defs: `<clipPath id="${safeId}"><polygon points="${pts}"/></clipPath>`,
+    svg:  `<polygon points="${pts}" fill="#F7FAFB" stroke="#9DB8C2" stroke-width="0.8"><title>${titulo}</title></polygon>
+           <g clip-path="url(#${safeId})">${lineas}</g>
+           <polygon points="${pts}" fill="transparent" stroke="#9DB8C2" stroke-width="0.8"/>`
+  };
 }
 
 async function cargarMapaFundoTendido(){
@@ -1974,14 +1971,16 @@ async function cargarMapaFundoTendido(){
     if (poligonosFundo){
       // ---- MAPA REAL: dibuja la forma geográfica de cada parcela ----
       const vb = VIEWBOX_FUNDO[fundo];
-      let shapes = '';
+      let allDefs = '', shapes = '';
       eqTrKeys.forEach(eqtr => {
         mapaFundo[eqtr].forEach(p => {
           const key = `${eqtr}-${p}`;
           const pts = poligonosFundo[key];
           if (!pts) return;
           const info = tendidas.get(key);
-          shapes += buildParcelaConRayas(key, pts, info, TIPO_COLOR);
+          const built = buildParcelaConRayas(key, pts, info, TIPO_COLOR);
+          allDefs += built.defs;
+          shapes  += built.svg;
         });
       });
 
@@ -2017,6 +2016,7 @@ async function cargarMapaFundoTendido(){
         </div>
         <div id="mapa-fundo-scroll" style="overflow:auto;max-height:560px;border:1px solid var(--borde);border-radius:8px;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;">
           <svg id="mapa-fundo-svg" width="${vb.w}" height="${vb.h}" viewBox="0 0 ${vb.w} ${vb.h}" style="background:#fff;display:block;">
+            ${allDefs ? `<defs>${allDefs}</defs>` : ''}
             ${shapes}
             ${borderShapes}
             ${labelShapes}
@@ -5914,8 +5914,14 @@ function aplicarFiltrosRegistrosTab(){
   if (filtroFundo) filtered = filtered.filter(r => r.fundo === filtroFundo);
   if (filtroEqTr)  filtered = filtered.filter(r => r.equipo === filtroEqTr);
   // Ya vienen ordenados por created_at desc desde Supabase (más reciente primero)
-  // Calibración: mostrar fotos en vez de tabla
+  // Calibración: mostrar fotos SOLO cuando se filtra por EQ-TR específico
   if (_regTabLaborId === 'calibracion'){
+    const filtroEqTrActivo = (val('reg-filter-eqtr') || '').trim();
+    if (!filtroEqTrActivo){
+      // Sin EQ-TR seleccionado: mostrar solo instrucción
+      cont.innerHTML = '<div class="empty-state" style="padding:20px;text-align:center;color:var(--texto-suave);font-size:0.8rem;">Selecciona un EQ-TR para ver la foto de calibración</div>';
+      return;
+    }
     if (!filtered.length){
       cont.innerHTML = '<div class="empty-state">Sin registros para este filtro</div>';
     } else {
