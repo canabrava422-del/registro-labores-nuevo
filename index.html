@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.60"/>
+<meta name="app-version" content="4.17.61"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -700,7 +700,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.60';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.61';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -1906,7 +1906,11 @@ function buildParcelaConRayas(key, pts, info, TIPO_COLOR){
     return { defs:'', svg:`<polygon points="${pts}" fill="#E5EEF2" stroke="#9DB8C2" stroke-width="0.8"><title>${key} — Pendiente</title></polygon>` };
   }
 
-  const totalLineas = info.largo && info.dist ? Math.max(1, Math.round(info.largo / info.dist)) : 0;
+  // Usar n_lineas si fue registrado (igual que buildTendidoMiniMapa).
+  // Si no, derivar de largo/dist como fallback.
+  const totalLineas = info.nlineas
+    ? info.nlineas
+    : (info.largo && info.dist ? Math.max(1, Math.round(info.largo / info.dist)) : 0);
   const color = TIPO_COLOR[info.tipo] || '#5A7A89';
   const titulo = `${key} — Tendida${info.tipo ? ' ('+info.tipo+')' : ''}`;
 
@@ -1971,10 +1975,11 @@ async function cargarMapaFundoTendido(){
           const largo = parseFloat(d.largo_lineas || d.longitud_manguera) || 0;
           const dist  = parseFloat(d.distanciamiento_surcos) || 0;
           tendidas.set(`${r.equipo}-${d.parcela}`, {
-            tipo: d.tipo_manguera || '',
+            tipo:    d.tipo_manguera || '',
             largo,
             dist,
-            rangos
+            rangos,
+            nlineas: parseInt(d.n_lineas) || 0   // total de líneas en la parcela
           });
         }
       });
