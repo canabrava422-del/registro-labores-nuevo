@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="RegCampo"/>
-<meta name="app-version" content="4.17.61"/>
+<meta name="app-version" content="4.17.63"/>
 <link rel="manifest" href="/manifest.json"/>
 <link rel="apple-touch-icon" href="/icons/icon-any-192.png"/>
 <title>Registro de Labores de Campo</title>
@@ -700,7 +700,7 @@
 // CONEXIÓN A LA MISMA BASE DE SUPABASE DE LCAMPOR
 // Tabla: labores_campo (misma tabla, mismas columnas)
 // ============================================================
-const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.61';
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '4.17.63';
 const SUPABASE_URL = 'https://vokrdrfhhvrofmyfbuqo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZva3JkcmZoaHZyb2ZteWZidXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTA2NzQsImV4cCI6MjA5Njg4NjY3NH0.8qaG-HIbR46cB3GVFsTU9jvay8jsHcwjLsLRTKH5hDM';
 
@@ -1587,7 +1587,14 @@ function buildCaudalParcelasTable(){
       regular: row.querySelector('.cd-regular')?.value || '',
       bueno: row.querySelector('.cd-bueno')?.value || '',
       exceso: row.querySelector('.cd-exceso')?.value || '',
-      cond: [...row.querySelectorAll('.cd-cond:checked')].map(c => c.value),
+      cond: (() => {
+        const st = row.querySelector('.cd-cond-state');
+        const arr = [];
+        if (st?.dataset.critico === '1') arr.push('Crítico');
+        if (st?.dataset.regular === '1') arr.push('Regular');
+        if (st?.dataset.bueno   === '1') arr.push('Bueno');
+        return arr;
+      })(),
       longitud: row.querySelector('.cd-longitud')?.value || '',
       dist: row.querySelector('.cd-dist')?.value || ''
     };
@@ -1630,7 +1637,7 @@ function buildCaudalParcelasTable(){
         <tfoot><tr><td>Total</td><td id="cd-total-ha">0.00</td><td id="cd-total-critico">0</td><td id="cd-total-regular">0</td><td id="cd-total-bueno">0</td><td id="cd-total-exceso">0</td><td>—</td><td>—</td><td>—</td><td id="cd-total-haspend">0.00</td></tr></tfoot>
       </table>
     </div>
-    <p style="font-size:0.66rem;color:var(--texto-suave);margin-top:8px;">"Has por tender" = (suma de mangueras de las condiciones marcadas × longitud de manguera ÷ 150) ÷ divisor según distanciamiento (1.8 m → 37 · 1.6 m → 42).</p>`;
+    <p style="font-size:0.66rem;color:var(--texto-suave);margin-top:8px;">"Ha avance" = (Crítico + Regular + Bueno + Exceso) × longitud de manguera ÷ 150 ÷ divisor. Divisor: dist. surco 1.8 m → 37 · dist. surco 1.6 m → 42.</p>`;
   onCaudalTableInput();
 }
 
@@ -1729,17 +1736,17 @@ function onCaudalTableInput(){
     if (state?.dataset.regular === '1') condSeleccionadas.push('Regular');
     if (state?.dataset.bueno   === '1') condSeleccionadas.push('Bueno');
 
-    const valoresPorCondicion = { 'Crítico': critico, 'Regular': regular, 'Bueno': bueno };
-    const sumaSeleccionada = condSeleccionadas.reduce((s, c) => s + (valoresPorCondicion[c] || 0), 0);
+    // Avance = (crítico + regular + bueno + exceso) × longitud / 150 / divisor
+    const sumaTotal = critico + regular + bueno + exceso;
     const divisor = getDivisorHasPorTender(dist);
     const cell = row.querySelector('.pp-total');
     let hasPend = null;
-    if (condSeleccionadas.length && divisor && longitud){
-      hasPend = ((sumaSeleccionada * longitud) / 150) / divisor;
+    if (sumaTotal > 0 && divisor && longitud){
+      hasPend = ((sumaTotal * longitud) / 150) / divisor;
       if (cell) cell.textContent = hasPend.toFixed(2);
       totalHasPend += hasPend;
     } else {
-      if (cell) cell.textContent = condSeleccionadas.length ? (longitud ? 'Sin divisor' : 'Falta longitud') : '—';
+      if (cell) cell.textContent = sumaTotal > 0 ? (longitud ? 'Sin divisor' : 'Falta longitud') : '—';
     }
     totalHa += ha; totalCritico += critico; totalRegular += regular; totalBueno += bueno; totalExceso += exceso;
   });
@@ -1763,14 +1770,19 @@ function getCaudalParcelasData(){
     const regular = parseInt(row.querySelector('.cd-regular')?.value) || 0;
     const bueno = parseInt(row.querySelector('.cd-bueno')?.value) || 0;
     const exceso = parseInt(row.querySelector('.cd-exceso')?.value) || 0;
-    const condicionTendido = [...row.querySelectorAll('.cd-cond:checked')].map(c => c.value);
+    // Leer condición desde el bottom sheet modal (data-* en .cd-cond-state)
+    const state = row.querySelector('.cd-cond-state');
+    const condicionTendido = [];
+    if (state?.dataset.critico === '1') condicionTendido.push('Crítico');
+    if (state?.dataset.regular === '1') condicionTendido.push('Regular');
+    if (state?.dataset.bueno   === '1') condicionTendido.push('Bueno');
     const longitud = parseFloat(row.querySelector('.cd-longitud')?.value) || 0;
     const dist = parseFloat(row.querySelector('.cd-dist')?.value) || 0;
-    const valoresPorCondicion = { 'Crítico': critico, 'Regular': regular, 'Bueno': bueno };
-    const sumaSeleccionada = condicionTendido.reduce((s,c) => s + (valoresPorCondicion[c]||0), 0);
+    // Avance = (crítico + regular + bueno + exceso) × longitud / 150 / divisor
+    const sumaTotal2 = critico + regular + bueno + exceso;
     const divisor = getDivisorHasPorTender(dist);
-    const hasPorTender = (condicionTendido.length && divisor && longitud)
-      ? parseFloat((((sumaSeleccionada*longitud)/150)/divisor).toFixed(2)) : null;
+    const hasPorTender = (sumaTotal2 > 0 && divisor && longitud)
+      ? parseFloat((((sumaTotal2 * longitud) / 150) / divisor).toFixed(2)) : null;
     rows.push({
       parcela, ha, critico, regular, bueno, exceso,
       condicion_tendido: condicionTendido, longitud_manguera: longitud,
@@ -5507,7 +5519,13 @@ function precargarFormulario(r){
         row.querySelector('.cd-longitud').value = d.longitud_manguera ?? '';
         row.querySelector('.cd-dist').value = d.distanciamiento_surco ?? '';
         const condicion = Array.isArray(d.condicion_tendido) ? d.condicion_tendido : [];
-        row.querySelectorAll('.cd-cond').forEach(chk => { chk.checked = condicion.includes(chk.value); });
+        // Pre-llenar bottom sheet modal via data-* del span .cd-cond-state
+        const stateEl = row.querySelector('.cd-cond-state');
+        if (stateEl){
+          stateEl.dataset.critico = condicion.includes('Crítico') ? '1' : '0';
+          stateEl.dataset.regular = condicion.includes('Regular') ? '1' : '0';
+          stateEl.dataset.bueno   = condicion.includes('Bueno')   ? '1' : '0';
+        }
         const btn = row.querySelector('.cd-cond-btn');
         if (btn) btn.textContent = (condicion.length ? condicion.join(', ') : 'Elegir') + ' ▾';
       });
